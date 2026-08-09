@@ -1,0 +1,67 @@
+name: Release
+
+# Publishes every workspace crate to crates.io when a `vX.Y.Z` tag is pushed.
+#
+# The local release flow (`make release`) stops at the tag deliberately, so this
+# workflow is the only thing that publishes. Pushing the tag is the act of
+# releasing.
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-*"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  verify:
+    name: verify packaging
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - run: make lint
+      - run: make test
+      # Proves every publishable crate packages cleanly before anything is
+      # uploaded. A failure here is recoverable; a half-published workspace is
+      # not, because crates.io versions are immutable.
+      - run: cargo package --workspace --locked
+
+  tag-matches-manifest:
+    name: tag matches manifest version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare
+        # The tag name reaches a shell here, so it goes through the environment
+        # rather than being interpolated into the script.
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          manifest_version="$(cargo metadata --no-deps --format-version 1 \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["packages"][0]["version"])')"
+          tag_version="${TAG_NAME#v}"
+          if [ "$manifest_version" != "$tag_version" ]; then
+            echo "tag $tag_version does not match manifest version $manifest_version"
+            exit 1
+          fi
+
+  publish:
+    name: publish to crates.io
+    needs: [verify, tag-matches-manifest]
+    runs-on: ubuntu-24.04
+    environment: crates-io
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      # Publishes in dependency order and waits for each crate to become
+      # available before publishing its dependents.
+      - name: Publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish --workspace --locked

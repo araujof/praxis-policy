@@ -1,0 +1,77 @@
+# cargo-deny configuration. Supply-chain gate run by `make audit` and the
+# supply-chain CI workflow. Checks advisories, licenses, dependency bans, and
+# crate sources.
+#
+# This is a merge of Praxis's configuration and the source tree's, not a copy of
+# either. Praxis's file is tuned to Praxis's dependency graph: its license
+# allow-list omits MPL-2.0, which the engine's test harness pulls in, and its
+# advisory ignores cover proxy dependencies that are not present here while
+# omitting the ones the engine actually needs.
+
+[advisories]
+unmaintained = "all"
+maximum-db-staleness = "P30D"
+# Every entry is on a dev-only or build-time path. None ships in a published
+# library crate's runtime graph. Revisit when the upstream test dependencies
+# release fixes.
+#
+# Praxis's two ignores are deliberately not carried: one covers a proxy
+# transitive dependency that does not exist here, and the other is the
+# rustls-pemfile entry below, which is retained for a different reason.
+ignore = [
+    # --- Dev-only: container test harness for the session store ---
+    # tar and PAX extraction flaws in the tokio tar crate pulled by
+    # testcontainers. Reached only by the ignore-gated session-store
+    # integration tests.
+    "RUSTSEC-2026-0066",
+    "RUSTSEC-2026-0112",
+    "RUSTSEC-2026-0113",
+    "RUSTSEC-2026-0145",
+    # rustls-pemfile unmaintained, via the docker client behind testcontainers.
+    "RUSTSEC-2025-0134",
+    # --- Dev-only: RSA keypair generation in the JWT identity plugin's tests ---
+    # Marvin timing sidechannel in `rsa`, with no fixed release. `rsa` is a
+    # dev-dependency only, for fixture key generation. The runtime uses the
+    # aws-lc backend, not the pure-Rust backend that would pull `rsa` into the
+    # shipped tree, so it never reaches consumers.
+    "RUSTSEC-2023-0071",
+]
+
+[licenses]
+# SPDX expressions accepted. Extend deliberately: a new entry means a new
+# license obligation.
+#
+# MPL-2.0 is the one addition over Praxis's list. It arrives through the HTTP
+# mocking crate used by three plugin test suites, on a dev-only path.
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "CC0-1.0",
+    "CDLA-Permissive-2.0",
+    "ISC",
+    "MIT",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "Unlicense",
+    "Zlib",
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+highlight = "all"
+# Praxis's skip and skip-tree entries are all proxy-fork transitive dependencies
+# and are deliberately not carried. Duplicate-version findings here should be
+# evaluated against this tree's own graph after the import.
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# No git dependencies: every crate resolves from crates.io.
+allow-git = []

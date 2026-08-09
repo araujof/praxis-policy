@@ -1,0 +1,49 @@
+# Clippy thresholds and method blocklist. Lint levels live in
+# `[workspace.lints.clippy]` in Cargo.toml; this file only tunes the knobs the
+# complexity and style lints read.
+#
+# Thresholds are Praxis's, not the source tree's, so that closing the parked
+# complexity lints lands at Praxis's bar rather than a softer one. They are
+# materially tighter than the source tree used: function length 30 against 100,
+# arguments 5 against 8, struct bools 2 against 3, enum variant size 128 against
+# 256. The corresponding lints are parked in the seed allow-list, so these values
+# do not bite until those entries are closed.
+too-many-lines-threshold = 30
+# Raised from 10 to 25 upstream because recent clippy counts macro expansion
+# toward cognitive complexity, and each tracing call adds several points.
+cognitive-complexity-threshold = 25
+too-many-arguments-threshold = 5
+max-fn-params-bools = 2
+max-struct-bools = 2
+enum-variant-size-threshold = 128
+future-size-threshold = 4096
+type-complexity-threshold = 200
+stack-size-threshold = 16384
+# Keep in sync with rust-toolchain.toml `channel` and Cargo.toml `rust-version`.
+msrv = "1.96"
+avoid-breaking-exported-api = false
+
+# Identifiers `clippy::doc_markdown` should not flag as needing backticks.
+#
+# This is a merge, not a copy. Praxis's list covers proxy vocabulary and none of
+# the policy engine's, so adopting it unchanged would flag every mention of APL,
+# CMF, PDP, and the rest across the engine's documentation.
+doc-valid-idents = [
+    # Praxis vocabulary
+    "OpenAI", "Praxis", "Pingora", "SQLite", "gRPC", "OpenTelemetry",
+    "NGINX", "HAProxy", "Envoy", "Rustls", "XDP", "eBPF",
+    # Policy engine vocabulary
+    "APL", "CMF", "PDP", "PEP",
+    "Cedar", "CEL", "Rego", "Biscuit",
+    "JWT", "OAuth", "OIDC", "CIBA", "mTLS",
+    "PII", "Valkey", "Redis",
+    "WASM", "WebAssembly", "MessagePack",
+    "IPv4", "IPv6", "MiB",
+]
+
+# Method blocklist enforced by the `disallowed_methods` lint.
+disallowed-methods = [
+    { path = "std::thread::sleep", reason = "use tokio::time::sleep in async contexts to avoid blocking the runtime" },
+    { path = "std::io::stdin", reason = "a policy engine must not read interactive input" },
+    { path = "std::io::Stdin::read_line", reason = "a policy engine must not read interactive input" },
+]

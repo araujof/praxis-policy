@@ -1,0 +1,37 @@
+name: Coverage
+
+# Report-only. No threshold is enforced yet: the floor is set from a measurement
+# of this tree once the engine is imported, rather than inherited from another
+# project whose threshold is calibrated to a different codebase. When the floor
+# lands, add `--fail-under-lines N` here and in the Makefile together.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  coverage:
+    name: llvm-cov summary
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+      - name: Summary
+        run: cargo llvm-cov --workspace --summary-only
+      - name: LCOV report
+        run: cargo llvm-cov --workspace --lcov --output-path lcov.info
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: lcov.info

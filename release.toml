@@ -1,0 +1,23 @@
+# cargo-release configuration.
+# https://github.com/crate-ci/cargo-release
+#
+# Every publishable crate releases together at one shared version. cargo-release
+# owns only the local mechanics here: bump the shared version, rewrite every
+# inter-crate requirement in [workspace.dependencies], commit, and tag. The
+# crates.io publish runs in CI, triggered by pushing the tag, so publish and push
+# are disabled below.
+#
+# Usage (see the Release section of the Makefile):
+#   make release-dry                  # preview
+#   make release LEVEL=patch          # 0.1.0 -> 0.1.1
+#   make release VERSION=0.1.0        # explicit version
+#   git push origin vX.Y.Z            # hand the tag to CI to publish
+
+shared-version = true                 # one version across the whole workspace
+publish = false                       # CI publishes on tag push
+push = false                          # push the tag explicitly to trigger CI
+tag = true
+tag-name = "v{{version}}"             # matches the CI release tag trigger
+tag-message = "Release {{version}}"
+consolidate-commits = true            # a single bump commit for the workspace
+pre-release-commit-message = "chore(release): v{{version}}"

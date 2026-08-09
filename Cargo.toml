@@ -1,0 +1,300 @@
+# Workspace root for the Praxis Policy Engine.
+#
+# Members are added when the engine crates are imported. Until then this is a
+# bare virtual manifest: `cargo metadata` parses it, but any compile-shaped
+# command (`build`, `test`, `doc`, `deny check`) aborts with "the workspace has
+# no members". That is expected at this stage, not a misconfiguration.
+#
+# Edition 2021 and resolver 2 match the source tree so the import compiles as-is.
+# The move to edition 2024 and resolver 3 lands as its own commit series, gated
+# on the imported test suite, so an edition behavior change stays reviewable
+# apart from the move itself.
+
+[workspace]
+resolver = "2"
+members = []
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+# MSRV. Keep in sync with rust-toolchain.toml `channel` and clippy.toml `msrv`.
+rust-version = "1.96"
+license = "Apache-2.0"
+authors = ["Teryl Taylor", "Fred Araujo"]
+repository = "https://github.com/praxis-proxy/policy"
+keywords = ["ai", "agent", "security", "policy", "plugin"]
+categories = ["development-tools"]
+# Shared crate README resolved from this root. Members opt in with
+# `readme.workspace = true` so there is one source and no per-crate copy.
+readme = "README.md"
+
+# =============================================================================
+# Shared dependencies
+# =============================================================================
+#
+# Third-party entries only. Every imported crate manifest inherits these via
+# `{ workspace = true }`, so this table has to exist before the import lands or
+# the import fails on unresolved inheritance rather than on anything
+# interesting.
+#
+# The internal crate entries are deliberately absent. Their keys must match
+# package names, and the imported crates keep their original names until the
+# rename commit, so writing them here would mean authoring a table whose keys
+# are wrong for exactly one commit. They arrive with the members instead.
+
+[workspace.dependencies]
+# Minimal tokio feature floor for crates that take `tokio = { workspace = true }`
+# without their own `features`. Production code uses time, sync, task/spawn and
+# a multi-threaded runtime; `net` and `io` appear only in tests, and the HTTP
+# stack unions those back in through feature unification where needed.
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "time", "macros"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+serde = { version = "1", features = ["derive", "rc"] }
+serde_yaml = "0.9"
+serde_json = "1"
+async-trait = "0.1"
+thiserror = "2"
+tracing = "0.1"
+uuid = { version = "1", features = ["v4", "serde"] }
+paste = "1"
+futures = "0.3"
+hashbrown = "0.17"
+arc-swap = "1.7"
+wildmatch = "2"
+rmp-serde = "1"
+serde_bytes = "0.11"
+chrono = { version = "0.4", features = ["serde"] }
+regex = "1"
+
+# Cross-crate inlining and dead-code elimination, one codegen unit for
+# optimization quality.
+#
+# `panic = "abort"` is deliberately not set. This is a library: aborting would
+# take the host process down on a recoverable policy panic and would break any
+# consumer that relies on unwinding across the engine boundary.
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+
+# =============================================================================
+# Lint policy
+# =============================================================================
+#
+# Adopted from Praxis so this project holds the same bar. Member crates opt in
+# with `[lints] workspace = true`.
+#
+# Entries marked `seed:` are parked. They are the delta between Praxis's gate
+# and the source tree's: lints Praxis denies that the source parks, plus lints
+# Praxis denies that the source never configured at all and so has never been
+# compiled against. Five of them are rustc lints, where deny is a hard compile
+# error rather than a warning, so shipping the gate without this seed would make
+# the imported tree impossible to build and leave the import, rename, and
+# edition commits with no way to verify themselves.
+#
+# The seed is computed from the two config files, not from a build, because
+# nothing compiles yet. The import commit replaces it with the set measured from
+# actual violations, and the parked entries are closed from there.
+
+[workspace.lints.rust]
+# --- Enforced ---
+unused_imports = "deny"
+unused_variables = "deny"
+trivial_casts = "deny"
+trivial_numeric_casts = "deny"
+macro_use_extern_crate = "deny"
+unused_macro_rules = "deny"
+meta_variable_misuse = "deny"
+keyword_idents_2024 = "deny"
+non_ascii_idents = "deny"
+noop_method_call = "deny"
+redundant_lifetimes = "deny"
+elided_lifetimes_in_paths = "deny"
+single_use_lifetimes = "deny"
+let_underscore_drop = "deny"
+# A stale feature name in a `cfg` predicate is otherwise only a warning, which
+# is how a rename can silently disable a gated export. Denying it turns that
+# into a build error at the moment the rename happens.
+unexpected_cfgs = "deny"
+
+# --- Seed: parked, narrowed at import ---
+missing_docs = "allow"                   # seed: rustc deny in Praxis, parked in source
+dead_code = "allow"                      # seed: rustc deny in Praxis, parked in source
+unreachable_pub = "allow"                # seed: rustc deny in Praxis, parked in source
+unused_extern_crates = "allow"           # seed: rustc deny in Praxis, parked in source
+unused_qualifications = "allow"          # seed: rustc deny in Praxis, parked in source
+missing_debug_implementations = "allow"  # many types wrap Box<dyn Trait> without Debug bounds
+# seed: Praxis denies this. Two sites in the source tree assert Send and Sync by
+# hand for a write-capability token. Closing this means documenting both with a
+# scoped expect attribute or restructuring the token so the assertion is not
+# needed. The FFI boundary that was the other reason to park it is not ported.
+unsafe_code = "allow"                    # seed
+
+[workspace.lints.clippy]
+# --- Enforced: async and concurrency safety ---
+await_holding_lock = "deny"
+await_holding_refcell_ref = "deny"
+let_underscore_future = "deny"
+let_underscore_must_use = "deny"
+# --- Enforced: memory and allocation ---
+implicit_clone = "deny"
+inefficient_to_string = "deny"
+large_enum_variant = "deny"
+vec_init_then_push = "deny"
+rc_buffer = "deny"
+# --- Enforced: idiomatic Rust ---
+checked_conversions = "deny"
+cloned_instead_of_copied = "deny"
+explicit_into_iter_loop = "deny"
+flat_map_option = "deny"
+from_iter_instead_of_collect = "deny"
+manual_instant_elapsed = "deny"
+manual_ok_or = "deny"
+unnecessary_get_then_check = "deny"
+# --- Enforced: borrow and clarity ---
+needless_borrow = "deny"
+match_bool = "deny"
+mut_mut = "deny"
+needless_for_each = "deny"
+range_plus_one = "deny"
+redundant_else = "deny"
+semicolon_if_nothing_returned = "deny"
+# --- Enforced: import hygiene ---
+enum_glob_use = "deny"
+macro_use_imports = "deny"
+# --- Enforced: clarity ---
+same_functions_in_if_condition = "deny"
+stable_sort_primitive = "deny"
+string_add = "deny"
+string_lit_as_bytes = "deny"
+trait_duplication_in_bounds = "deny"
+type_repetition_in_bounds = "deny"
+zero_sized_map_values = "deny"
+fn_params_excessive_bools = "deny"
+# --- Enforced: safety and correctness ---
+or_fun_call = "deny"
+rc_mutex = "deny"
+mutex_atomic = "deny"
+mutex_integer = "deny"
+disallowed_methods = "deny"
+# --- Enforced: no placeholders ---
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"
+
+# --- Seed: parked, narrowed at import ---
+# Praxis denies each of these. The source tree either parks them or never
+# configured them, so none has been compiled against.
+doc_markdown = "allow"                   # seed
+missing_docs_in_private_items = "allow"  # seed
+missing_errors_doc = "allow"             # seed
+missing_panics_doc = "allow"             # seed
+missing_safety_doc = "allow"             # seed
+uninlined_format_args = "allow"          # seed
+redundant_closure_for_method_calls = "allow"  # seed
+manual_let_else = "allow"                # seed
+return_self_not_must_use = "allow"       # seed
+items_after_statements = "allow"         # seed
+map_unwrap_or = "allow"                  # seed
+match_same_arms = "allow"                # seed
+explicit_iter_loop = "allow"             # seed
+unnested_or_patterns = "allow"           # seed
+needless_continue = "allow"              # seed
+assigning_clones = "allow"               # seed
+wildcard_imports = "allow"               # seed
+manual_string_new = "allow"              # seed
+manual_assert = "allow"                  # seed
+if_not_else = "allow"                    # seed
+unused_self = "allow"                    # seed
+unreadable_literal = "allow"             # seed
+clone_on_ref_ptr = "allow"               # seed
+default_trait_access = "allow"           # seed
+expl_impl_clone_on_copy = "allow"        # seed
+inconsistent_struct_constructor = "allow"    # seed
+match_wildcard_for_single_variants = "allow" # seed
+single_match_else = "allow"              # seed
+too_many_arguments = "allow"             # seed
+too_many_lines = "allow"                 # seed
+cognitive_complexity = "allow"           # seed
+type_complexity = "allow"                # seed
+struct_excessive_bools = "allow"         # seed
+needless_pass_by_value = "allow"         # seed
+trivially_copy_pass_by_ref = "allow"     # seed
+large_types_passed_by_value = "allow"    # seed
+large_stack_frames = "allow"             # seed
+large_futures = "allow"                  # seed
+future_not_send = "allow"                # seed
+str_to_string = "allow"                  # seed
+string_add_assign = "allow"              # seed
+string_slice = "allow"                   # seed
+format_push_string = "allow"             # seed
+deref_by_slicing = "allow"               # seed
+semicolon_inside_block = "allow"         # seed
+if_then_some_else_none = "allow"         # seed
+unused_trait_names = "allow"             # seed
+error_impl_error = "allow"               # seed
+empty_structs_with_brackets = "allow"    # seed
+tests_outside_test_module = "allow"      # seed
+unnecessary_safety_comment = "allow"     # seed
+renamed_function_params = "allow"        # seed
+redundant_type_annotations = "allow"     # seed
+needless_raw_strings = "allow"           # seed
+needless_raw_string_hashes = "allow"     # seed
+manual_clamp = "allow"                   # seed
+empty_drop = "allow"                     # seed
+lossy_float_literal = "allow"            # seed
+mem_forget = "allow"                     # seed
+exit = "allow"                           # seed
+unused_result_ok = "allow"               # seed
+unused_async = "allow"                   # seed
+unnecessary_wraps = "allow"              # seed
+needless_pass_by_ref_mut = "allow"       # seed
+no_effect_underscore_binding = "allow"   # seed
+used_underscore_binding = "allow"        # seed
+option_option = "allow"                  # seed
+ref_option_ref = "allow"                 # seed
+ref_patterns = "allow"                   # seed
+set_contains_or_insert = "allow"          # seed
+try_err = "allow"                        # seed
+multiple_inherent_impl = "allow"         # seed
+same_name_method = "allow"               # seed
+rest_pat_in_fully_bound_structs = "allow"    # seed
+verbose_bit_mask = "allow"               # seed
+debug_assert_with_mut_call = "allow"     # seed
+collection_is_never_read = "allow"       # seed
+significant_drop_in_scrutinee = "allow"  # seed
+zombie_processes = "allow"               # seed
+map_err_ignore = "allow"                 # seed
+missing_assert_message = "allow"         # seed
+infinite_loop = "allow"                  # seed
+allow_attributes = "allow"               # seed
+allow_attributes_without_reason = "allow"    # seed
+cast_lossless = "allow"                  # seed
+cast_possible_truncation = "allow"       # seed
+cast_possible_wrap = "allow"             # seed
+cast_sign_loss = "allow"                 # seed
+cast_precision_loss = "allow"            # seed
+ptr_as_ptr = "allow"                     # seed
+undocumented_unsafe_blocks = "allow"     # seed
+# Diagnostic hygiene. A library must not panic on operator input, but the source
+# tree uses these pervasively in tests, which is where the volume is.
+unwrap_used = "allow"                    # seed
+expect_used = "allow"                    # seed
+panic = "allow"                          # seed
+indexing_slicing = "allow"               # seed
+print_stdout = "allow"                   # seed
+print_stderr = "allow"                   # seed
+# Style, parked to keep the import free of mechanical churn.
+empty_line_after_outer_attr = "allow"
+significant_drop_tightening = "warn"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+invalid_codeblock_attributes = "deny"
+redundant_explicit_links = "deny"
+unescaped_backticks = "deny"
+invalid_html_tags = "deny"
+bare_urls = "allow"                      # seed
+missing_crate_level_docs = "allow"       # seed
+private_doc_tests = "allow"

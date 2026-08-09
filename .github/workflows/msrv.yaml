@@ -1,0 +1,26 @@
+name: MSRV
+
+# The declared minimum supported Rust version must actually build the tree.
+# rust-toolchain.toml pins the same version, so this job proves the declaration
+# in Cargo.toml `rust-version` is honest rather than aspirational.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  msrv:
+    name: build at MSRV
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --workspace --all-targets

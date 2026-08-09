@@ -1,0 +1,31 @@
+name: Supply chain
+
+# Advisories, licenses, dependency bans, and crate sources, per deny.toml.
+#
+# The scheduled run matters as much as the pull-request run: an advisory can be
+# published against an unchanged dependency tree, so a gate that only fires on
+# code changes will miss it.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "23 5 * * 1"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  deny:
+    name: cargo deny
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
