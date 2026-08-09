@@ -1,10 +1,5 @@
 # Workspace root for the Praxis Policy Engine.
 #
-# Members are added when the engine crates are imported. Until then this is a
-# bare virtual manifest: `cargo metadata` parses it, but any compile-shaped
-# command (`build`, `test`, `doc`, `deny check`) aborts with "the workspace has
-# no members". That is expected at this stage, not a misconfiguration.
-#
 # Edition 2021 and resolver 2 match the source tree so the import compiles as-is.
 # The move to edition 2024 and resolver 3 lands as its own commit series, gated
 # on the imported test suite, so an edition behavior change stays reviewable
@@ -12,7 +7,45 @@
 
 [workspace]
 resolver = "2"
-members = []
+members = [
+    "crates/ppe",
+    "crates/ppe-core",
+    "crates/ppe-orchestration",
+    "crates/ppe-sdk",
+    "crates/ppe-builtins",
+    "crates/ppe-apl-core",
+    "crates/ppe-apl-cmf",
+    "crates/ppe-apl-runtime",
+    "builtins/plugins/pii-scanner",
+    "builtins/plugins/audit-logger",
+    "builtins/plugins/identity-jwt",
+    "builtins/plugins/delegator-oauth",
+    "builtins/plugins/elicitation-ciba",
+    "builtins/pdps/cedar-direct",
+    "builtins/pdps/cel",
+    "builtins/session/valkey",
+]
+
+# The session store pulls a redis client and a TLS stack, which slows a default
+# build noticeably. Excluding it from default-members keeps everyday iteration
+# fast; `--workspace` still picks it up, and CI runs the full sweep.
+default-members = [
+    "crates/ppe",
+    "crates/ppe-core",
+    "crates/ppe-orchestration",
+    "crates/ppe-sdk",
+    "crates/ppe-builtins",
+    "crates/ppe-apl-core",
+    "crates/ppe-apl-cmf",
+    "crates/ppe-apl-runtime",
+    "builtins/plugins/pii-scanner",
+    "builtins/plugins/audit-logger",
+    "builtins/plugins/identity-jwt",
+    "builtins/plugins/delegator-oauth",
+    "builtins/plugins/elicitation-ciba",
+    "builtins/pdps/cedar-direct",
+    "builtins/pdps/cel",
+]
 
 [workspace.package]
 version = "0.1.0"
@@ -22,6 +55,9 @@ rust-version = "1.96"
 license = "Apache-2.0"
 authors = ["Teryl Taylor", "Fred Araujo"]
 repository = "https://github.com/praxis-proxy/policy"
+# Inherited by the facade crate for its crates.io page. Points at the repository
+# until there is a docs site to point at.
+homepage = "https://github.com/praxis-proxy/policy"
 keywords = ["ai", "agent", "security", "policy", "plugin"]
 categories = ["development-tools"]
 # Shared crate README resolved from this root. Members opt in with
@@ -37,10 +73,6 @@ readme = "README.md"
 # the import fails on unresolved inheritance rather than on anything
 # interesting.
 #
-# The internal crate entries are deliberately absent. Their keys must match
-# package names, and the imported crates keep their original names until the
-# rename commit, so writing them here would mean authoring a table whose keys
-# are wrong for exactly one commit. They arrive with the members instead.
 
 [workspace.dependencies]
 # Minimal tokio feature floor for crates that take `tokio = { workspace = true }`
@@ -65,6 +97,30 @@ rmp-serde = "1"
 serde_bytes = "0.11"
 chrono = { version = "0.4", features = ["serde"] }
 regex = "1"
+
+# Internal crates. Single source of truth for each one's path and version
+# requirement; members depend on these with `{ workspace = true }` so a version
+# bump touches only this table. The `version` is required because these publish:
+# at publish time cargo substitutes it for the `path`.
+#
+# The keys are package names, which still carry the engine's previous naming.
+# Renaming them is a manifest change across every crate and lands separately, so
+# that the import stays a move and the rename stays a rename.
+cpex-core                     = { path = "crates/ppe-core",              version = "0.1.0" }
+cpex-orchestration            = { path = "crates/ppe-orchestration",     version = "0.1.0" }
+cpex-sdk                      = { path = "crates/ppe-sdk",               version = "0.1.0" }
+cpex-builtins                 = { path = "crates/ppe-builtins",          version = "0.1.0", default-features = false }
+apl-core                      = { path = "crates/ppe-apl-core",          version = "0.1.0" }
+apl-cmf                       = { path = "crates/ppe-apl-cmf",           version = "0.1.0" }
+apl-cpex                      = { path = "crates/ppe-apl-runtime",       version = "0.1.0" }
+cpex-plugin-pii-scanner       = { path = "builtins/plugins/pii-scanner",      version = "0.1.0" }
+cpex-plugin-audit-logger      = { path = "builtins/plugins/audit-logger",     version = "0.1.0" }
+cpex-plugin-identity-jwt      = { path = "builtins/plugins/identity-jwt",     version = "0.1.0" }
+cpex-plugin-delegator-oauth   = { path = "builtins/plugins/delegator-oauth",  version = "0.1.0" }
+cpex-plugin-elicitation-ciba  = { path = "builtins/plugins/elicitation-ciba", version = "0.1.0" }
+cpex-pdp-cedar-direct         = { path = "builtins/pdps/cedar-direct",        version = "0.1.0" }
+cpex-pdp-cel                  = { path = "builtins/pdps/cel",                 version = "0.1.0" }
+cpex-session-valkey           = { path = "builtins/session/valkey",           version = "0.1.0" }
 
 # Cross-crate inlining and dead-code elimination, one codegen unit for
 # optimization quality.
@@ -100,7 +156,6 @@ strip = true
 # --- Enforced ---
 unused_imports = "deny"
 unused_variables = "deny"
-trivial_casts = "deny"
 trivial_numeric_casts = "deny"
 macro_use_extern_crate = "deny"
 unused_macro_rules = "deny"
@@ -109,9 +164,6 @@ keyword_idents_2024 = "deny"
 non_ascii_idents = "deny"
 noop_method_call = "deny"
 redundant_lifetimes = "deny"
-elided_lifetimes_in_paths = "deny"
-single_use_lifetimes = "deny"
-let_underscore_drop = "deny"
 # A stale feature name in a `cfg` predicate is otherwise only a warning, which
 # is how a rename can silently disable a gated export. Denying it turns that
 # into a build error at the moment the rename happens.
@@ -123,7 +175,15 @@ dead_code = "allow"                      # seed: rustc deny in Praxis, parked in
 unreachable_pub = "allow"                # seed: rustc deny in Praxis, parked in source
 unused_extern_crates = "allow"           # seed: rustc deny in Praxis, parked in source
 unused_qualifications = "allow"          # seed: rustc deny in Praxis, parked in source
+elided_lifetimes_in_paths = "allow"                  # seed: measured
 missing_debug_implementations = "allow"  # many types wrap Box<dyn Trait> without Debug bounds
+# seed: measured. Three upcasts of a concrete Arc/Box to a trait object in the
+# plugin registry and payload plumbing.
+trivial_casts = "allow"                  # seed
+# seed: measured. Two single-use lifetime parameters in the policy parser.
+single_use_lifetimes = "allow"           # seed
+# seed: measured. One non-binding let on a value with a destructor.
+let_underscore_drop = "allow"            # seed
 # seed: Praxis denies this. Two sites in the source tree assert Send and Sync by
 # hand for a write-capability token. Closing this means documenting both with a
 # scoped expect attribute or restructuring the token so the assertion is not

@@ -38,8 +38,6 @@ use cpex_core::manager::PluginManager;
 pub use cpex_pdp_cedar_direct::CedarDirectPdpFactory;
 #[cfg(feature = "cel")]
 pub use cpex_pdp_cel::CelPdpFactory;
-#[cfg(feature = "opa")]
-pub use cpex_pdp_opa::OpaPdpFactory;
 #[cfg(feature = "audit-logger")]
 pub use cpex_plugin_audit_logger::{AuditLoggerFactory, KIND as AUDIT_KIND};
 #[cfg(feature = "delegator-oauth")]
@@ -103,8 +101,6 @@ pub fn builtin_pdps() -> Vec<Arc<dyn PdpFactory>> {
     factories.push(Arc::new(cpex_pdp_cedar_direct::CedarDirectPdpFactory::new()));
     #[cfg(feature = "cel")]
     factories.push(Arc::new(cpex_pdp_cel::CelPdpFactory::new()));
-    #[cfg(feature = "opa")]
-    factories.push(Arc::new(cpex_pdp_opa::OpaPdpFactory::new()));
     factories
 }
 
@@ -153,8 +149,7 @@ mod tests {
     #[test]
     fn pdp_factories_track_enabled_features() {
         let expected = cfg!(feature = "cedar-direct") as usize
-            + cfg!(feature = "cel") as usize
-            + cfg!(feature = "opa") as usize;
+            + cfg!(feature = "cel") as usize;
         assert_eq!(
             builtin_pdps().len(),
             expected,

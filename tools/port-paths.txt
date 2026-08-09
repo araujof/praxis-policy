@@ -1,0 +1,65 @@
+# Extraction directives for the engine import.
+#
+# Consumed by:
+#   git filter-repo --paths-from-file tools/port-paths.txt
+#
+# run against a fresh clone of the source repository, never against a working
+# checkout: the rewrite is destructive and filter-repo refuses a non-expendable
+# clone for that reason.
+#
+# Two kinds of line. A bare path selects. A line containing ==> renames. Renames
+# do NOT select, so every renamed directory needs both a selection line and a
+# rename line. Trailing slashes matter: they constrain matching to the directory,
+# so selecting `crates/cpex/` does not also pull `crates/cpex-core/`.
+#
+# Everything absent from this file is absent from the rewritten history, not
+# merely deleted at the tip. Deliberately excluded: the FFI crate, the language
+# bindings, the out-of-process Python plugin host, the Rego decision point, the
+# Biscuit delegator, and the example crates.
+
+# =============================================================================
+# Selection: engine crates
+# =============================================================================
+crates/cpex/
+crates/cpex-core/
+crates/cpex-orchestration/
+crates/cpex-builtins/
+crates/cpex-sdk/
+crates/apl-core/
+crates/apl-cmf/
+crates/apl-cpex/
+
+# =============================================================================
+# Selection: bundled plugins, decision points, and session stores
+# =============================================================================
+builtins/plugins/identity-jwt/
+builtins/plugins/delegator-oauth/
+builtins/plugins/elicitation-ciba/
+builtins/plugins/pii-scanner/
+builtins/plugins/audit-logger/
+builtins/pdps/cedar-direct/
+builtins/pdps/cel/
+builtins/session/valkey/
+
+# =============================================================================
+# Renames
+# =============================================================================
+#
+# Applied in the same pass as the selection so history follows each file across
+# its move instead of terminating at it. Doing the rename as a later commit is
+# what loses blame continuity.
+#
+# Directory names stay short; the published package names are qualified and are
+# set separately, since renaming a package is a manifest edit rather than a path
+# move.
+crates/cpex/==>crates/ppe/
+crates/cpex-core/==>crates/ppe-core/
+crates/cpex-orchestration/==>crates/ppe-orchestration/
+crates/cpex-builtins/==>crates/ppe-builtins/
+crates/cpex-sdk/==>crates/ppe-sdk/
+crates/apl-core/==>crates/ppe-apl-core/
+crates/apl-cmf/==>crates/ppe-apl-cmf/
+crates/apl-cpex/==>crates/ppe-apl-runtime/
+
+# The bundled extensions keep their paths. Only the engine crates carry the old
+# project name in their directory names.
