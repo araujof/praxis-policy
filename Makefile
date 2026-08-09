@@ -2,10 +2,6 @@
 # =============================================================================
 # Targets mirror CI (.github/workflows/) so a green `make ci` locally means a
 # green pipeline.
-#
-# Until the engine crates are imported this is a virtual manifest with no
-# members, so every compile-shaped target below aborts with "the workspace has
-# no members". That is expected at this stage. `make fmt` and `make help` work.
 
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
@@ -41,7 +37,7 @@ help:
 	@echo ""
 	@echo "Supply chain & coverage:"
 	@echo "  audit             cargo deny check (advisories, licenses, bans, sources)"
-	@echo "  coverage          Coverage summary (no threshold yet; see target)"
+	@echo "  coverage          Coverage summary, gated at COVERAGE_FLOOR percent"
 	@echo ""
 	@echo "Docs:"
 	@echo "  doc               cargo doc with warnings denied"
@@ -126,14 +122,18 @@ audit:
 	@command -v cargo-deny >/dev/null 2>&1 || $(CARGO) install cargo-deny --locked
 	@cargo deny check
 
-# Report-only for now. The floor is set from a measurement of the imported tree
-# rather than inherited from another project, whose threshold is calibrated to a
-# different codebase. Add `--fail-under-lines N` here and in the coverage
-# workflow together.
+# The floor is measured from this tree, not inherited. The imported tree lines up
+# at just under 90 percent, so the gate sits at 89 with a point of headroom for
+# platform and ordering variance. Praxis gates at 96; closing that gap is its own
+# work, tracked alongside the parked lint entries rather than bundled here.
+#
+# Keep this number in sync with the coverage workflow.
+COVERAGE_FLOOR ?= 89
+
 .PHONY: coverage
 coverage:
 	@command -v cargo-llvm-cov >/dev/null 2>&1 || $(CARGO) install cargo-llvm-cov --locked
-	@cargo llvm-cov --workspace --summary-only
+	@cargo llvm-cov --workspace --summary-only --fail-under-lines $(COVERAGE_FLOOR)
 
 # =============================================================================
 # Docs

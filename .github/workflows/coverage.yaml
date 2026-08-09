@@ -1,9 +1,7 @@
 name: Coverage
 
-# Report-only. No threshold is enforced yet: the floor is set from a measurement
-# of this tree once the engine is imported, rather than inherited from another
-# project whose threshold is calibrated to a different codebase. When the floor
-# lands, add `--fail-under-lines N` here and in the Makefile together.
+# The floor is measured from this tree, not inherited. Keep it in sync with
+# COVERAGE_FLOOR in the Makefile.
 
 on:
   push:
@@ -27,8 +25,8 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-llvm-cov
-      - name: Summary
-        run: cargo llvm-cov --workspace --summary-only
+      - name: Summary and floor
+        run: cargo llvm-cov --workspace --summary-only --fail-under-lines 89
       - name: LCOV report
         run: cargo llvm-cov --workspace --lcov --output-path lcov.info
       - uses: actions/upload-artifact@v4
