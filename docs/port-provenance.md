@@ -125,3 +125,22 @@ measurement rather than from another reading of the configs.
 The lesson is recorded here because it will recur when the parked entries are
 closed: the delta between two lint configurations is not reliably computed by
 reading them. Compile and measure.
+
+## Coverage
+
+Measured at import: 89.98 percent lines, 90.45 regions, 86.20 functions.
+
+The enforced floor is 89, one point below the measurement. The **target is 95**,
+which is a project requirement rather than an inherited number. Closing that gap
+means covering roughly 1,400 more lines out of about 27,900, and it is real work
+rather than a configuration change.
+
+The gate is not set to the target before the tests exist. A required check that
+nobody can make green is a check people learn to ignore, which costs more than the
+missing coverage does.
+
+Two things worth knowing when that work is picked up. The six ignored
+session-store integration tests are the largest single block of uncovered
+behavior, and they need a running service rather than more test code. And the
+component they cover is the one session taint depends on, so coverage there buys
+more than its line count suggests.

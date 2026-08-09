@@ -122,13 +122,17 @@ audit:
 	@command -v cargo-deny >/dev/null 2>&1 || $(CARGO) install cargo-deny --locked
 	@cargo deny check
 
-# The floor is measured from this tree, not inherited. The imported tree lines up
-# at just under 90 percent, so the gate sits at 89 with a point of headroom for
-# platform and ordering variance. Praxis gates at 96; closing that gap is its own
-# work, tracked alongside the parked lint entries rather than bundled here.
+# Target floor is 95 percent. The imported tree measures just under 90, so the
+# gate currently sits at 89 with a point of headroom for platform and ordering
+# variance, and raising it to 95 is tracked work: roughly 1,400 more covered lines
+# out of about 27,900.
+#
+# The gate is deliberately not set to 95 before the tests exist, because a red
+# required check that nobody can make green teaches people to ignore it.
 #
 # Keep this number in sync with the coverage workflow.
 COVERAGE_FLOOR ?= 89
+COVERAGE_TARGET := 95
 
 .PHONY: coverage
 coverage:
