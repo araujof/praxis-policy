@@ -492,8 +492,8 @@ fn build_filtered_subject(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::extensions::meta::MetaExtension;
     use crate::extensions::SecurityExtension;
+    use crate::extensions::meta::MetaExtension;
 
     fn make_full_extensions() -> Extensions {
         let mut security = SecurityExtension::default();

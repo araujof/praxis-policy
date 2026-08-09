@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use praxis_policy_core::cmf::{CmfHook, ContentPart, MessagePayload};
 use praxis_policy_core::context::PluginContext;

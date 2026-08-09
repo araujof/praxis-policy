@@ -36,9 +36,9 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::context::PluginContext;
+use crate::hooks::HookType;
 use crate::hooks::payload::{Extensions, PluginPayload};
 use crate::hooks::trait_def::HookTypeDef;
-use crate::hooks::HookType;
 use crate::plugin::{Plugin, PluginConfig, PluginMode};
 
 /// Manager-owned wrapper that pairs a plugin with its authoritative config.
@@ -506,8 +506,8 @@ pub fn group_by_mode(entries: &[HookEntry]) -> GroupedHookEntries {
 mod tests {
     use super::*;
     use crate::error::PluginError;
-    use crate::hooks::payload::PluginPayload;
     use crate::hooks::PluginResult;
+    use crate::hooks::payload::PluginPayload;
     use async_trait::async_trait;
 
     // -- Test payload and hook type --
@@ -643,12 +643,14 @@ mod tests {
         let h1: Arc<dyn AnyHookHandler> = Arc::new(TestHandler);
         let h2: Arc<dyn AnyHookHandler> = Arc::new(TestHandler);
 
-        assert!(reg
-            .register_for_names_inner(p1, c1, h1, &["hook_a"])
-            .is_ok());
-        assert!(reg
-            .register_for_names_inner(p2, c2, h2, &["hook_a"])
-            .is_err());
+        assert!(
+            reg.register_for_names_inner(p1, c1, h1, &["hook_a"])
+                .is_ok()
+        );
+        assert!(
+            reg.register_for_names_inner(p2, c2, h2, &["hook_a"])
+                .is_err()
+        );
     }
 
     #[test]

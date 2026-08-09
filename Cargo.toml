@@ -1,12 +1,12 @@
 # Workspace root for the Praxis Policy Engine.
 #
-# Edition 2021 and resolver 2 match the source tree so the import compiles as-is.
-# The move to edition 2024 and resolver 3 lands as its own commit series, gated
-# on the imported test suite, so an edition behavior change stays reviewable
-# apart from the move itself.
+# Edition 2024 and resolver 3. The import landed on the source tree's edition 2021
+# and resolver 2 so it would compile unchanged; this move is deliberately its own
+# change, gated on the imported suite, so an edition behavior difference stays
+# separable from the move.
 
 [workspace]
-resolver = "2"
+resolver = "3"
 members = [
     "crates/ppe",
     "crates/ppe-core",
@@ -49,7 +49,7 @@ default-members = [
 
 [workspace.package]
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 # MSRV. Keep in sync with rust-toolchain.toml `channel` and clippy.toml `msrv`.
 rust-version = "1.96"
 license = "Apache-2.0"
@@ -361,6 +361,7 @@ bool_comparison = "allow"                  # seed: measured
 collapsible_match = "allow"                  # seed: measured
 iter_kv_map = "allow"                  # seed: measured
 empty_line_after_doc_comments = "allow"                  # seed: measured
+collapsible_if = "allow"                  # seed: measured, edition 2024
 empty_line_after_outer_attr = "allow"
 
 [workspace.lints.rustdoc]

@@ -56,15 +56,15 @@
 // invoker.
 
 use std::collections::HashSet;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use async_trait::async_trait;
 use tokio::sync::Mutex;
 
 use praxis_policy_core::cmf::{CmfHook, MessagePayload};
-use praxis_policy_core::hooks::payload::Extensions;
 use praxis_policy_core::hooks::HookPhase;
+use praxis_policy_core::hooks::payload::Extensions;
 use praxis_policy_core::manager::PluginManager;
 
 use praxis_policy_apl_core::attributes::AttributeBag;

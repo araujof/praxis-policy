@@ -429,7 +429,7 @@ impl<'a> PredParser<'a> {
                 return Err(self.err(&format!(
                     "exists(...) expects an attribute key, got {:?}",
                     other,
-                )))
+                )));
             },
         };
         match self.bump() {
@@ -438,7 +438,7 @@ impl<'a> PredParser<'a> {
                 return Err(self.err(&format!(
                     "expected `)` after exists() argument, got {:?}",
                     other,
-                )))
+                )));
             },
         }
         Ok(Expression::Condition(Condition::Exists { key }))
@@ -524,7 +524,7 @@ impl<'a> PredParser<'a> {
                     "expected set-attribute identifier after `{}in`, got {:?}",
                     if negate { "not " } else { "" },
                     other,
-                )))
+                )));
             },
         };
         Ok(Expression::Condition(Condition::InSet {
@@ -675,7 +675,7 @@ fn parse_require_rule(line: &str) -> Result<Expression, ParseError> {
                     _ => {
                         return Err(bad(
                             "require(...) cannot mix `,` (AND) and `|` (OR) — use one or the other",
-                        ))
+                        ));
                     },
                 }
                 match iter.next() {
@@ -687,7 +687,7 @@ fn parse_require_rule(line: &str) -> Result<Expression, ParseError> {
                 return Err(bad(&format!(
                     "expected `,`, `|`, or `)` in require(...), got {:?}",
                     other,
-                )))
+                )));
             },
             None => return Err(bad("unexpected end of require(...) — missing `)`")),
         }
@@ -1770,7 +1770,7 @@ fn parse_restrict_spec(
                         return Err(field_err(format!(
                             "unknown value `{}` (expected `deny` or `fallback`)",
                             other
-                        )))
+                        )));
                     },
                 };
             },
@@ -3268,10 +3268,12 @@ mod tests {
         let r = parse_rule("deny('nope')", "test").unwrap();
         assert_eq!(r.condition, Expression::Always);
         match r.effects.as_slice() {
-            [Effect::Deny {
-                reason: Some(reason),
-                code: None,
-            }] => assert_eq!(reason, "nope"),
+            [
+                Effect::Deny {
+                    reason: Some(reason),
+                    code: None,
+                },
+            ] => assert_eq!(reason, "nope"),
             other => panic!(
                 "expected [Deny{{reason: Some, code: None}}], got {:?}",
                 other
@@ -3281,10 +3283,12 @@ mod tests {
         let r = parse_rule("deny('nope', 'cel.policy')", "test").unwrap();
         assert_eq!(r.condition, Expression::Always);
         match r.effects.as_slice() {
-            [Effect::Deny {
-                reason: Some(reason),
-                code: Some(code),
-            }] => {
+            [
+                Effect::Deny {
+                    reason: Some(reason),
+                    code: Some(code),
+                },
+            ] => {
                 assert_eq!(reason, "nope");
                 assert_eq!(code, "cel.policy");
             },
@@ -3353,10 +3357,12 @@ mod tests {
         )
         .unwrap();
         match r.effects.as_slice() {
-            [Effect::Deny {
-                reason: Some(reason),
-                code: Some(code),
-            }] => {
+            [
+                Effect::Deny {
+                    reason: Some(reason),
+                    code: Some(code),
+                },
+            ] => {
                 assert_eq!(reason, "too deep");
                 assert_eq!(code, "delegation.depth_exceeded");
             },
@@ -3416,10 +3422,12 @@ mod tests {
             panic!("expected Step::Rule");
         };
         match rule.effects.as_slice() {
-            [Effect::Deny {
-                reason: Some(r),
-                code: Some(c),
-            }] => {
+            [
+                Effect::Deny {
+                    reason: Some(r),
+                    code: Some(c),
+                },
+            ] => {
                 assert_eq!(r, "too deep");
                 assert_eq!(c, "delegation.depth_exceeded");
             },
@@ -4087,9 +4095,11 @@ routes:
         let routes = compile_config(yaml).unwrap().routes;
         let route = routes.get("get_compensation").expect("route missing");
         assert_eq!(route.policy.len(), 3);
-        assert!(route
-            .declared_phases()
-            .contains(crate::rules::Phase::Policy));
+        assert!(
+            route
+                .declared_phases()
+                .contains(crate::rules::Phase::Policy)
+        );
     }
 
     #[test]

@@ -14,7 +14,7 @@
 # imported code is already conformant and `cargo fmt --check` is meaningful from
 # the first commit. Widening to match Praxis is a whole-tree reformat and belongs
 # in its own commit, not mixed into the port.
-edition = "2021"
+edition = "2024"
 max_width = 100
 newline_style = "Unix"
 use_field_init_shorthand = true

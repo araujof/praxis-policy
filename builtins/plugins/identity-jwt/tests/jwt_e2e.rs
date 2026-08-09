@@ -25,7 +25,7 @@ use std::sync::OnceLock;
 use praxis_policy_core::extensions::raw_credentials::{TokenKind, TokenRole};
 use praxis_policy_core::hooks::payload::Extensions;
 use praxis_policy_core::identity::{
-    IdentityHook, IdentityPayload, TokenSource, HOOK_IDENTITY_RESOLVE,
+    HOOK_IDENTITY_RESOLVE, IdentityHook, IdentityPayload, TokenSource,
 };
 use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{OnError, PluginConfig, PluginMode};
@@ -35,7 +35,7 @@ use praxis_policy_plugin_identity_jwt::JwtIdentityResolver;
 use rsa::pkcs8::{EncodePrivateKey, EncodePublicKey, LineEnding};
 use rsa::{RsaPrivateKey, RsaPublicKey};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 const TEST_ISSUER: &str = "https://idp.test.local";
 const TEST_AUDIENCE: &str = "test-api";
@@ -72,7 +72,7 @@ fn keypair() -> &'static Keypair {
 /// Sign `claims` as an RS256 JWT using the test private key. JWT
 /// payload is whatever JSON the caller hands in.
 fn mint_jwt(claims: Value) -> String {
-    use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
+    use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
     let header = Header::new(Algorithm::RS256);
     let key = EncodingKey::from_rsa_pem(keypair().private_pem.as_bytes())
         .expect("build EncodingKey from test private PEM");

@@ -18,7 +18,7 @@ use praxis_policy_core::extensions::{
 };
 use praxis_policy_core::manager::PluginManager;
 
-use praxis_policy_apl_runtime::{register_apl, AplOptions, DispatchCache, MemorySessionStore};
+use praxis_policy_apl_runtime::{AplOptions, DispatchCache, MemorySessionStore, register_apl};
 
 fn cmf_payload(text: &str) -> MessagePayload {
     MessagePayload {

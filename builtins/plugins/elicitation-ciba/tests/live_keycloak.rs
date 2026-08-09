@@ -48,7 +48,9 @@ async fn live_dispatch_then_pending() {
         env("CIBA_CLIENT_SECRET"),
         env("CIBA_LOGIN_HINT"),
     ) else {
-        eprintln!("SKIP: set CIBA_BACKCHANNEL_ENDPOINT / _TOKEN_ENDPOINT / _CLIENT_ID / _CLIENT_SECRET / _LOGIN_HINT");
+        eprintln!(
+            "SKIP: set CIBA_BACKCHANNEL_ENDPOINT / _TOKEN_ENDPOINT / _CLIENT_ID / _CLIENT_SECRET / _LOGIN_HINT"
+        );
         return;
     };
 

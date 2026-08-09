@@ -27,7 +27,7 @@ use super::meta::MetaExtension;
 use super::provenance::ProvenanceExtension;
 use super::raw_credentials::RawCredentialsExtension;
 use super::request::RequestExtension;
-use super::routing::{CandidateConstraintExtension, CAP_WRITE_CANDIDATE_CONSTRAINT};
+use super::routing::{CAP_WRITE_CANDIDATE_CONSTRAINT, CandidateConstraintExtension};
 use super::security::SecurityExtension;
 
 /// Typed container for all message extensions.
@@ -688,7 +688,9 @@ mod tests {
         owned.candidate_constraint = Some(a_constraint("us")); // weakened/changed
         assert!(!ext.candidate_constraint_write_ok(&owned, &caps(&[])));
         // ...but a cap-holder (the APL engine) may overwrite.
-        assert!(ext.candidate_constraint_write_ok(&owned, &caps(&[CAP_WRITE_CANDIDATE_CONSTRAINT])));
+        assert!(
+            ext.candidate_constraint_write_ok(&owned, &caps(&[CAP_WRITE_CANDIDATE_CONSTRAINT]))
+        );
     }
 
     #[test]
@@ -707,7 +709,9 @@ mod tests {
         owned.candidate_constraint = Some(a_constraint("eu")); // forged
         assert!(!ext.candidate_constraint_write_ok(&owned, &caps(&[])));
         // The APL engine, holding the cap, legitimately creates it.
-        assert!(ext.candidate_constraint_write_ok(&owned, &caps(&[CAP_WRITE_CANDIDATE_CONSTRAINT])));
+        assert!(
+            ext.candidate_constraint_write_ok(&owned, &caps(&[CAP_WRITE_CANDIDATE_CONSTRAINT]))
+        );
     }
 
     #[test]
@@ -739,8 +743,8 @@ mod tests {
 
     #[test]
     fn test_cow_copy_modify_multiple_fields() {
-        use crate::extensions::delegation::DelegationHop;
         use crate::extensions::DelegationExtension;
+        use crate::extensions::delegation::DelegationHop;
 
         let mut security = SecurityExtension::default();
         security.add_label("PII");

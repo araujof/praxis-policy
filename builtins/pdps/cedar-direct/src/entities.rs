@@ -30,7 +30,7 @@ use std::collections::HashSet;
 use cedar_policy::{Entities, Entity, Schema};
 use praxis_policy_apl_core::attributes::{AttributeBag, AttributeValue};
 use praxis_policy_apl_core::step::PdpError;
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use crate::cedar_attrs::{
     ATTR_CLAIMS, ATTR_ID, ATTR_PERMISSIONS, ATTR_ROLES, ATTR_TEAMS, ATTR_TYPE, KEY_ATTRS,

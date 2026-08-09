@@ -886,8 +886,8 @@ mod tests {
 
     #[test]
     fn apply_to_extensions_writes_delegated_token_keyed_by_audience() {
-        use crate::extensions::raw_credentials::DelegationMode;
         use crate::extensions::SubjectExtension;
+        use crate::extensions::raw_credentials::DelegationMode;
 
         let mut p = DelegationPayload::new("tok", "get_compensation");
         p.delegated_token = Some(RawDelegatedToken::new(

@@ -49,7 +49,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use base64::Engine;
-use jsonwebtoken::{decode, Validation};
+use jsonwebtoken::{Validation, decode};
 use serde_json::Value;
 
 use praxis_policy_core::context::PluginContext;

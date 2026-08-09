@@ -31,7 +31,7 @@
 use std::sync::Arc;
 
 use praxis_policy_apl_core::step::PdpFactory;
-use praxis_policy_apl_runtime::{register_apl, AplOptions, SessionStoreFactory};
+use praxis_policy_apl_runtime::{AplOptions, SessionStoreFactory, register_apl};
 use praxis_policy_core::manager::PluginManager;
 
 #[cfg(feature = "cedar-direct")]
@@ -41,16 +41,16 @@ pub use praxis_policy_pdp_cel::CelPdpFactory;
 #[cfg(feature = "audit-logger")]
 pub use praxis_policy_plugin_audit_logger::{AuditLoggerFactory, KIND as AUDIT_KIND};
 #[cfg(feature = "delegator-oauth")]
-pub use praxis_policy_plugin_delegator_oauth::{OAuthDelegatorFactory, KIND as OAUTH_KIND};
+pub use praxis_policy_plugin_delegator_oauth::{KIND as OAUTH_KIND, OAuthDelegatorFactory};
 #[cfg(feature = "elicitation-ciba")]
 pub use praxis_policy_plugin_elicitation_ciba::{CibaApproverFactory, KIND as CIBA_KIND};
 #[cfg(feature = "identity-jwt")]
 pub use praxis_policy_plugin_identity_jwt::{JwtIdentityFactory, KIND as JWT_KIND};
 #[cfg(feature = "pii-scanner")]
-pub use praxis_policy_plugin_pii_scanner::{PiiScannerFactory, KIND as PII_KIND};
+pub use praxis_policy_plugin_pii_scanner::{KIND as PII_KIND, PiiScannerFactory};
 #[cfg(feature = "valkey")]
 pub use praxis_policy_session_valkey::{
-    ValkeyConfig, ValkeySessionStoreFactory, KIND as VALKEY_KIND,
+    KIND as VALKEY_KIND, ValkeyConfig, ValkeySessionStoreFactory,
 };
 
 /// Generate [`register_builtins`] from a feature → factory table. Each entry

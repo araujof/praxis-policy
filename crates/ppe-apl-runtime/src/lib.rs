@@ -46,17 +46,17 @@ pub mod session_resolver;
 pub mod session_store;
 pub mod visitor;
 
-pub use attribute_source::{merge_attribute_docs, FileAttributeSource};
-pub use candidate_constraint::{fold_candidate_constraints, ConstraintConflict};
+pub use attribute_source::{FileAttributeSource, merge_attribute_docs};
+pub use candidate_constraint::{ConstraintConflict, fold_candidate_constraints};
 pub use cmf_invoker::CmfPluginInvoker;
 pub use delegation_invoker::DelegationPluginInvoker;
 pub use dispatch_plan::{DispatchCache, RouteDispatchPlan, RoutePluginEntry};
 pub use elicitation_invoker::ElicitationPluginInvoker;
 pub use pdp_router::PdpRouter;
-pub use register::{register_apl, AplOptions};
+pub use register::{AplOptions, register_apl};
 pub use route_handler::{
-    AplRouteHandler, Phase, ELICITATION_APPROVED_CODE, ELICITATION_ID_HEADER,
-    ELICITATION_PEEK_HEADER, ELICITATION_PENDING_CODE,
+    AplRouteHandler, ELICITATION_APPROVED_CODE, ELICITATION_ID_HEADER, ELICITATION_PEEK_HEADER,
+    ELICITATION_PENDING_CODE, Phase,
 };
 pub use session_store::{MemorySessionStore, SessionStore, SessionStoreError, SessionStoreFactory};
 pub use visitor::AplConfigVisitor;

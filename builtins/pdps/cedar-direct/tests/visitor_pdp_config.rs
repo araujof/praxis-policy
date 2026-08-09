@@ -33,7 +33,7 @@ use praxis_policy_core::extensions::{
 use praxis_policy_core::hooks::payload::Extensions;
 use praxis_policy_core::manager::PluginManager;
 
-use praxis_policy_apl_runtime::{register_apl, AplOptions, DispatchCache, MemorySessionStore};
+use praxis_policy_apl_runtime::{AplOptions, DispatchCache, MemorySessionStore, register_apl};
 use praxis_policy_pdp_cedar_direct::CedarDirectPdpFactory;
 
 // The configuration the visitor walks. Single Cedar permit policy that

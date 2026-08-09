@@ -235,8 +235,8 @@ pub type ErasedBranch<T> = BoxFuture<'static, T>;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     fn no_deny<T>(_: &T) -> bool {
         false
@@ -404,9 +404,10 @@ mod tests {
         )
         .await;
         // Branch 1 must complete despite branch 0's panic.
-        assert!(out
-            .iter()
-            .any(|o| matches!(o, BranchOutcome::Completed(42))));
+        assert!(
+            out.iter()
+                .any(|o| matches!(o, BranchOutcome::Completed(42)))
+        );
         assert!(out.iter().any(|o| matches!(o, BranchOutcome::Panicked(_))));
     }
 

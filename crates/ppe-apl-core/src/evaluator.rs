@@ -120,11 +120,7 @@ fn eval_condition(cond: &Condition, bag: &AttributeBag) -> bool {
                 },
                 None => false, // an interpolated key didn't resolve
             };
-            if *negate {
-                !in_set
-            } else {
-                in_set
-            }
+            if *negate { !in_set } else { in_set }
         },
     }
 }
@@ -764,7 +760,7 @@ async fn dispatch_elicitation(
     bag: &mut AttributeBag,
     elicitations: &Arc<dyn crate::step::ElicitationInvoker>,
 ) -> EffectOutcome {
-    use crate::step::{elicitation_bag_keys as bk, ElicitationOutcome, ElicitationStatus};
+    use crate::step::{ElicitationOutcome, ElicitationStatus, elicitation_bag_keys as bk};
 
     // `on_error` applies to *failures* (channel error, invalid response,
     // expiry, still-pending) — not to a genuine denial.
@@ -975,7 +971,7 @@ fn dispatch_parallel<'a>(
 ) -> futures::future::BoxFuture<'a, EffectOutcome> {
     Box::pin(async move {
         use praxis_policy_orchestration::{
-            run_branches, BranchConfig, BranchOutcome, ErasedBranch,
+            BranchConfig, BranchOutcome, ErasedBranch, run_branches,
         };
 
         if effects.is_empty() {
@@ -3437,10 +3433,12 @@ mod tests {
         };
 
         let mut off = AttributeBag::new();
-        assert!(eval(&[gated("eu_resident")], &mut off)
-            .await
-            .constraints
-            .is_empty());
+        assert!(
+            eval(&[gated("eu_resident")], &mut off)
+                .await
+                .constraints
+                .is_empty()
+        );
 
         let mut on = AttributeBag::new();
         on.set("eu_resident", true);
@@ -4119,10 +4117,12 @@ mod tests {
         let eval = run_elicit(elicit_effect(None, Some("continue")), &denier, &mut bag).await;
         match eval.decision {
             Decision::Deny { reason, .. } => {
-                assert!(reason
-                    .as_deref()
-                    .unwrap_or("")
-                    .contains("denied by approver"));
+                assert!(
+                    reason
+                        .as_deref()
+                        .unwrap_or("")
+                        .contains("denied by approver")
+                );
             },
             d => panic!("expected denial Deny, got {:?}", d),
         }

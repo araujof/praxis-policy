@@ -27,7 +27,7 @@
 use std::sync::Arc;
 
 use praxis_policy_core::{
-    delegation::{TokenDelegateHook, HOOK_TOKEN_DELEGATE},
+    delegation::{HOOK_TOKEN_DELEGATE, TokenDelegateHook},
     error::PluginError,
     factory::{PluginFactory, PluginInstance},
     hooks::TypedHandlerAdapter,

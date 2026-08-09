@@ -351,11 +351,13 @@ mod tests {
             assert!(!c.is_empty(), "field should count toward non-empty: {c:?}");
         }
         // `on_empty` alone does not.
-        assert!(CandidateConstraint {
-            on_empty: OnEmpty::Fallback,
-            ..Default::default()
-        }
-        .is_empty());
+        assert!(
+            CandidateConstraint {
+                on_empty: OnEmpty::Fallback,
+                ..Default::default()
+            }
+            .is_empty()
+        );
     }
 
     #[test]
@@ -407,11 +409,13 @@ mod tests {
         for s in each {
             assert!(!s.is_empty(), "field should count toward non-empty: {s:?}");
         }
-        assert!(RestrictSpec {
-            on_empty: OnEmpty::Fallback,
-            ..Default::default()
-        }
-        .is_empty());
+        assert!(
+            RestrictSpec {
+                on_empty: OnEmpty::Fallback,
+                ..Default::default()
+            }
+            .is_empty()
+        );
     }
 
     #[test]

@@ -31,7 +31,7 @@ use praxis_policy_core::{
     error::PluginError,
     factory::{PluginFactory, PluginInstance},
     hooks::TypedHandlerAdapter,
-    identity::{IdentityHook, HOOK_IDENTITY_RESOLVE},
+    identity::{HOOK_IDENTITY_RESOLVE, IdentityHook},
     plugin::PluginConfig,
 };
 

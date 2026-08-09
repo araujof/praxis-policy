@@ -31,8 +31,8 @@ use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{OnError, Plugin, PluginConfig, PluginMode};
 
 use praxis_policy_apl_core::{
-    compile_config, ElicitKind, ElicitStep, ElicitationInvoker, ElicitationOutcome,
-    ElicitationStatus,
+    ElicitKind, ElicitStep, ElicitationInvoker, ElicitationOutcome, ElicitationStatus,
+    compile_config,
 };
 use praxis_policy_apl_runtime::{ElicitationPluginInvoker, RouteDispatchPlan};
 

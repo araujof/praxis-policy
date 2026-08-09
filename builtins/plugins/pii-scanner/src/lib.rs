@@ -26,5 +26,5 @@ pub mod factory;
 pub mod scanner;
 
 pub use config::{PiiPattern, PiiScanMode, PiiScannerConfig};
-pub use factory::{PiiScannerFactory, KIND};
+pub use factory::{KIND, PiiScannerFactory};
 pub use scanner::PiiScanner;

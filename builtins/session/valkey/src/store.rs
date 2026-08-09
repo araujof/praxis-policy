@@ -105,7 +105,7 @@ impl SessionStore for ValkeySessionStore {
                 Err(_) => {
                     return Err(SessionStoreError::Backend(
                         "valkey SMEMBERS timed out".to_string(),
-                    ))
+                    ));
                 },
             };
 
@@ -159,7 +159,7 @@ impl SessionStore for ValkeySessionStore {
             Err(_) => {
                 return Err(SessionStoreError::Backend(
                     "valkey append (SADD+EXPIRE) timed out".to_string(),
-                ))
+                ));
             },
         }
         Ok(())

@@ -811,16 +811,20 @@ mod tests {
 
         // Subject visible
         assert_eq!(extensions["subject"]["id"], "alice");
-        assert!(extensions["subject"]["roles"]
-            .as_array()
-            .unwrap()
-            .contains(&serde_json::json!("admin")));
+        assert!(
+            extensions["subject"]["roles"]
+                .as_array()
+                .unwrap()
+                .contains(&serde_json::json!("admin"))
+        );
 
         // Labels visible
-        assert!(extensions["labels"]
-            .as_array()
-            .unwrap()
-            .contains(&serde_json::json!("PII")));
+        assert!(
+            extensions["labels"]
+                .as_array()
+                .unwrap()
+                .contains(&serde_json::json!("PII"))
+        );
 
         // Environment visible
         assert_eq!(extensions["environment"], "production");

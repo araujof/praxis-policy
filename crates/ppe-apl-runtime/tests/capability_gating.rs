@@ -35,7 +35,7 @@ use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
 use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{Plugin, PluginConfig};
 
-use praxis_policy_apl_runtime::{register_apl, AplOptions, DispatchCache, MemorySessionStore};
+use praxis_policy_apl_runtime::{AplOptions, DispatchCache, MemorySessionStore, register_apl};
 
 // =====================================================================
 // Fixtures

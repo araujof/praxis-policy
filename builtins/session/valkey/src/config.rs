@@ -264,10 +264,11 @@ mod tests {
         assert_eq!(cfg.key_prefix, "taint:v1");
         assert_eq!(cfg.connect_timeout_ms, 250);
         assert_eq!(cfg.command_timeout_ms, 500);
-        assert!(cfg
-            .connection_url()
-            .unwrap()
-            .starts_with("redis://localhost:6379"));
+        assert!(
+            cfg.connection_url()
+                .unwrap()
+                .starts_with("redis://localhost:6379")
+        );
     }
 
     #[test]
@@ -280,10 +281,11 @@ mod tests {
     fn non_localhost_with_tls_uses_rediss_scheme() {
         let cfg = parse("kind: valkey\nendpoint: valkey.prod.internal:6379\ntls: true\n").unwrap();
         assert!(cfg.tls_enabled());
-        assert!(cfg
-            .connection_url()
-            .unwrap()
-            .starts_with("rediss://valkey.prod.internal:6379"));
+        assert!(
+            cfg.connection_url()
+                .unwrap()
+                .starts_with("rediss://valkey.prod.internal:6379")
+        );
     }
 
     #[test]

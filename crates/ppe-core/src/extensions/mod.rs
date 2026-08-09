@@ -39,7 +39,7 @@ pub use agent::{AgentExtension, ConversationContext};
 pub use authorization::AuthorizationDetail;
 pub use completion::{CompletionExtension, StopReason, TokenUsage};
 pub use delegation::{DelegationExtension, DelegationHop, DelegationStrategy};
-pub use filter::{filter_extensions, SlotName};
+pub use filter::{SlotName, filter_extensions};
 pub use framework::FrameworkExtension;
 pub use guarded::{Guarded, WriteToken};
 pub use http::HttpExtension;
@@ -54,7 +54,7 @@ pub use raw_credentials::{
 };
 pub use request::RequestExtension;
 pub use routing::{
-    BackendLabels, CandidateConstraintExtension, OnEmpty, CAP_WRITE_CANDIDATE_CONSTRAINT,
+    BackendLabels, CAP_WRITE_CANDIDATE_CONSTRAINT, CandidateConstraintExtension, OnEmpty,
 };
 pub use security::{
     ClientExtension, ClientTrustLevel, DataPolicy, ObjectSecurityProfile, RetentionPolicy,

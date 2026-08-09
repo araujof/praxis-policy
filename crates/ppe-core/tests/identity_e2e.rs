@@ -32,7 +32,7 @@ use praxis_policy_core::extensions::{SubjectExtension, WorkloadIdentity};
 use praxis_policy_core::hooks::payload::Extensions;
 use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
 use praxis_policy_core::identity::{
-    IdentityHook, IdentityPayload, TokenSource, HOOK_IDENTITY_RESOLVE,
+    HOOK_IDENTITY_RESOLVE, IdentityHook, IdentityPayload, TokenSource,
 };
 use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{OnError, Plugin, PluginConfig, PluginMode};
@@ -342,10 +342,10 @@ async fn rejecting_resolver_halts_pipeline() {
 /// landed.
 #[tokio::test]
 async fn apply_to_extensions_populates_security_and_preserves_existing_fields() {
+    use praxis_policy_core::extensions::SecurityExtension;
     use praxis_policy_core::extensions::raw_credentials::{
         RawCredentialsExtension, RawInboundToken, TokenKind, TokenRole,
     };
-    use praxis_policy_core::extensions::SecurityExtension;
 
     // ----- Handler: produces a subject + a RawCredentialsExtension -----
     struct FullResolver {
@@ -499,15 +499,15 @@ async fn from_pipeline_result_returns_none_on_deny() {
 /// isolation; this test pins the wiring through the real executor.
 #[tokio::test]
 async fn cap_gating_post_apply_through_cmf_dispatch() {
-    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use std::sync::Mutex;
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
     use praxis_policy_core::cmf::enums::Role;
     use praxis_policy_core::cmf::{CmfHook, Message, MessagePayload};
+    use praxis_policy_core::extensions::SecurityExtension;
     use praxis_policy_core::extensions::raw_credentials::{
         RawCredentialsExtension, RawInboundToken, TokenKind, TokenRole,
     };
-    use praxis_policy_core::extensions::SecurityExtension;
 
     // ----- Identity resolver: populates subject + one inbound token -----
     struct FullResolver {

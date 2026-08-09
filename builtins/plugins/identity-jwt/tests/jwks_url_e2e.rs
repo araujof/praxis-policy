@@ -25,20 +25,20 @@ use std::sync::Arc;
 
 use praxis_policy_core::hooks::payload::Extensions;
 use praxis_policy_core::identity::{
-    IdentityHook, IdentityPayload, TokenSource, HOOK_IDENTITY_RESOLVE,
+    HOOK_IDENTITY_RESOLVE, IdentityHook, IdentityPayload, TokenSource,
 };
 use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{OnError, PluginConfig, PluginMode};
 
 use praxis_policy_plugin_identity_jwt::{DecodingKeySource, JwtIdentityResolver};
 
-use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
+use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use mockito::Server;
 use rsa::pkcs1::EncodeRsaPublicKey;
 use rsa::pkcs8::{EncodePrivateKey, LineEnding};
 use rsa::traits::PublicKeyParts;
 use rsa::{RsaPrivateKey, RsaPublicKey};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 const ISS: &str = "https://idp.test.local";
 const AUD: &str = "test-api";

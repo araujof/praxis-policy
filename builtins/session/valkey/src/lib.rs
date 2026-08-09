@@ -40,5 +40,5 @@ mod store;
 
 pub use config::ValkeyConfig;
 pub use error::BuildError;
-pub use factory::{ValkeySessionStoreFactory, KIND};
+pub use factory::{KIND, ValkeySessionStoreFactory};
 pub use store::ValkeySessionStore;

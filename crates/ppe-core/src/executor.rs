@@ -37,7 +37,7 @@ use crate::error::PluginError;
 use crate::extensions::filter_extensions;
 use crate::hooks::payload::{Extensions, PluginPayload, WriteToken};
 use crate::plugin::OnError;
-use crate::registry::{group_by_mode, HookEntry};
+use crate::registry::{HookEntry, group_by_mode};
 
 /// Configuration for the executor.
 #[derive(Debug, Clone)]
@@ -787,7 +787,7 @@ impl Executor {
         errors: &mut Vec<crate::error::PluginErrorRecord>,
     ) -> Option<crate::error::PluginViolation> {
         use praxis_policy_orchestration::{
-            run_branches, BranchConfig, BranchOutcome, ErasedBranch,
+            BranchConfig, BranchOutcome, ErasedBranch, run_branches,
         };
 
         if entries.is_empty() {
@@ -1135,8 +1135,8 @@ pub fn erase_result<P: crate::hooks::PluginPayload>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hooks::payload::PluginPayload;
     use crate::hooks::PluginResult;
+    use crate::hooks::payload::PluginPayload;
 
     #[derive(Debug, Clone)]
     #[allow(dead_code)] // test fixture — typed shape is the point, not field reads

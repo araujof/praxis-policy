@@ -208,7 +208,7 @@ impl DecodingKeySource {
             Self::JwksUrl { url, .. } => {
                 return Err(format!(
                     "JwksUrl source '{url}' requires async resolution — call build_async()"
-                ))
+                ));
             },
             Self::Secret { secret } => DecodingKey::from_secret(secret.as_bytes()),
         };

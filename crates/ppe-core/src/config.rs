@@ -1157,10 +1157,12 @@ plugins:
     kind: builtin
     hooks: [tool_post_invoke]
 "#;
-        assert!(parse_config(yaml)
-            .unwrap_err()
-            .to_string()
-            .contains("duplicate plugin name"));
+        assert!(
+            parse_config(yaml)
+                .unwrap_err()
+                .to_string()
+                .contains("duplicate plugin name")
+        );
     }
 
     #[test]
@@ -1173,10 +1175,12 @@ routes:
   - meta:
       tags: [pii]
 "#;
-        assert!(parse_config(yaml)
-            .unwrap_err()
-            .to_string()
-            .contains("no entity matcher"));
+        assert!(
+            parse_config(yaml)
+                .unwrap_err()
+                .to_string()
+                .contains("no entity matcher")
+        );
     }
 
     #[test]
@@ -1189,10 +1193,12 @@ routes:
   - tool: get_compensation
     resource: "hr://employees/*"
 "#;
-        assert!(parse_config(yaml)
-            .unwrap_err()
-            .to_string()
-            .contains("multiple entity matchers"));
+        assert!(
+            parse_config(yaml)
+                .unwrap_err()
+                .to_string()
+                .contains("multiple entity matchers")
+        );
     }
 
     #[test]
@@ -1209,10 +1215,12 @@ routes:
     plugins:
       - unknown
 "#;
-        assert!(parse_config(yaml)
-            .unwrap_err()
-            .to_string()
-            .contains("unknown plugin 'unknown'"));
+        assert!(
+            parse_config(yaml)
+                .unwrap_err()
+                .to_string()
+                .contains("unknown plugin 'unknown'")
+        );
     }
 
     #[test]
@@ -1227,10 +1235,12 @@ global:
 plugins: []
 routes: []
 "#;
-        assert!(parse_config(yaml)
-            .unwrap_err()
-            .to_string()
-            .contains("unknown plugin 'nonexistent'"));
+        assert!(
+            parse_config(yaml)
+                .unwrap_err()
+                .to_string()
+                .contains("unknown plugin 'nonexistent'")
+        );
     }
 
     #[test]

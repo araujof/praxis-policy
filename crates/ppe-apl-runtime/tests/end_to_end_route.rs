@@ -32,13 +32,13 @@ use praxis_policy_core::plugin::{Plugin, PluginConfig};
 
 use praxis_policy_apl_core::pipeline::TaintScope;
 use praxis_policy_apl_core::{
-    compile_config, evaluate_route, AttributeBag, Decision, NoopDelegationInvoker,
-    NoopElicitationInvoker, PdpCall, PdpDecision, PdpDialect, PdpError, PdpResolver, RoutePayload,
+    AttributeBag, Decision, NoopDelegationInvoker, NoopElicitationInvoker, PdpCall, PdpDecision,
+    PdpDialect, PdpError, PdpResolver, RoutePayload, compile_config, evaluate_route,
 };
 
 use praxis_policy_apl_runtime::{
-    register_apl, AplOptions, CmfPluginInvoker, DispatchCache, MemorySessionStore, SessionStore,
-    SessionStoreError,
+    AplOptions, CmfPluginInvoker, DispatchCache, MemorySessionStore, SessionStore,
+    SessionStoreError, register_apl,
 };
 
 // Build Extensions carrying a client/upstream session id (tier-0) AND an

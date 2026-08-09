@@ -45,7 +45,7 @@ use std::sync::{Arc, RwLock};
 
 use praxis_policy_core::delegation::HOOK_TOKEN_DELEGATE;
 use praxis_policy_core::elicitation::HOOK_ELICIT;
-use praxis_policy_core::hooks::{lookup_hook_metadata, HookPhase};
+use praxis_policy_core::hooks::{HookPhase, lookup_hook_metadata};
 use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::OnError;
 use praxis_policy_core::registry::HookEntry;

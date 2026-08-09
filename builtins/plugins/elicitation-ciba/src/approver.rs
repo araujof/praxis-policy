@@ -45,7 +45,7 @@ use praxis_policy_core::hooks::payload::Extensions;
 use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
 use praxis_policy_core::plugin::{Plugin, PluginConfig};
 
-use crate::config::{require_https, CibaConfig};
+use crate::config::{CibaConfig, require_https};
 use crate::store::{Correlation, CorrelationStore, InMemoryCorrelationStore};
 
 /// OIDC CIBA grant type for the token-endpoint poll.
@@ -234,7 +234,7 @@ impl CibaApprover {
                 return deny(
                     "elicitation.bad_request",
                     "CIBA check requires an elicitation id",
-                )
+                );
             },
         };
 
@@ -347,7 +347,7 @@ impl CibaApprover {
                 return deny(
                     "elicitation.bad_request",
                     "CIBA validate requires an elicitation id",
-                )
+                );
             },
         };
 
@@ -369,7 +369,7 @@ impl CibaApprover {
                          extracted at check, or it hasn't resolved)",
                         self.typed.approver_claim
                     ),
-                )
+                );
             },
         };
 

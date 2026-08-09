@@ -27,7 +27,7 @@
 use std::sync::Arc;
 
 use crate::attributes::AttributeBag;
-use crate::evaluator::{evaluate_effects, evaluate_pipeline, Decision, FieldOutcome};
+use crate::evaluator::{Decision, FieldOutcome, evaluate_effects, evaluate_pipeline};
 use crate::pipeline::TaintEvent;
 use crate::rules::CompiledRoute;
 use crate::step::{

@@ -22,9 +22,9 @@
 use praxis_policy_apl_runtime::{SessionStore, SessionStoreError};
 use praxis_policy_session_valkey::{ValkeyConfig, ValkeySessionStore};
 use sha2::{Digest, Sha256};
-use testcontainers_modules::testcontainers::runners::AsyncRunner;
 use testcontainers_modules::testcontainers::ContainerAsync;
-use testcontainers_modules::valkey::{Valkey, VALKEY_PORT};
+use testcontainers_modules::testcontainers::runners::AsyncRunner;
+use testcontainers_modules::valkey::{VALKEY_PORT, Valkey};
 
 /// A Valkey endpoint to test against, plus the container handle when one
 /// was started (kept alive for the test's duration).
@@ -56,7 +56,9 @@ async fn valkey_target() -> Option<Target> {
         },
         Err(e) => {
             if std::env::var("REQUIRE_VALKEY_TESTS").as_deref() == Ok("1") {
-                panic!("REQUIRE_VALKEY_TESTS=1 but no Valkey available: {e} (set VALKEY_TEST_URL or start Docker)");
+                panic!(
+                    "REQUIRE_VALKEY_TESTS=1 but no Valkey available: {e} (set VALKEY_TEST_URL or start Docker)"
+                );
             }
             eprintln!(
                 "SKIPPED: no Valkey available ({e}); set VALKEY_TEST_URL or REQUIRE_VALKEY_TESTS=1"

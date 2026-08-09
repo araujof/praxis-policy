@@ -37,10 +37,10 @@ use crate::context::PluginContextTable;
 use crate::error::PluginError;
 use crate::executor::{BackgroundTasks, Executor, ExecutorConfig, PipelineResult};
 use crate::factory::PluginFactoryRegistry;
+use crate::hooks::HookType;
 use crate::hooks::adapter::TypedHandlerAdapter;
 use crate::hooks::payload::{Extensions, PluginPayload};
 use crate::hooks::trait_def::{HookHandler, HookTypeDef, PluginResult};
-use crate::hooks::HookType;
 use crate::plugin::{Plugin, PluginConfig};
 use crate::registry::{AnyHookHandler, PluginRef, PluginRegistry};
 
@@ -2187,8 +2187,8 @@ mod tests {
     /// Mirrors the Python implementation's per-plugin filtering.
     #[tokio::test]
     async fn test_conditions_filter_plugins_when_routing_disabled() {
-        use std::sync::atomic::{AtomicUsize, Ordering};
         use std::sync::Arc as StdArc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
 
         let counts: StdArc<[AtomicUsize; 2]> =
             StdArc::new([AtomicUsize::new(0), AtomicUsize::new(0)]);
@@ -3830,8 +3830,8 @@ mod tests {
     /// types other than tool in routing" gap.
     #[tokio::test]
     async fn test_routing_works_for_all_entity_types() {
-        use std::sync::atomic::{AtomicUsize, Ordering};
         use std::sync::Arc as StdArc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
 
         // One counter per entity-type test; each plugin only fires when
         // the route resolves to it.
@@ -3948,8 +3948,8 @@ routes:
     /// initialize() rollback path" gap.
     #[tokio::test]
     async fn test_initialize_rollback_on_failure() {
-        use std::sync::atomic::{AtomicUsize, Ordering};
         use std::sync::Arc as StdArc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
 
         // Track per-plugin init / shutdown invocations.
         let init_count_a = StdArc::new(AtomicUsize::new(0));
@@ -4047,16 +4047,17 @@ routes:
         //   have either. In both cases, init_count == shutdown_count.
         // - B's init() was called and failed, so its shutdown() must NOT
         //   run — failed-init plugins are not part of the rollback set.
-        let assert_pair_invariant =
-            |init: &AtomicUsize, shutdown: &AtomicUsize, tag: &str| {
-                let i = init.load(Ordering::SeqCst);
-                let s = shutdown.load(Ordering::SeqCst);
-                assert!(
+        let assert_pair_invariant = |init: &AtomicUsize, shutdown: &AtomicUsize, tag: &str| {
+            let i = init.load(Ordering::SeqCst);
+            let s = shutdown.load(Ordering::SeqCst);
+            assert!(
                 (i == 0 && s == 0) || (i == 1 && s == 1),
                 "{}: init/shutdown should be paired (both 0 or both 1), got init={} shutdown={}",
-                tag, i, s,
+                tag,
+                i,
+                s,
             );
-            };
+        };
         assert_pair_invariant(&init_count_a, &shutdown_count_a, "A");
         assert_pair_invariant(&init_count_c, &shutdown_count_c, "C");
 

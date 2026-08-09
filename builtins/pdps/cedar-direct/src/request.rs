@@ -40,7 +40,7 @@
 use cedar_policy::{EntityUid, Schema};
 use praxis_policy_apl_core::attributes::{AttributeBag, AttributeValue};
 use praxis_policy_apl_core::step::{PdpCall, PdpError};
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 /// Parsed pieces of a `PdpCall` ready to feed into
 /// `cedar_policy::Request::builder()`. We pull this into its own

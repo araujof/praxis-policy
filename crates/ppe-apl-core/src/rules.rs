@@ -986,30 +986,38 @@ mod tests {
         // White-box check on the helper so future Effect additions
         // get flagged here when they should be classified.
         assert!(!Effect::Allow.contains_mutation());
-        assert!(!Effect::Deny {
-            reason: None,
-            code: None
-        }
-        .contains_mutation());
+        assert!(
+            !Effect::Deny {
+                reason: None,
+                code: None
+            }
+            .contains_mutation()
+        );
         assert!(!Effect::Plugin { name: "x".into() }.contains_mutation());
-        assert!(!Effect::Taint {
-            label: "x".into(),
-            scopes: vec![],
-        }
-        .contains_mutation());
+        assert!(
+            !Effect::Taint {
+                label: "x".into(),
+                scopes: vec![],
+            }
+            .contains_mutation()
+        );
 
-        assert!(Effect::FieldOp {
-            path: "args.x".into(),
-            stages: vec![],
-        }
-        .contains_mutation());
-        assert!(Effect::Delegate(crate::step::DelegateStep {
-            plugin_name: "x".into(),
-            config_override: None,
-            on_error: None,
-            source: "x".into(),
-        })
-        .contains_mutation());
+        assert!(
+            Effect::FieldOp {
+                path: "args.x".into(),
+                stages: vec![],
+            }
+            .contains_mutation()
+        );
+        assert!(
+            Effect::Delegate(crate::step::DelegateStep {
+                plugin_name: "x".into(),
+                config_override: None,
+                on_error: None,
+                source: "x".into(),
+            })
+            .contains_mutation()
+        );
 
         // Composite — mutates iff any child mutates.
         let pure_seq = Effect::Sequential(vec![Effect::Allow]);

@@ -25,8 +25,8 @@
 use std::sync::Arc;
 
 use praxis_policy_core::delegation::{
-    AttenuationConfig, AuthEnforcedBy, DelegationPayload, DelegationSubject, TargetType,
-    TokenDelegateHook, HOOK_TOKEN_DELEGATE,
+    AttenuationConfig, AuthEnforcedBy, DelegationPayload, DelegationSubject, HOOK_TOKEN_DELEGATE,
+    TargetType, TokenDelegateHook,
 };
 use praxis_policy_core::extensions::raw_credentials::{DelegationMode, TokenRole};
 use praxis_policy_core::hooks::payload::Extensions;

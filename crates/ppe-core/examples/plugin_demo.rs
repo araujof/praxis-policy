@@ -268,9 +268,9 @@ impl HookHandler<ToolPreInvoke> for RemoteAuthz {
             return PluginResult::allow();
         }
         drop(acl); // release read lock before the fake remote call
-                   // Cache miss path — simulate a remote authz check. In a real
-                   // plugin this is where you'd `.await` a gRPC or HTTP call.
-                   // The latency cost is real and shows up on the request path.
+        // Cache miss path — simulate a remote authz check. In a real
+        // plugin this is where you'd `.await` a gRPC or HTTP call.
+        // The latency cost is real and shows up on the request path.
         tokio::time::sleep(std::time::Duration::from_millis(1)).await;
         println!(
             "  [remote-authz] DENIED (cache miss + remote check): user '{}'",

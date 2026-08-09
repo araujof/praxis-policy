@@ -32,7 +32,7 @@ use praxis_policy_core::hooks::adapter::TypedHandlerAdapter;
 use praxis_policy_core::hooks::payload::Extensions;
 use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
 use praxis_policy_core::identity::{
-    IdentityHook, IdentityPayload, TokenSource, HOOK_IDENTITY_RESOLVE,
+    HOOK_IDENTITY_RESOLVE, IdentityHook, IdentityPayload, TokenSource,
 };
 use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{Plugin, PluginConfig};

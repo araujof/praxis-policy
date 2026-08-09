@@ -68,7 +68,7 @@ pub use {
 
 pub use praxis_policy_apl_core::step::PdpFactory;
 pub use praxis_policy_apl_runtime::{
-    register_apl, AplOptions, DispatchCache, MemorySessionStore, SessionStore, SessionStoreFactory,
+    AplOptions, DispatchCache, MemorySessionStore, SessionStore, SessionStoreFactory, register_apl,
 };
 pub use praxis_policy_core::manager::PluginManager;
 
@@ -91,15 +91,15 @@ pub use praxis_policy_builtins::CedarDirectPdpFactory;
 #[cfg(feature = "cel")]
 pub use praxis_policy_builtins::CelPdpFactory;
 #[cfg(feature = "audit")]
-pub use praxis_policy_builtins::{AuditLoggerFactory, AUDIT_KIND};
+pub use praxis_policy_builtins::{AUDIT_KIND, AuditLoggerFactory};
 #[cfg(feature = "jwt")]
-pub use praxis_policy_builtins::{JwtIdentityFactory, JWT_KIND};
+pub use praxis_policy_builtins::{JWT_KIND, JwtIdentityFactory};
 #[cfg(feature = "oauth")]
-pub use praxis_policy_builtins::{OAuthDelegatorFactory, OAUTH_KIND};
+pub use praxis_policy_builtins::{OAUTH_KIND, OAuthDelegatorFactory};
 #[cfg(feature = "pii")]
-pub use praxis_policy_builtins::{PiiScannerFactory, PII_KIND};
+pub use praxis_policy_builtins::{PII_KIND, PiiScannerFactory};
 #[cfg(feature = "valkey")]
-pub use praxis_policy_builtins::{ValkeyConfig, ValkeySessionStoreFactory, VALKEY_KIND};
+pub use praxis_policy_builtins::{VALKEY_KIND, ValkeyConfig, ValkeySessionStoreFactory};
 
 #[cfg(all(test, feature = "praxis-policy-builtins"))]
 mod tests {
