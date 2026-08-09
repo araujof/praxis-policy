@@ -8,6 +8,15 @@
 // read it. Covers the load → bag path for static dot-path references;
 // `${...}` interpolation is exercised separately below.
 
+#![allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "test and example code"
+)]
 use std::sync::Arc;
 
 use praxis_policy_core::cmf::enums::Role;

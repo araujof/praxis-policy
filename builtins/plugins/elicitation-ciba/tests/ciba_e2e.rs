@@ -7,6 +7,15 @@
 // (mockito). Exercises the real request shapes and the lifecycle mapping
 // for dispatch → check → validate without a live Keycloak.
 
+#![allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "test and example code"
+)]
 use std::collections::HashSet;
 
 use base64::Engine;

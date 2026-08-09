@@ -819,6 +819,15 @@ fn pending_violation(p: &praxis_policy_apl_core::step::PendingElicitation) -> Pl
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "tests"
+)]
 mod phase5_tests {
     use super::*;
     use praxis_policy_core::extensions::HttpExtension;

@@ -651,6 +651,15 @@ fn require_https(url: &str, insecure_http: bool) -> Result<(), String> {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "tests"
+)]
 mod scheme_tests {
     use super::require_https;
 
@@ -682,6 +691,15 @@ mod scheme_tests {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "tests"
+)]
 mod act_claim_tests {
     use super::jwt_payload_omits_act;
     use base64::Engine as _;

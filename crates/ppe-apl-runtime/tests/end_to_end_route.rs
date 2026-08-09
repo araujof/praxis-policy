@@ -16,6 +16,15 @@
 // route YAML, the evaluator drives the route, and the invoker is the
 // only thing that translates plugin-named steps into CMF hook calls.
 
+#![allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "test and example code"
+)]
 use std::sync::Arc;
 
 use async_trait::async_trait;

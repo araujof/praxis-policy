@@ -24,6 +24,15 @@ pub fn extract_custom(custom: &HashMap<String, Value>, bag: &mut AttributeBag) {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "tests"
+)]
 mod tests {
     use super::*;
     use serde_json::json;

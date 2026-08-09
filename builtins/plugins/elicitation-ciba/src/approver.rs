@@ -520,6 +520,15 @@ fn decode_jwt_claim(token: &str, claim: &str) -> Option<String> {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "tests"
+)]
 mod tests {
     use super::*;
 

@@ -12,6 +12,15 @@
 // the map-keyed `routes:` shape that the parser actually accepts (the
 // list-with-matchers form is a deferred shape).
 
+#![allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "test and example code"
+)]
 use std::sync::Arc;
 
 use async_trait::async_trait;

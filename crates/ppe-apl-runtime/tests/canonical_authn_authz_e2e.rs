@@ -22,6 +22,15 @@
 // on `cmf.tool_pre_invoke` (praxis-policy-apl-runtime). Dropping `apl:` is what lets them sit
 // at the same level. This test exercises both from one loaded config.
 
+#![allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "test and example code"
+)]
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;

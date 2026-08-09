@@ -20,6 +20,15 @@
 //                        token, and `delegation.granted.*` is visible
 //                        to the trailing post-check.
 
+#![allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "test and example code"
+)]
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;

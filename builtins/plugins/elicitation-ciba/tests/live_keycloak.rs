@@ -21,6 +21,15 @@
 //   CIBA_LOGIN_HINT=alice \
 //   cargo test -p praxis-policy-plugin-elicitation-ciba --test live_keycloak -- --ignored --nocapture
 
+#![allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "test and example code"
+)]
 use std::collections::HashSet;
 
 use serde_json::json;

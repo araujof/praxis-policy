@@ -190,6 +190,15 @@ pub fn resolve_session(ext: &Extensions) -> Option<(String, SessionSource)> {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "tests"
+)]
 mod tests {
     use super::*;
     use praxis_policy_core::extensions::{

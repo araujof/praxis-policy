@@ -7,6 +7,15 @@
 // evaluator on a YAML-compiled route. If this test breaks, the whole
 // stack is misaligned (extension shape, bag vocabulary, or compiler).
 
+#![allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "test and example code"
+)]
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 

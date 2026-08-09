@@ -21,6 +21,15 @@
 // `untrusted_issuer` because the JwksUrl-deferred issuer never made
 // it into `trusted_issuers`).
 
+#![allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "test and example code"
+)]
 use std::sync::Arc;
 
 use praxis_policy_core::hooks::payload::Extensions;

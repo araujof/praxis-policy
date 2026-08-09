@@ -337,12 +337,12 @@ ptr_as_ptr = "allow"                     # seed
 undocumented_unsafe_blocks = "allow"     # seed
 # Diagnostic hygiene. A library must not panic on operator input, but the source
 # tree uses these pervasively in tests, which is where the volume is.
-unwrap_used = "allow"                    # seed
-expect_used = "allow"                    # seed
-panic = "allow"                          # seed
-indexing_slicing = "allow"               # seed
-print_stdout = "allow"                   # seed
-print_stderr = "allow"                   # seed
+unwrap_used = "allow"                    # ratchet: 0 production sites remain; test and example code is scoped-allowed
+expect_used = "allow"                    # ratchet: 20 production sites remain, see docs/ratchet.md
+panic = "allow"                    # ratchet: 0 production sites remain; test and example code is scoped-allowed
+indexing_slicing = "allow"                    # ratchet: 36 production sites remain, see docs/ratchet.md
+print_stdout = "allow"                    # ratchet: 0 production sites remain; examples print intentionally
+print_stderr = "allow"                    # ratchet: 2 production sites remain, see docs/ratchet.md
 # Style, parked to keep the import free of mechanical churn.
 derivable_impls = "allow"                  # seed: measured
 doc_lazy_continuation = "allow"                  # seed: measured
@@ -371,6 +371,6 @@ invalid_codeblock_attributes = "deny"
 redundant_explicit_links = "deny"
 unescaped_backticks = "deny"
 invalid_html_tags = "deny"
-bare_urls = "allow"                      # seed
-missing_crate_level_docs = "allow"       # seed
+bare_urls = "allow"                      # ratchet
+missing_crate_level_docs = "allow"                      # ratchet
 private_doc_tests = "allow"

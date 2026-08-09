@@ -19,6 +19,15 @@
 //     and the test returns without asserting. The visible line is what
 //     stops a silent green.
 
+#![allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "test and example code"
+)]
 use praxis_policy_apl_runtime::{SessionStore, SessionStoreError};
 use praxis_policy_session_valkey::{ValkeyConfig, ValkeySessionStore};
 use sha2::{Digest, Sha256};

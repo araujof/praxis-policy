@@ -19,6 +19,15 @@
 // Companion tests for IdentityHook *semantics* (payload threading,
 // rejection, apply_to_extensions) live in `identity_e2e.rs`.
 
+#![allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "test and example code"
+)]
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 

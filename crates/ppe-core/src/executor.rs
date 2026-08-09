@@ -1133,6 +1133,15 @@ pub fn erase_result<P: crate::hooks::PluginPayload>(
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "tests"
+)]
 mod tests {
     use super::*;
     use crate::hooks::PluginResult;

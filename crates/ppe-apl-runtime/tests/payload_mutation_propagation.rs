@@ -18,6 +18,15 @@
 // Any check that infers "was this modified?" from message text passes
 // them through unchanged, which is the bug.
 
+#![allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "test and example code"
+)]
 use std::sync::Arc;
 
 use async_trait::async_trait;

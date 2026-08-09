@@ -218,6 +218,15 @@ impl HookHandler<CmfHook> for PiiScanner {
 fn _force_link_arc(_: Arc<()>) {}
 
 #[cfg(test)]
+#[allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "tests"
+)]
 mod tests {
     use super::*;
     use praxis_policy_core::cmf::{Role, ToolCall};

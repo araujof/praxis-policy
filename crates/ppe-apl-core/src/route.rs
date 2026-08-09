@@ -386,6 +386,15 @@ pub(crate) fn remove_dotted(root: &mut serde_json::Value, path: &str) -> bool {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "tests"
+)]
 mod tests {
     use super::*;
     use crate::pipeline::{FieldRule, Pipeline, Stage, TaintScope, TypeCheck};

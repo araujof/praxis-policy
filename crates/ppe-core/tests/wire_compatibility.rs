@@ -9,6 +9,15 @@
 //! It is checked in rather than read from a sibling repository so the guarantee
 //! travels with this crate.
 
+#![allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "test and example code"
+)]
 #[test]
 fn legacy_policy_document_parses_unchanged() {
     let yaml = include_str!("fixtures/legacy-policy-document.yaml");

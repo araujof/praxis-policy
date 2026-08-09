@@ -19,6 +19,15 @@
 // `base_capabilities ∪ per-route plugin union` and sets it on the
 // synthetic `PluginConfig`.
 
+#![allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "test and example code"
+)]
 use std::sync::Arc;
 
 use async_trait::async_trait;

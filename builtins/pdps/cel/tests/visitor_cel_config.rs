@@ -20,6 +20,15 @@
 // passes, an operator who drops a `cel` block into their config gets the
 // same behavior without writing any glue.
 
+#![allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "test and example code"
+)]
 use std::collections::HashSet;
 use std::sync::Arc;
 

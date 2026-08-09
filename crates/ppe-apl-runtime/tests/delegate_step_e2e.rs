@@ -19,6 +19,15 @@
 //   * `on_error: deny` (the default) halts the route on plugin deny;
 //     `on_error: continue` lets the pipeline keep going.
 
+#![allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "test and example code"
+)]
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;

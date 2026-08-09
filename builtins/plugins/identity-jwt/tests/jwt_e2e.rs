@@ -19,6 +19,15 @@
 // Keypair is generated once per test process (RSA 2048 takes
 // ~50-100ms; one-time cost) and shared across tests via OnceLock.
 
+#![allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "test and example code"
+)]
 use std::sync::Arc;
 use std::sync::OnceLock;
 
