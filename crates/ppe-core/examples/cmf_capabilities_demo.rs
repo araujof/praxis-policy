@@ -13,16 +13,16 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use cpex_core::cmf::{CmfHook, ContentPart, Message, MessagePayload, Role, ToolCall};
-use cpex_core::context::PluginContext;
-use cpex_core::error::{PluginError, PluginViolation};
-use cpex_core::extensions::{HttpExtension, RequestExtension, SecurityExtension};
-use cpex_core::factory::{PluginFactory, PluginInstance};
-use cpex_core::hooks::adapter::TypedHandlerAdapter;
-use cpex_core::hooks::payload::{Extensions, MetaExtension};
-use cpex_core::hooks::trait_def::{HookHandler, PluginResult};
-use cpex_core::manager::PluginManager;
-use cpex_core::plugin::{Plugin, PluginConfig};
+use praxis_policy_core::cmf::{CmfHook, ContentPart, Message, MessagePayload, Role, ToolCall};
+use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::error::{PluginError, PluginViolation};
+use praxis_policy_core::extensions::{HttpExtension, RequestExtension, SecurityExtension};
+use praxis_policy_core::factory::{PluginFactory, PluginInstance};
+use praxis_policy_core::hooks::adapter::TypedHandlerAdapter;
+use praxis_policy_core::hooks::payload::{Extensions, MetaExtension};
+use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
+use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::plugin::{Plugin, PluginConfig};
 
 // ---------------------------------------------------------------------------
 // Plugin: IdentityChecker
@@ -327,23 +327,23 @@ async fn main() {
     println!("=== CMF Capabilities Demo ===\n");
 
     // Load config from YAML file — capabilities declared per plugin
-    let config_path = "crates/cpex-core/examples/cmf_capabilities_demo.yaml";
+    let config_path = "crates/ppe-core/examples/cmf_capabilities_demo.yaml";
     println!("--- Loading config from {} ---\n", config_path);
     let yaml = std::fs::read_to_string(config_path)
         .unwrap_or_else(|e| panic!("Failed to read {}: {}", config_path, e));
-    let cpex_config = cpex_core::config::parse_config(&yaml).unwrap();
+    let policy_config = praxis_policy_core::config::parse_config(&yaml).unwrap();
 
     let mgr = PluginManager::default();
     mgr.register_factory("builtin/identity-checker", Box::new(IdentityCheckerFactory));
     mgr.register_factory("builtin/header-injector", Box::new(HeaderInjectorFactory));
     mgr.register_factory("builtin/audit-logger", Box::new(AuditLoggerFactory));
-    mgr.load_config(cpex_config).unwrap();
+    mgr.load_config(policy_config).unwrap();
     mgr.initialize().await.unwrap();
 
     // --- Build CMF Message ---
     let payload = MessagePayload {
         message: Message {
-            schema_version: cpex_core::cmf::constants::SCHEMA_VERSION.into(),
+            schema_version: praxis_policy_core::cmf::constants::SCHEMA_VERSION.into(),
             role: Role::Assistant,
             content: vec![
                 ContentPart::Text {
@@ -367,9 +367,9 @@ async fn main() {
     security.add_label("PII");
     security.add_label("HR_DATA");
     security.classification = Some("confidential".into());
-    security.subject = Some(cpex_core::extensions::security::SubjectExtension {
+    security.subject = Some(praxis_policy_core::extensions::security::SubjectExtension {
         id: Some("alice".into()),
-        subject_type: Some(cpex_core::extensions::security::SubjectType::User),
+        subject_type: Some(praxis_policy_core::extensions::security::SubjectType::User),
         roles: ["hr_admin".to_string()].into(),
         permissions: ["read_compensation".to_string()].into(),
         ..Default::default()
@@ -442,10 +442,10 @@ async fn main() {
 
     let post_payload = MessagePayload {
         message: Message {
-            schema_version: cpex_core::cmf::constants::SCHEMA_VERSION.into(),
+            schema_version: praxis_policy_core::cmf::constants::SCHEMA_VERSION.into(),
             role: Role::Tool,
             content: vec![ContentPart::ToolResult {
-                content: cpex_core::cmf::ToolResult {
+                content: praxis_policy_core::cmf::ToolResult {
                     tool_call_id: "tc_001".into(),
                     tool_name: "get_compensation".into(),
                     content: serde_json::json!({"salary": 150000, "currency": "USD"}),

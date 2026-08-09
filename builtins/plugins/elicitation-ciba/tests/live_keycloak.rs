@@ -16,22 +16,22 @@
 //
 //   CIBA_BACKCHANNEL_ENDPOINT=http://localhost:8080/realms/corp/protocol/openid-connect/ext/ciba/auth \
 //   CIBA_TOKEN_ENDPOINT=http://localhost:8080/realms/corp/protocol/openid-connect/token \
-//   CIBA_CLIENT_ID=cpex-gateway \
+//   CIBA_CLIENT_ID=praxis-policy-gateway \
 //   CIBA_CLIENT_SECRET=<secret> \
 //   CIBA_LOGIN_HINT=alice \
-//   cargo test -p cpex-plugin-elicitation-ciba --test live_keycloak -- --ignored --nocapture
+//   cargo test -p praxis-policy-plugin-elicitation-ciba --test live_keycloak -- --ignored --nocapture
 
 use std::collections::HashSet;
 
 use serde_json::json;
 
-use cpex_core::context::PluginContext;
-use cpex_core::elicitation::{ElicitationOp, ElicitationPayload, ElicitationStatusKind};
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::hooks::trait_def::HookHandler;
-use cpex_core::plugin::{OnError, PluginConfig, PluginMode};
+use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::elicitation::{ElicitationOp, ElicitationPayload, ElicitationStatusKind};
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::hooks::trait_def::HookHandler;
+use praxis_policy_core::plugin::{OnError, PluginConfig, PluginMode};
 
-use cpex_plugin_elicitation_ciba::CibaApprover;
+use praxis_policy_plugin_elicitation_ciba::CibaApprover;
 
 /// Read a required env var, or `None` (so the test skips cleanly).
 fn env(name: &str) -> Option<String> {

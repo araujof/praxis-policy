@@ -1,4 +1,4 @@
-// Location: ./crates/apl-core/src/attribute_source.rs
+// Location: ./crates/ppe-apl-core/src/attribute_source.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -14,7 +14,7 @@
 // This module is the pure contract: the `AttributeSource` trait (where a
 // tree comes from) and the `AttributeTree` value (what it is). The default
 // file-backed source and the bag flattening live at the outer layers
-// (apl-cpex / apl-cmf) — apl-core stays free of I/O and config deps.
+// (praxis-policy-apl-runtime / praxis-policy-apl-cmf) — praxis-policy-apl-core stays free of I/O and config deps.
 
 use serde_json::Value;
 use thiserror::Error;
@@ -24,7 +24,7 @@ use thiserror::Error;
 /// values only*: no conditionals, no computed fields (that guardrail is
 /// structural — there is no syntax in a data tree to express logic).
 ///
-/// Flattened into the bag under `data.*` by the bag builder (apl-cmf):
+/// Flattened into the bag under `data.*` by the bag builder (praxis-policy-apl-cmf):
 /// `{ org: { default_region: us } }` → `data.org.default_region = "us"`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AttributeTree(Value);
@@ -64,7 +64,7 @@ impl Default for AttributeTree {
 }
 
 /// Where the `data.*` tree comes from — a **trait object injected at
-/// construction**, not a CPEX hook-plugin. The host implements it over a
+/// construction**, not a PPE hook-plugin. The host implements it over a
 /// file, etcd, Postgres, a k8s ConfigMap, etc., and hands the object to
 /// the runtime at startup.
 ///

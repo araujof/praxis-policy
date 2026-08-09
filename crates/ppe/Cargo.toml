@@ -1,25 +1,25 @@
-# Location: ./crates/cpex/Cargo.toml
+# Location: ./crates/ppe/Cargo.toml
 # Copyright 2025
 # SPDX-License-Identifier: Apache-2.0
 # Authors: Fred Araujo
 #
-# cpex — host facade.
+# praxis-policy — host facade.
 #
 # One dependency instead of a dozen: re-exports the host runtime
 # (PluginManager, AplOptions, register_apl). The bundled plugins, PDPs, and
-# session stores live in `cpex-builtins` and are pulled in only when the
+# session stores live in `praxis-policy-builtins` and are pulled in only when the
 # `builtins` / `full` feature (or a granular plugin feature) is enabled — so
-# the default `cpex = "0.2"` is the engine alone, no plugins compiled.
+# the bare dependency is the engine alone, no plugins compiled.
 #
-#   cpex = { version = "0.2.1", features = ["builtins"] }            # default builtin set
-#   cpex = { version = "0.2.1", features = ["jwt", "cedar"] }        # a minimal subset
+#   praxis-policy = { version = "0.1", features = ["builtins"] }   # default builtin set
+#   praxis-policy = { version = "0.1", features = ["jwt", "cedar"] }  # a minimal subset
 #
-# then `cpex::install_builtins(&mgr)` registers every enabled factory and
+# then `praxis_policy::install_builtins(&mgr)` registers every enabled factory and
 # installs the APL config visitor in one call.
 
 [package]
-name = "cpex"
-description = "CPEX host facade — re-exports the runtime and (optionally) the feature-gated builtin extensions."
+name = "praxis-policy"
+description = "PPE host facade — re-exports the runtime and (optionally) the feature-gated builtin extensions."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -34,9 +34,9 @@ rust-version.workspace = true
 readme.workspace = true
 
 # Build docs.rs with every extension enabled. The default build is engine-only
-# (`default = []`), which omits cpex-builtins entirely — so without this the
+# (`default = []`), which omits praxis-policy-builtins entirely — so without this the
 # builtins re-exports and `install_builtins` are absent and the intra-doc link
-# to `cpex-builtins` does not resolve on docs.rs.
+# to `praxis-policy-builtins` does not resolve on docs.rs.
 [package.metadata.docs.rs]
 all-features = true
 
@@ -44,34 +44,34 @@ all-features = true
 # Engine only by default: no builtin plugins are compiled in. Opt into the
 # bundled extensions with `builtins` (the common in-process set), `full`
 # (everything, incl. the Valkey session store), or a granular plugin
-# feature. Each enables the optional `cpex-builtins` dependency and forwards
-# to its matching cpex-builtins feature.
+# feature. Each enables the optional `praxis-policy-builtins` dependency and forwards
+# to its matching praxis-policy-builtins feature.
 default = []
 
-builtins = ["cpex-builtins/default"]
-full = ["cpex-builtins/full"]
+builtins = ["praxis-policy-builtins/default"]
+full = ["praxis-policy-builtins/full"]
 
-# Granular passthroughs — each pulls exactly one builtin via cpex-builtins.
-jwt = ["cpex-builtins/identity-jwt"]
-oauth = ["cpex-builtins/delegator-oauth"]
-pii = ["cpex-builtins/pii-scanner"]
-audit = ["cpex-builtins/audit-logger"]
-elicitation-ciba = ["cpex-builtins/elicitation-ciba"]
-cedar = ["cpex-builtins/cedar-direct"]
-cel = ["cpex-builtins/cel"]
-valkey = ["cpex-builtins/valkey"]
+# Granular passthroughs — each pulls exactly one builtin via praxis-policy-builtins.
+jwt = ["praxis-policy-builtins/identity-jwt"]
+oauth = ["praxis-policy-builtins/delegator-oauth"]
+pii = ["praxis-policy-builtins/pii-scanner"]
+audit = ["praxis-policy-builtins/audit-logger"]
+elicitation-ciba = ["praxis-policy-builtins/elicitation-ciba"]
+cedar = ["praxis-policy-builtins/cedar-direct"]
+cel = ["praxis-policy-builtins/cel"]
+valkey = ["praxis-policy-builtins/valkey"]
 
 [dependencies]
 # Host runtime — always present, this is the point of the facade.
-cpex-core = { workspace = true }
-apl-core = { workspace = true }
-apl-cmf = { workspace = true }
-apl-cpex = { workspace = true }
+praxis-policy-core = { workspace = true }
+praxis-policy-apl-core = { workspace = true }
+praxis-policy-apl-cmf = { workspace = true }
+praxis-policy-apl-runtime = { workspace = true }
 
 # Bundled extension set — present only when a builtins feature is enabled.
 # `default-features = false` so the granular plugin features compose; an
-# enabling feature turns on exactly the cpex-builtins features it names.
-cpex-builtins = { workspace = true, optional = true, default-features = false }
+# enabling feature turns on exactly the praxis-policy-builtins features it names.
+praxis-policy-builtins = { workspace = true, optional = true, default-features = false }
 
 [lints]
 workspace = true

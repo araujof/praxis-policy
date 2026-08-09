@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cpex/src/session_store.rs
+// Location: ./crates/ppe-apl-runtime/src/session_store.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -21,9 +21,9 @@
 // # String-typed deliberately
 //
 // The trait stays string-typed (`Vec<String>` for labels) rather than
-// reaching into cpex-core's `MonotonicSet<String>` so non-CMF bridges
+// reaching into praxis-policy-core's `MonotonicSet<String>` so non-CMF bridges
 // (future apl-mcp, apl-langgraph, etc.) can reuse it without dragging
-// CPEX types into their surface. `CmfPluginInvoker` does the
+// PPE types into their surface. `CmfPluginInvoker` does the
 // hydration/persistence into/out of `Extensions.security.labels`.
 
 use std::collections::{HashMap, HashSet};
@@ -39,7 +39,7 @@ use async_trait::async_trait;
 ///
 /// String-typed deliberately, matching the trait's own philosophy (see
 /// the module header): the error stays free of backend-specific types so
-/// non-CMF bridges and the cross-crate `cpex-session-valkey` backend can
+/// non-CMF bridges and the cross-crate `praxis-policy-session-valkey` backend can
 /// construct it without dragging dependencies into this surface.
 ///
 /// Note the distinction this enables: a **positively-confirmed key-miss**
@@ -87,7 +87,7 @@ pub trait SessionStore: Send + Sync {
 
 /// Factory the visitor consults when it encounters a
 /// `global.apl.session_store` block in the unified config. Mirrors
-/// [`apl_core::step::PdpFactory`]: each factory advertises a `kind()`
+/// [`praxis_policy_apl_core::step::PdpFactory`]: each factory advertises a `kind()`
 /// string matching the YAML block's `kind:` field, and `build` turns the
 /// block into a live store. Registered up front via
 /// [`crate::AplOptions::session_store_factories`]; the visitor selects

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
-// `CelPdpFactory` — the `PdpFactory` implementation that lets the apl-cpex
+// `CelPdpFactory` — the `PdpFactory` implementation that lets the praxis-policy-apl-runtime
 // visitor instantiate `CelResolver` from a unified-config YAML block:
 //
 // ```yaml
@@ -20,7 +20,7 @@
 
 use std::sync::Arc;
 
-use apl_core::step::{PdpFactory, PdpResolver};
+use praxis_policy_apl_core::step::{PdpFactory, PdpResolver};
 
 use crate::resolver::CelResolver;
 

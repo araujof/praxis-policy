@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Authors: Teryl Taylor
 #
-# cpex-pdp-cel — a `PdpResolver` that evaluates CEL (Common Expression
+# praxis-policy-pdp-cel — a `PdpResolver` that evaluates CEL (Common Expression
 # Language) boolean predicates against the policy `AttributeBag`, authored
 # inline in route YAML (`cel: { expr: "..." }`).
 #
@@ -13,12 +13,12 @@
 # synchronous and side-effect-free.
 
 [package]
-name = "cpex-pdp-cel"
+name = "praxis-policy-pdp-cel"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
-description = "CPEX PDP — CEL (Common Expression Language) predicate evaluation."
+description = "PPE PDP — CEL (Common Expression Language) predicate evaluation."
 repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
@@ -26,7 +26,7 @@ categories.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-apl-core = { workspace = true }
+praxis-policy-apl-core = { workspace = true }
 # The CEL interpreter from cel-rust/cel-rust (formerly
 # clarkmcc/cel-rust). Sync eval, comprehension macros (`has`, `all`,
 # `exists`, `map`, `filter`), custom functions. Caret spec tracks 0.x
@@ -50,14 +50,14 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
-# End-to-end integration tests wire the cel factory through the apl-cpex
+# End-to-end integration tests wire the cel factory through the praxis-policy-apl-runtime
 # visitor and exercise it against a real `PluginManager`. These dev-dep
 # edges only exist for tests — the crate itself stays apl-core-only at
 # compile time so it can be used standalone (e.g. in a custom orchestrator
-# that doesn't go through apl-cpex at all).
-apl-cmf = { workspace = true }
-apl-cpex = { workspace = true }
-cpex-core = { workspace = true }
+# that doesn't go through praxis-policy-apl-runtime at all).
+praxis-policy-apl-cmf = { workspace = true }
+praxis-policy-apl-runtime = { workspace = true }
+praxis-policy-core = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
 
 [lints]

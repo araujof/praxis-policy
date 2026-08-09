@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Authors: Teryl Taylor
 #
-# cpex-plugin-elicitation-ciba — `ElicitationHandler` that drives manager
+# praxis-policy-plugin-elicitation-ciba — `ElicitationHandler` that drives manager
 # approval (and other human-in-the-loop kinds) through OpenID Connect
 # CIBA (Client-Initiated Backchannel Authentication) against Keycloak or
 # any CIBA-capable OP.
@@ -28,12 +28,12 @@
 # each of the three operations is a short, synchronous HTTP round-trip.
 
 [package]
-name = "cpex-plugin-elicitation-ciba"
+name = "praxis-policy-plugin-elicitation-ciba"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
-description = "CPEX elicitation handler — OIDC CIBA human-in-the-loop approval."
+description = "PPE elicitation handler — OIDC CIBA human-in-the-loop approval."
 repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
@@ -41,10 +41,10 @@ categories.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-cpex-core = { workspace = true }
+praxis-policy-core = { workspace = true }
 
 # `reqwest` for the backchannel + token-endpoint POSTs. Same TLS stance
-# as cpex-plugin-delegator-oauth: rustls, no native-tls/openssl link.
+# as praxis-policy-plugin-delegator-oauth: rustls, no native-tls/openssl link.
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 # `base64` to decode the JWT payload segment for the approver claim

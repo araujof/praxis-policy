@@ -7,7 +7,7 @@
 // surface when the `global.apl.session_store` config block is malformed
 // or the connection pool cannot be built — i.e. at `load_config_yaml`
 // time, NOT on the request hot path. Request-time failures flow through
-// `apl_cpex::SessionStoreError` (the trait's return type) so callers can
+// `praxis_policy_apl_runtime::SessionStoreError` (the trait's return type) so callers can
 // fail closed.
 
 /// Error returned while building a `ValkeySessionStore` from config.

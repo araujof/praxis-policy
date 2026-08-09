@@ -22,13 +22,15 @@
 use std::sync::Arc;
 use std::sync::OnceLock;
 
-use cpex_core::extensions::raw_credentials::{TokenKind, TokenRole};
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::identity::{IdentityHook, IdentityPayload, TokenSource, HOOK_IDENTITY_RESOLVE};
-use cpex_core::manager::PluginManager;
-use cpex_core::plugin::{OnError, PluginConfig, PluginMode};
+use praxis_policy_core::extensions::raw_credentials::{TokenKind, TokenRole};
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::identity::{
+    IdentityHook, IdentityPayload, TokenSource, HOOK_IDENTITY_RESOLVE,
+};
+use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::plugin::{OnError, PluginConfig, PluginMode};
 
-use cpex_plugin_identity_jwt::JwtIdentityResolver;
+use praxis_policy_plugin_identity_jwt::JwtIdentityResolver;
 
 use rsa::pkcs8::{EncodePrivateKey, EncodePublicKey, LineEnding};
 use rsa::{RsaPrivateKey, RsaPublicKey};
@@ -144,7 +146,7 @@ async fn build_manager_with(cfg: PluginConfig) -> Arc<PluginManager> {
 }
 
 /// Run a token through the full handler pipeline.
-async fn invoke(token: String) -> cpex_core::executor::PipelineResult {
+async fn invoke(token: String) -> praxis_policy_core::executor::PipelineResult {
     invoke_with(resolver_plugin_config(), token, TokenSource::Bearer).await
 }
 
@@ -152,7 +154,7 @@ async fn invoke_with(
     cfg: PluginConfig,
     token: String,
     source: TokenSource,
-) -> cpex_core::executor::PipelineResult {
+) -> praxis_policy_core::executor::PipelineResult {
     let mgr = build_manager_with(cfg).await;
     let (result, _bg) = mgr
         .invoke_named::<IdentityHook>(

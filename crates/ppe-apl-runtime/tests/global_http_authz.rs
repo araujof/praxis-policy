@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cpex/tests/global_http_authz.rs
+// Location: ./crates/ppe-apl-runtime/tests/global_http_authz.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Fred Araujo
@@ -14,14 +14,14 @@
 
 use std::sync::Arc;
 
-use cpex_core::cmf::constants::{ENTITY_HTTP, ENTITY_NAME_GLOBAL, HOOK_CMF_HTTP_REQUEST};
-use cpex_core::cmf::enums::Role;
-use cpex_core::cmf::{CmfHook, Message, MessagePayload};
-use cpex_core::extensions::{Extensions, HttpExtension, MetaExtension};
-use cpex_core::manager::PluginManager;
+use praxis_policy_core::cmf::constants::{ENTITY_HTTP, ENTITY_NAME_GLOBAL, HOOK_CMF_HTTP_REQUEST};
+use praxis_policy_core::cmf::enums::Role;
+use praxis_policy_core::cmf::{CmfHook, Message, MessagePayload};
+use praxis_policy_core::extensions::{Extensions, HttpExtension, MetaExtension};
+use praxis_policy_core::manager::PluginManager;
 
-use apl_cmf::constants::{DETAIL_HTTP_BODY, DETAIL_HTTP_HEADERS, DETAIL_HTTP_STATUS};
-use apl_cpex::{register_apl, AplOptions};
+use praxis_policy_apl_cmf::constants::{DETAIL_HTTP_BODY, DETAIL_HTTP_HEADERS, DETAIL_HTTP_STATUS};
+use praxis_policy_apl_runtime::{register_apl, AplOptions};
 
 async fn manager_with(yaml: &str) -> Arc<PluginManager> {
     let mgr = Arc::new(PluginManager::default());

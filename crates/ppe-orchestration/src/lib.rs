@@ -1,16 +1,16 @@
-// Location: ./crates/cpex-orchestration/src/lib.rs
+// Location: ./crates/ppe-orchestration/src/lib.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
-// Async concurrency primitives shared by the CPEX runtime.
+// Async concurrency primitives shared by the PPE runtime.
 //
 // Two callers today, both running "N async branches concurrently with
 // optional short-circuit on first deny":
 //
-//   * `cpex-core::executor::run_concurrent_phase` — fans out concurrent
+//   * `praxis-policy-core::executor::run_concurrent_phase` — fans out concurrent
 //     plugins for one hook event
-//   * `apl-core::evaluator::dispatch_parallel` — fans out the effects
+//   * `praxis-policy-apl-core::evaluator::dispatch_parallel` — fans out the effects
 //     inside an APL `parallel:` block
 //
 // Both want the same mechanics — `tokio::task::JoinSet` keyed by task
@@ -223,11 +223,11 @@ where
 // The `BoxFuture` import isn't strictly needed for the public API
 // but is re-exported below for callers that want to build
 // homogeneous branch vectors out of differently-typed futures (the
-// common case in apl-core's `Effect::Parallel` dispatch, where each
+// common case in praxis-policy-apl-core's `Effect::Parallel` dispatch, where each
 // effect's future has a unique inferred type).
 
 /// Convenience alias re-exported from `futures` for callers building
-/// type-erased branch vectors. `apl-core`'s `Effect::Parallel`
+/// type-erased branch vectors. `praxis-policy-apl-core`'s `Effect::Parallel`
 /// dispatch uses this because the per-effect futures have different
 /// inferred types and need erasure to fit in a single `Vec`.
 pub type ErasedBranch<T> = BoxFuture<'static, T>;

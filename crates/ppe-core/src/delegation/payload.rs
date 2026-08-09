@@ -1,4 +1,4 @@
-// Location: ./crates/cpex-core/src/delegation/payload.rs
+// Location: ./crates/ppe-core/src/delegation/payload.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -85,10 +85,10 @@ pub enum DelegationSubject {
     /// The *calling* workload — an agent acting autonomously, with no
     /// user in the loop. Exchanges the caller's own JWT-SVID.
     CallerWorkload,
-    /// This CPEX instance's own identity — used when the enforcement
+    /// This PPE instance's own identity — used when the enforcement
     /// point holds the downstream access (the "hold the tool credentials
     /// here" deployment) and calls the downstream as itself rather than
-    /// as the caller. Deployment-agnostic: not a claim that CPEX is a
+    /// as the caller. Deployment-agnostic: not a claim that PPE is a
     /// gateway.
     ///
     /// Has no inbound credential to exchange: proves who it is with its
@@ -111,7 +111,7 @@ impl DelegationSubject {
         }
     }
 
-    /// The [`DelegationMode`] this subject produces. Kept in cpex-core
+    /// The [`DelegationMode`] this subject produces. Kept in praxis-policy-core
     /// (rather than in a handler) so every delegation backend attributes
     /// and cache-keys a given subject identically: `user` is the only
     /// act-on-behalf-of-another; the other three act as themselves.
@@ -130,7 +130,7 @@ impl DelegationSubject {
     ///
     /// `"workload"` is accepted as a legacy spelling of `caller_workload`,
     /// and `"gateway"` as a deprecated spelling of `this_workload` (the
-    /// keyword was renamed because CPEX is not necessarily a gateway).
+    /// keyword was renamed because PPE is not necessarily a gateway).
     pub fn from_config_str(s: &str) -> Option<Self> {
         match s {
             "user" => Some(DelegationSubject::User),

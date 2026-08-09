@@ -4,7 +4,7 @@
 // Authors: Teryl Taylor
 //
 // `CedarDirectPdpFactory` — the `PdpFactory` implementation that lets
-// the apl-cpex visitor instantiate `CedarDirectResolver` from a
+// the praxis-policy-apl-runtime visitor instantiate `CedarDirectResolver` from a
 // unified-config YAML block:
 //
 // ```yaml
@@ -22,7 +22,7 @@
 
 use std::sync::Arc;
 
-use apl_core::step::{PdpFactory, PdpResolver};
+use praxis_policy_apl_core::step::{PdpFactory, PdpResolver};
 
 use crate::resolver::CedarDirectResolver;
 

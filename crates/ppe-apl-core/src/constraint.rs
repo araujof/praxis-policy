@@ -1,4 +1,4 @@
-// Location: ./crates/apl-core/src/constraint.rs
+// Location: ./crates/ppe-apl-core/src/constraint.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -12,10 +12,10 @@
 // open (see `RestrictResolveError`). It is an accumulating
 // effect in the same family as `taint`: the evaluator collects the
 // constraints a route emits into `RouteDecision.constraints`, and the
-// bridge (apl-cpex) folds them into a typed `CandidateConstraintExtension`
+// bridge (praxis-policy-apl-runtime) folds them into a typed `CandidateConstraintExtension`
 // the host reads off the returned `Extensions`. This type is the *authoring*
 // IR — one constraint per `restrict` effect. It stays pure-data with no
-// cpex-core dependency, matching the rest of `rules.rs`; the fold + the
+// praxis-policy-core dependency, matching the rest of `rules.rs`; the fold + the
 // wire/extension type live at the bridge layer.
 
 use std::collections::BTreeMap;
@@ -63,7 +63,7 @@ pub struct CandidateConstraint {
 
     /// Candidate `cost_tier` label must be ≤ this tier. The *ordering* of
     /// tiers is defined on the host (the matcher), so this stays a plain
-    /// label here — CPEX passes it through without needing to know the
+    /// label here — PPE passes it through without needing to know the
     /// order. `None` = no tier ceiling.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_cost_tier: Option<String>,
@@ -96,12 +96,12 @@ impl CandidateConstraint {
 
 /// What the host does when a constraint leaves no eligible backend.
 ///
-/// CPEX cannot decide this itself — only the router knows which backends
+/// PPE cannot decide this itself — only the router knows which backends
 /// are actually reachable/healthy at selection time — so the choice rides
 /// out with the constraint. The default is fail-closed.
 ///
-/// Mirrors `cpex_core::extensions::OnEmpty` (the bridge maps between them);
-/// kept here so apl-core stays free of a cpex-core dependency.
+/// Mirrors `praxis_policy_core::extensions::OnEmpty` (the bridge maps between them);
+/// kept here so praxis-policy-apl-core stays free of a praxis-policy-core dependency.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum OnEmpty {
@@ -293,7 +293,7 @@ mod tests {
     use crate::attributes::AttributeBag;
 
     // `is_empty()` is hand-written on both `CandidateConstraint` and
-    // `RestrictSpec` (and mirrored again on the cpex-core extension). A field
+    // `RestrictSpec` (and mirrored again on the praxis-policy-core extension). A field
     // that's added to the struct but forgotten in `is_empty()` would make a
     // real restriction look empty and get silently dropped. The exhaustive
     // destructures below (no `..`) fail to compile if a field is added

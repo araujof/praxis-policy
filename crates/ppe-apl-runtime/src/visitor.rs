@@ -1,9 +1,9 @@
-// Location: ./crates/apl-cpex/src/visitor.rs
+// Location: ./crates/ppe-apl-runtime/src/visitor.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
-// `AplConfigVisitor` — the cpex-core `ConfigVisitor` implementation that
+// `AplConfigVisitor` — the praxis-policy-core `ConfigVisitor` implementation that
 // stacks the unified-config hierarchy (global → defaults → tag bundles
 // → routes) into a single `CompiledRoute` per route and installs an
 // [`AplRouteHandler`] for each phase via `PluginManager::annotate_route`.
@@ -50,22 +50,22 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
 
-use cpex_core::cmf::constants::{
+use praxis_policy_core::cmf::constants::{
     ENTITY_HTTP, ENTITY_LLM, ENTITY_NAME_GLOBAL, ENTITY_PROMPT, ENTITY_RESOURCE, ENTITY_TOOL,
     HOOK_CMF_HTTP_REQUEST, HOOK_CMF_LLM_INPUT, HOOK_CMF_LLM_OUTPUT, HOOK_CMF_PROMPT_POST_INVOKE,
     HOOK_CMF_PROMPT_PRE_INVOKE, HOOK_CMF_RESOURCE_POST_FETCH, HOOK_CMF_RESOURCE_PRE_FETCH,
     HOOK_CMF_TOOL_POST_INVOKE, HOOK_CMF_TOOL_PRE_INVOKE,
 };
-use cpex_core::config::RouteEntry;
-use cpex_core::manager::PluginManager;
-use cpex_core::plugin::PluginConfig;
-use cpex_core::visitor::{ConfigVisitor, VisitorError};
+use praxis_policy_core::config::RouteEntry;
+use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::plugin::PluginConfig;
+use praxis_policy_core::visitor::{ConfigVisitor, VisitorError};
 
-use apl_core::attribute_source::{AttributeSource, AttributeTree};
-use apl_core::parser::compile_policy_block_value;
-use apl_core::plugin_decl::{PluginDeclaration, PluginRegistry};
-use apl_core::rules::{CompiledRoute, DenyResponse};
-use apl_core::step::{PdpFactory, PdpResolver};
+use praxis_policy_apl_core::attribute_source::{AttributeSource, AttributeTree};
+use praxis_policy_apl_core::parser::compile_policy_block_value;
+use praxis_policy_apl_core::plugin_decl::{PluginDeclaration, PluginRegistry};
+use praxis_policy_apl_core::rules::{CompiledRoute, DenyResponse};
+use praxis_policy_apl_core::step::{PdpFactory, PdpResolver};
 
 use crate::dispatch_plan::DispatchCache;
 use crate::pdp_router::PdpRouter;
@@ -111,7 +111,7 @@ struct VisitorState {
     pdp_router: PdpRouter,
 }
 
-/// APL implementation of [`cpex_core::visitor::ConfigVisitor`]. Construct
+/// APL implementation of [`praxis_policy_core::visitor::ConfigVisitor`]. Construct
 /// once per host with the shared infrastructure (dispatch cache, session
 /// store, manager handle) and register with `PluginManager::register_visitor`
 /// before calling `load_config_yaml`.
@@ -195,7 +195,7 @@ impl AplConfigVisitor {
     /// Install the static `data.*` attribute tree. Call after
     /// `register_apl` and **before** `load_config_yaml` (handlers capture
     /// the tree during the config walk). Load it from any
-    /// [`AttributeSource`](apl_core::AttributeSource) — e.g.
+    /// [`AttributeSource`](praxis_policy_apl_core::AttributeSource) — e.g.
     /// `FileAttributeSource::new(paths).load()?` — or hand-build one.
     /// Replacing a previously-set tree is allowed (last set wins).
     pub fn set_attribute_tree(&self, tree: AttributeTree) {
@@ -433,11 +433,11 @@ impl ConfigVisitor for AplConfigVisitor {
         _mgr: &Arc<PluginManager>,
         plugins: &[PluginConfig],
     ) -> Result<(), VisitorError> {
-        // Translate cpex-core's typed PluginConfig into apl-core's
+        // Translate praxis-policy-core's typed PluginConfig into praxis-policy-apl-core's
         // PluginDeclaration. Field-for-field except `capabilities` is a
         // `HashSet` on the cpex side and a `Vec` on the apl side, and
         // `config` is wrapped in `serde_yaml::Value::Mapping` to match
-        // apl-core's opaque shape. cpex-core has already validated
+        // praxis-policy-apl-core's opaque shape. praxis-policy-core has already validated
         // uniqueness by this point so we don't re-check.
         let mut state = self.state.write().unwrap_or_else(|p| p.into_inner());
         state.plugin_registry.clear();
@@ -715,20 +715,20 @@ impl ConfigVisitor for AplConfigVisitor {
             }
 
             // No layers contributed anything? Don't install a handler — the
-            // route falls back to cpex-core's plugin-chain execution.
+            // route falls back to praxis-policy-core's plugin-chain execution.
             if effective.declared_phases().is_empty() {
                 continue;
             }
 
             // Plugin-mode validation for `parallel:` blocks.
-            // `apl-core::Effect::validate_parallel_purity` already rejected
+            // `praxis-policy-apl-core::Effect::validate_parallel_purity` already rejected
             // FieldOp / Delegate at parse time; this pass checks that every
             // `plugin(X)` inside a `parallel:` references a plugin whose
             // mode is safe for concurrent execution (Audit / Concurrent /
             // FireAndForget). Sequential / Transform plugins would silently
             // lose their mutations inside cloned branches.
             //
-            // Looks up modes through the cpex-core PluginManager (it has
+            // Looks up modes through the praxis-policy-core PluginManager (it has
             // the authoritative registration state). The lookup trait
             // is `parallel_safety::PluginModeLookup`, which
             // `PluginManager` implements.
@@ -823,7 +823,7 @@ fn install_handler(
     base_capabilities: &std::collections::HashSet<String>,
     attribute_tree: Arc<AttributeTree>,
 ) {
-    // Capability gating at the synthetic-handler boundary. cpex-core's
+    // Capability gating at the synthetic-handler boundary. praxis-policy-core's
     // executor calls `filter_extensions(&ext, &caps)` before every
     // handler invoke — including this one. If the synthetic handler
     // has fewer capabilities than its downstream plugins need, the
@@ -853,8 +853,8 @@ fn install_handler(
     // write-gated in the executor, so the synthetic handler holds the write
     // capability intrinsically — emitting its own routing output, the same
     // way it emits taints. No other plugin can overwrite or drop it without
-    // this capability. See `cpex_core::extensions::CAP_WRITE_CANDIDATE_CONSTRAINT`.
-    capabilities.insert(cpex_core::extensions::CAP_WRITE_CANDIDATE_CONSTRAINT.to_string());
+    // this capability. See `praxis_policy_core::extensions::CAP_WRITE_CANDIDATE_CONSTRAINT`.
+    capabilities.insert(praxis_policy_core::extensions::CAP_WRITE_CANDIDATE_CONSTRAINT.to_string());
 
     let plugin_config = PluginConfig {
         name: format!(
@@ -912,17 +912,17 @@ fn entity_identity(route: &RouteEntry) -> Option<(&'static str, Vec<String>)> {
     None
 }
 
-fn names_of(sol: &cpex_core::config::StringOrList) -> Vec<String> {
+fn names_of(sol: &praxis_policy_core::config::StringOrList) -> Vec<String> {
     match sol {
-        cpex_core::config::StringOrList::Single(p) => vec![p.as_str().to_string()],
-        cpex_core::config::StringOrList::List(v) => v.clone(),
+        praxis_policy_core::config::StringOrList::Single(p) => vec![p.as_str().to_string()],
+        praxis_policy_core::config::StringOrList::List(v) => v.clone(),
     }
 }
 
 /// Warn when an APL block carries a global-only wiring key
 /// ([`GLOBAL_ONLY_NON_DSL_KEYS`]: `pdp`, `session_store`) at a scope that
 /// cannot act on it. Only [`AplConfigVisitor::visit_global`] builds PDPs
-/// and selects the session store (they are process-global CPEX wiring); a
+/// and selects the session store (they are process-global PPE wiring); a
 /// `pdp:` / `session_store:` written under a default / policy-bundle /
 /// route block is folded into the policy body and silently discarded by
 /// `compile_policy_block_value`. Surfacing it here turns that quiet no-op
@@ -970,7 +970,7 @@ fn warn_unreferenced_plugin_overrides(route: &CompiledRoute) {
     }
 }
 
-/// APL sub-keys that are CPEX *wiring*, not policy DSL: they are honored
+/// APL sub-keys that are PPE *wiring*, not policy DSL: they are honored
 /// only under the top-level `global:` block (where `visit_global` acts on
 /// them) and are stripped before the remainder is handed to
 /// `compile_policy_block_value`, which doesn't model them. Kept as a single
@@ -982,7 +982,7 @@ const GLOBAL_ONLY_NON_DSL_KEYS: [&str; 3] = ["pdp", "session_store", "attribute_
 /// in [`apl_subblock`] only copies recognized keys into the synthetic block,
 /// so a config still using an old name would otherwise be *silently dropped*
 /// here — a fail-open for `policy` / `post_policy`. We reject them loudly.
-/// (The `apl:`-wrapped form is caught downstream by apl-core instead.)
+/// (The `apl:`-wrapped form is caught downstream by praxis-policy-apl-core instead.)
 const RENAMED_APL_KEYS: [(&str, &str); 2] = [
     (
         "policy",
@@ -1015,7 +1015,7 @@ fn reject_legacy_apl_keys(scope: &str, yaml: &serde_yaml::Value) -> Result<(), V
 /// Strip the global-only wiring sub-keys ([`GLOBAL_ONLY_NON_DSL_KEYS`])
 /// from an `apl:` mapping so the remainder can be handed to
 /// `compile_policy_block_value` (which doesn't model PDP / session-store
-/// declarations — those are CPEX wiring concerns). Returns a clone of the
+/// declarations — those are PPE wiring concerns). Returns a clone of the
 /// mapping with those keys removed; the original is left intact.
 fn strip_non_dsl_keys(apl_block: &serde_yaml::Value) -> serde_yaml::Value {
     let Some(map) = apl_block.as_mapping() else {
@@ -1028,8 +1028,8 @@ fn strip_non_dsl_keys(apl_block: &serde_yaml::Value) -> serde_yaml::Value {
     serde_yaml::Value::Mapping(cloned)
 }
 
-/// Bridge cpex-core's JSON-based `Option<serde_json::Value>` config slot
-/// into apl-core's `Option<serde_yaml::Value>` shape. JSON is a strict
+/// Bridge praxis-policy-core's JSON-based `Option<serde_json::Value>` config slot
+/// into praxis-policy-apl-core's `Option<serde_yaml::Value>` shape. JSON is a strict
 /// subset of YAML's value model so this is round-trip safe; failure
 /// here would only happen if `serde_yaml::to_value` rejects a value
 /// `serde_json::Value` already accepted (in practice: never).
@@ -1037,10 +1037,10 @@ fn plugin_config_to_yaml(cfg: &Option<serde_json::Value>) -> Option<serde_yaml::
     cfg.as_ref().and_then(|v| serde_yaml::to_value(v).ok())
 }
 
-/// Map cpex-core's `OnError` enum onto the string shape apl-core's
+/// Map praxis-policy-core's `OnError` enum onto the string shape praxis-policy-apl-core's
 /// `PluginDeclaration` carries (kept stringly-typed there because the
 /// APL spec also allows custom orchestrator-defined error modes).
-fn on_error_to_string(on_err: &cpex_core::plugin::OnError) -> String {
+fn on_error_to_string(on_err: &praxis_policy_core::plugin::OnError) -> String {
     on_err.to_string()
 }
 
@@ -1056,7 +1056,7 @@ fn on_error_to_string(on_err: &cpex_core::plugin::OnError) -> String {
 /// separately in [`apl_subblock`].
 ///
 /// `authorization` is the nested `{ pre_invocation, post_invocation }`
-/// block; it is copied through verbatim and un-nested by apl-core's
+/// block; it is copied through verbatim and un-nested by praxis-policy-apl-core's
 /// `compile_policy_block_value`, so nesting lives in exactly one place.
 const FLAT_APL_KEYS: [&str; 7] = [
     "pre_invocation",
@@ -1125,8 +1125,8 @@ fn apl_subblock(yaml: &serde_yaml::Value) -> Option<serde_yaml::Value> {
 /// omission).
 fn http_catchall_should_install(compiled: &CompiledRoute) -> bool {
     let declared = compiled.declared_phases();
-    declared.contains(apl_core::rules::Phase::Args)
-        || declared.contains(apl_core::rules::Phase::Policy)
+    declared.contains(praxis_policy_apl_core::rules::Phase::Args)
+        || declared.contains(praxis_policy_apl_core::rules::Phase::Policy)
 }
 
 /// `response:` is not an APL DSL term (it never enters [`apl_subblock`]'s
@@ -1166,7 +1166,7 @@ fn warn_if_response_at_unsupported_scope(yaml: &serde_yaml::Value, scope: &str) 
 }
 
 /// Extract a route-level `response:` block — the transpiled `denyWith`.
-/// cpex-core tolerates this out-of-band key on the route; here we
+/// praxis-policy-core tolerates this out-of-band key on the route; here we
 /// deserialize it into a [`DenyResponse`]. A malformed block is logged
 /// and skipped (best-effort) rather than failing the whole config.
 fn response_subblock(yaml: &serde_yaml::Value, route_key: &str) -> Option<DenyResponse> {
@@ -1186,8 +1186,8 @@ fn response_subblock(yaml: &serde_yaml::Value, route_key: &str) -> Option<DenyRe
 #[cfg(test)]
 mod tests {
     use super::{apl_subblock, http_catchall_should_install, response_subblock};
-    use apl_core::pipeline::{FieldRule, Pipeline, Stage, TypeCheck};
-    use apl_core::rules::{CompiledRoute, Effect};
+    use praxis_policy_apl_core::pipeline::{FieldRule, Pipeline, Stage, TypeCheck};
+    use praxis_policy_apl_core::rules::{CompiledRoute, Effect};
 
     fn yaml(s: &str) -> serde_yaml::Value {
         serde_yaml::from_str(s).expect("valid yaml")

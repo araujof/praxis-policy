@@ -1,4 +1,4 @@
-// Location: ./crates/cpex-core/tests/identity_e2e.rs
+// Location: ./crates/ppe-core/tests/identity_e2e.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -26,14 +26,16 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use cpex_core::context::PluginContext;
-use cpex_core::error::PluginError;
-use cpex_core::extensions::{SubjectExtension, WorkloadIdentity};
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::hooks::trait_def::{HookHandler, PluginResult};
-use cpex_core::identity::{IdentityHook, IdentityPayload, TokenSource, HOOK_IDENTITY_RESOLVE};
-use cpex_core::manager::PluginManager;
-use cpex_core::plugin::{OnError, Plugin, PluginConfig, PluginMode};
+use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::error::PluginError;
+use praxis_policy_core::extensions::{SubjectExtension, WorkloadIdentity};
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
+use praxis_policy_core::identity::{
+    IdentityHook, IdentityPayload, TokenSource, HOOK_IDENTITY_RESOLVE,
+};
+use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::plugin::{OnError, Plugin, PluginConfig, PluginMode};
 
 // =====================================================================
 // Plugin fixtures
@@ -144,7 +146,7 @@ impl HookHandler<IdentityHook> for RejectingResolver {
         _ext: &Extensions,
         _ctx: &mut PluginContext,
     ) -> PluginResult<IdentityPayload> {
-        PluginResult::deny(cpex_core::error::PluginViolation::new(
+        PluginResult::deny(praxis_policy_core::error::PluginViolation::new(
             "auth.expired",
             "token expired",
         ))
@@ -190,7 +192,7 @@ fn build_payload(token: &str) -> IdentityPayload {
 
 /// Shortcut around `IdentityPayload::from_pipeline_result` for tests
 /// that know the result must be present and well-typed.
-fn extract_identity(result: &cpex_core::executor::PipelineResult) -> IdentityPayload {
+fn extract_identity(result: &praxis_policy_core::executor::PipelineResult) -> IdentityPayload {
     IdentityPayload::from_pipeline_result(result)
         .expect("PipelineResult had no IdentityPayload — denied or wrong hook type")
 }
@@ -340,10 +342,10 @@ async fn rejecting_resolver_halts_pipeline() {
 /// landed.
 #[tokio::test]
 async fn apply_to_extensions_populates_security_and_preserves_existing_fields() {
-    use cpex_core::extensions::raw_credentials::{
+    use praxis_policy_core::extensions::raw_credentials::{
         RawCredentialsExtension, RawInboundToken, TokenKind, TokenRole,
     };
-    use cpex_core::extensions::SecurityExtension;
+    use praxis_policy_core::extensions::SecurityExtension;
 
     // ----- Handler: produces a subject + a RawCredentialsExtension -----
     struct FullResolver {
@@ -500,12 +502,12 @@ async fn cap_gating_post_apply_through_cmf_dispatch() {
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use std::sync::Mutex;
 
-    use cpex_core::cmf::enums::Role;
-    use cpex_core::cmf::{CmfHook, Message, MessagePayload};
-    use cpex_core::extensions::raw_credentials::{
+    use praxis_policy_core::cmf::enums::Role;
+    use praxis_policy_core::cmf::{CmfHook, Message, MessagePayload};
+    use praxis_policy_core::extensions::raw_credentials::{
         RawCredentialsExtension, RawInboundToken, TokenKind, TokenRole,
     };
-    use cpex_core::extensions::SecurityExtension;
+    use praxis_policy_core::extensions::SecurityExtension;
 
     // ----- Identity resolver: populates subject + one inbound token -----
     struct FullResolver {
@@ -739,7 +741,7 @@ async fn cap_gating_post_apply_through_cmf_dispatch() {
     );
 }
 
-// PluginError import only exists to keep the dev-dep on cpex-core
+// PluginError import only exists to keep the dev-dep on praxis-policy-core
 // honest if a future test needs it; unused for now.
 #[allow(dead_code)]
 fn _force_plugin_error_link(_e: PluginError) {}

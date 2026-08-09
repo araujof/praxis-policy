@@ -1,10 +1,10 @@
-// Location: ./crates/cpex-core/src/elicitation/hook.rs
+// Location: ./crates/ppe-core/src/elicitation/hook.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
 // `ElicitationHook` — the `HookTypeDef` marker for the Elicitation hook
-// family. Plugins implement `HookHandler<ElicitationHook>`; the apl-cpex
+// family. Plugins implement `HookHandler<ElicitationHook>`; the praxis-policy-apl-runtime
 // bridge dispatches into it to drive a human-in-the-loop step (approval,
 // confirmation, step-up, …).
 //
@@ -26,7 +26,7 @@ crate::define_hook! {
     /// channel plugin (Keycloak CIBA, Slack, in-band, …).
     ///
     /// **Payload** ([`ElicitationPayload`]) — unified input + accumulator.
-    /// The apl-cpex bridge sets the input fields (`operation`,
+    /// The praxis-policy-apl-runtime bridge sets the input fields (`operation`,
     /// `elicitation_id`, `kind`, `from`, `purpose`, `scope`, `timeout`,
     /// `channel`) and invokes the hook; the handler populates the output
     /// fields (`id`, `status`, `outcome`, `approver`, `intent_id`,

@@ -1,4 +1,4 @@
-// Location: ./crates/cpex-core/src/extensions/tiers.rs
+// Location: ./crates/ppe-core/src/extensions/tiers.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -101,7 +101,7 @@ pub enum Capability {
     /// empty token strings. It can still gate delivery of plaintext
     /// out-of-process on a host's purpose-built side channel: see
     /// `RawCredentialsExtension`'s module docs and
-    /// `cpex-hosts-python`'s `credential` DTO.
+    /// the CPEX Python host's `credential` DTO.
     ReadInboundCredentials,
     /// Read minted outbound delegated tokens
     /// (`raw_credentials.delegated_tokens`) — the credentials a

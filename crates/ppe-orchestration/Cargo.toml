@@ -1,4 +1,4 @@
-# Location: ./crates/cpex-orchestration/Cargo.toml
+# Location: ./crates/ppe-orchestration/Cargo.toml
 # Copyright 2026
 # SPDX-License-Identifier: Apache-2.0
 # Authors: Teryl Taylor
@@ -7,9 +7,9 @@
 #
 # This crate is a leaf utility — no internal workspace dependencies.
 # Provides the JoinSet-based concurrent runner that both:
-#   * `cpex-core::executor::run_concurrent_phase` — fans out concurrent
+#   * `praxis-policy-core::executor::run_concurrent_phase` — fans out concurrent
 #     plugins for one hook
-#   * `apl-core::evaluator` — fans out the effects in an APL
+#   * `praxis-policy-apl-core::evaluator` — fans out the effects in an APL
 #     `parallel:` block
 # share.
 #
@@ -17,8 +17,8 @@
 # domain types. Each caller adapts its concepts to this surface.
 
 [package]
-name = "cpex-orchestration"
-description = "Async concurrency primitives shared by the CPEX runtime"
+name = "praxis-policy-orchestration"
+description = "Async concurrency primitives shared by the PPE runtime"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

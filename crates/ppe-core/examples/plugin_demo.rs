@@ -1,4 +1,4 @@
-// CPEX Plugin Demo
+// PPE Plugin Demo
 //
 // Demonstrates how to:
 //   1. Define hook types and payloads
@@ -12,15 +12,15 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use cpex_core::context::PluginContext;
-use cpex_core::error::{PluginError, PluginViolation};
-use cpex_core::executor::PipelineResult;
-use cpex_core::factory::{PluginFactory, PluginInstance};
-use cpex_core::hooks::adapter::TypedHandlerAdapter;
-use cpex_core::hooks::payload::{Extensions, MetaExtension};
-use cpex_core::hooks::trait_def::{HookHandler, HookTypeDef, PluginResult};
-use cpex_core::manager::PluginManager;
-use cpex_core::plugin::{Plugin, PluginConfig};
+use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::error::{PluginError, PluginViolation};
+use praxis_policy_core::executor::PipelineResult;
+use praxis_policy_core::factory::{PluginFactory, PluginInstance};
+use praxis_policy_core::hooks::adapter::TypedHandlerAdapter;
+use praxis_policy_core::hooks::payload::{Extensions, MetaExtension};
+use praxis_policy_core::hooks::trait_def::{HookHandler, HookTypeDef, PluginResult};
+use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::plugin::{Plugin, PluginConfig};
 
 // ---------------------------------------------------------------------------
 // Step 1: Define a payload and hook type
@@ -33,7 +33,7 @@ struct ToolInvokePayload {
     user: String,
     arguments: String,
 }
-cpex_core::impl_plugin_payload!(ToolInvokePayload);
+praxis_policy_core::impl_plugin_payload!(ToolInvokePayload);
 
 /// Hook type for tool_pre_invoke — runs before a tool executes.
 struct ToolPreInvoke;
@@ -409,21 +409,21 @@ fn print_result(_label: &str, result: &PipelineResult) {
 
 #[tokio::main]
 async fn main() {
-    println!("=== CPEX Plugin Demo ===\n");
+    println!("=== PPE Plugin Demo ===\n");
 
     // --- Load config from YAML file ---
-    let config_path = "crates/cpex-core/examples/plugin_demo.yaml";
+    let config_path = "crates/ppe-core/examples/plugin_demo.yaml";
     println!("--- Loading config from {} ---\n", config_path);
     let yaml = std::fs::read_to_string(config_path)
         .unwrap_or_else(|e| panic!("Failed to read {}: {}", config_path, e));
-    let cpex_config = cpex_core::config::parse_config(&yaml).unwrap();
+    let policy_config = praxis_policy_core::config::parse_config(&yaml).unwrap();
 
     let mgr = PluginManager::default();
     mgr.register_factory("builtin/identity", Box::new(IdentityFactory));
     mgr.register_factory("builtin/pii", Box::new(PiiGuardFactory));
     mgr.register_factory("builtin/audit", Box::new(AuditLoggerFactory));
     mgr.register_factory("builtin/remote_authz", Box::new(RemoteAuthzFactory));
-    mgr.load_config(cpex_config).unwrap();
+    mgr.load_config(policy_config).unwrap();
 
     println!("\n--- Initializing plugins ---\n");
     mgr.initialize().await.unwrap();
@@ -458,7 +458,7 @@ async fn main() {
     let ext = make_tool_extensions("get_compensation", &[]);
     // Simulate clearance by pre-populating global_state
     // (In production, an earlier hook would set this from a token claim)
-    let mut ctx_table = cpex_core::context::PluginContextTable::new();
+    let mut ctx_table = praxis_policy_core::context::PluginContextTable::new();
     ctx_table
         .global_state
         .insert("pii_clearance".into(), serde_json::Value::Bool(true));

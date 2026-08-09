@@ -1,4 +1,4 @@
-// Location: ./crates/cpex-core/src/delegation/hook.rs
+// Location: ./crates/ppe-core/src/delegation/hook.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor

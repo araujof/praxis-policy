@@ -1,9 +1,9 @@
-// Location: ./crates/apl-cmf/src/constants.rs
+// Location: ./crates/ppe-apl-cmf/src/constants.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
-// String constants used across apl-cmf — capability names cpex-core
+// String constants used across praxis-policy-apl-cmf — capability names praxis-policy-core
 // recognizes for `filter_extensions`, plus the bag-attribute
 // prefixes APL extractors write under. Centralizing both makes the
 // capability → bag namespace mapping in `capability_namespaces` a
@@ -13,8 +13,8 @@
 //
 // # Source-of-truth invariants
 //
-// * `CAP_*` names match `cpex_core::extensions::filter::filter_extensions`
-//   verbatim. cpex-core is authoritative — if it changes a cap name,
+// * `CAP_*` names match `praxis_policy_core::extensions::filter::filter_extensions`
+//   verbatim. praxis-policy-core is authoritative — if it changes a cap name,
 //   bump here and update the mapping table.
 // * `BAG_*` prefixes match what the per-extension extractor modules
 //   (`security.rs`, `delegation.rs`, etc.) actually write into the
@@ -53,7 +53,7 @@ pub const CAP_APPEND_DELEGATION: &str = "append_delegation";
 pub const CAP_WRITE_HEADERS: &str = "write_headers";
 
 // Bag-attribute prefixes (and exact-match keys) — must match what
-// the apl-cmf extractor modules write.
+// the praxis-policy-apl-cmf extractor modules write.
 //
 // Prefixes ending in `.` match any key starting with them
 // (e.g. `BAG_ROLE_PREFIX` matches `role.hr`, `role.admin`).
@@ -70,7 +70,7 @@ pub const BAG_CLAIM_PREFIX: &str = "claim.";
 
 // Payload (args / result).
 //
-// These are the dotted-prefix forms used when apl-cmf::payload flattens
+// These are the dotted-prefix forms used when praxis-policy-apl-cmf::payload flattens
 // the request's args object and the upstream's result object into the
 // bag. APL predicates / Cedar `${args.X}` substitutions / OPA `input.X`
 // paths all resolve through these.
@@ -91,13 +91,13 @@ pub const BAG_HTTP_REQUEST_HEADERS_PREFIX: &str = "http.request_headers.";
 pub const BAG_HTTP_RESPONSE_HEADERS_PREFIX: &str = "http.response_headers.";
 // HTTP request line — exact keys. These ride the same `read_headers`
 // capability as headers (the whole `http` slot is gated together in
-// `cpex-core::extensions::filter`).
+// `praxis-policy-core::extensions::filter`).
 pub const BAG_HTTP_METHOD: &str = "http.method";
 pub const BAG_HTTP_PATH: &str = "http.path";
 pub const BAG_HTTP_HOST: &str = "http.host";
 pub const BAG_HTTP_SCHEME: &str = "http.scheme";
 // Violation `details` keys carrying a transpiled `denyWith` (custom HTTP
-// denial response). Shared between the producer (apl-cpex route handler)
+// denial response). Shared between the producer (praxis-policy-apl-runtime route handler)
 // and any consumer (host renderer / tests) so the stringly-typed contract
 // stays coupled to one definition.
 pub const DETAIL_HTTP_STATUS: &str = "http.status";

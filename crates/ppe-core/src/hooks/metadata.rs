@@ -1,4 +1,4 @@
-// Location: ./crates/cpex-core/src/hooks/metadata.rs
+// Location: ./crates/ppe-core/src/hooks/metadata.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -8,9 +8,9 @@
 //
 // # What this solves
 //
-// cpex-core's `invoke_named::<H>(hook_name, ...)` already routes to
+// praxis-policy-core's `invoke_named::<H>(hook_name, ...)` already routes to
 // the right handlers based on the hook name. But APL's dispatcher
-// (`apl-cpex/src/dispatch_plan.rs`) needs a finer-grained question:
+// (`praxis-policy-apl-runtime/src/dispatch_plan.rs`) needs a finer-grained question:
 // when a plugin is registered for MULTIPLE hooks (e.g.
 // `[cmf.tool_pre_invoke, cmf.tool_post_invoke]`), which entry should
 // fire for the current dispatch context?
@@ -44,7 +44,7 @@
 //   * `phase` — `Pre` / `Post` / `Unphased`. APL's evaluator uses
 //     this to pick the right entry for the current phase context.
 //
-// Lookup is the foundation for `apl-cpex::dispatch_plan`'s entry
+// Lookup is the foundation for `praxis-policy-apl-runtime::dispatch_plan`'s entry
 // selection.
 //
 // # Phase semantics

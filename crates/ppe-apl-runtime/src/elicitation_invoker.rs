@@ -1,16 +1,16 @@
-// Location: ./crates/apl-cpex/src/elicitation_invoker.rs
+// Location: ./crates/ppe-apl-runtime/src/elicitation_invoker.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
-// `ElicitationPluginInvoker` — `apl-core::ElicitationInvoker` impl
+// `ElicitationPluginInvoker` — `praxis-policy-apl-core::ElicitationInvoker` impl
 // bound to the `ElicitationHook` family. Drives dispatch off a
 // pre-resolved [`RouteDispatchPlan::elicitation_entries`] and forwards
 // to `PluginManager::invoke_entries::<ElicitationHook>(...)`.
 //
 // # When this runs
 //
-// The apl-core evaluator calls one of the three trait methods per
+// The praxis-policy-apl-core evaluator calls one of the three trait methods per
 // `Effect::Elicit` it walks, across the lifetime of one elicitation:
 //
 //   * `dispatch(step, resolved_from)` — first arrival. Builds an
@@ -38,14 +38,14 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tokio::sync::Mutex;
 
-use cpex_core::elicitation::{
+use praxis_policy_core::elicitation::{
     ElicitationHook, ElicitationOp, ElicitationOutcomeKind, ElicitationPayload,
     ElicitationStatusKind,
 };
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::manager::PluginManager;
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::manager::PluginManager;
 
-use apl_core::step::{
+use praxis_policy_apl_core::step::{
     ElicitStep, ElicitationDispatch, ElicitationError, ElicitationInvoker, ElicitationOutcome,
     ElicitationStatus, ElicitationValidation,
 };
@@ -53,7 +53,7 @@ use apl_core::step::{
 use crate::dispatch_plan::RouteDispatchPlan;
 
 /// Bridges APL elicitation-step dispatch (`require_approval(...)`,
-/// `confirm(...)`, …) to CPEX `ElicitationHook` plugins.
+/// `confirm(...)`, …) to PPE `ElicitationHook` plugins.
 pub struct ElicitationPluginInvoker {
     manager: Arc<PluginManager>,
     /// Same `Arc<Mutex<Extensions>>` as the CMF invoker for this request,
@@ -86,7 +86,7 @@ impl ElicitationPluginInvoker {
     fn entry_for(
         &self,
         plugin_name: &str,
-    ) -> Result<cpex_core::registry::HookEntry, ElicitationError> {
+    ) -> Result<praxis_policy_core::registry::HookEntry, ElicitationError> {
         self.plan
             .elicitation_entries
             .get(plugin_name)

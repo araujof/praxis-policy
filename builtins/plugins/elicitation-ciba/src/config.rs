@@ -37,7 +37,7 @@ pub struct CibaConfig {
     /// OAuth scopes to request on the backchannel auth request. CIBA
     /// requires at least `openid`. This is the *OAuth* scope (what the
     /// minted token may do), distinct from the APL `scope` arg-binding
-    /// expression — that one is checked by the apl-core runtime.
+    /// expression — that one is checked by the praxis-policy-apl-core runtime.
     #[serde(default = "default_scope")]
     pub scope: String,
 
@@ -147,11 +147,11 @@ mod tests {
         let raw = json!({
             "backchannel_endpoint": "https://kc/realms/corp/protocol/openid-connect/ext/ciba/auth",
             "token_endpoint": "https://kc/realms/corp/protocol/openid-connect/token",
-            "client_id": "cpex-gateway",
+            "client_id": "praxis-policy-gateway",
             "client_secret_source": { "kind": "literal", "secret": "dev-only" },
         });
         let cfg: CibaConfig = serde_json::from_value(raw).unwrap();
-        assert_eq!(cfg.client_id, "cpex-gateway");
+        assert_eq!(cfg.client_id, "praxis-policy-gateway");
         assert_eq!(cfg.scope, "openid");
         assert_eq!(cfg.default_requested_expiry_seconds, 300);
         assert_eq!(cfg.http_timeout_seconds, 5);

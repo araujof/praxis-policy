@@ -1,4 +1,4 @@
-// Location: ./crates/cpex-core/src/extensions/raw_credentials.rs
+// Location: ./crates/ppe-core/src/extensions/raw_credentials.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -46,8 +46,8 @@
 //
 // It is **not** true that raw material never leaves the host process.
 // A host may read the in-memory `Zeroizing` field directly and put
-// the plaintext on a purpose-built side channel. `cpex-hosts-python`
-// does exactly that: `crates/cpex-hosts-python/src/credentials.rs`
+// the plaintext on a purpose-built side channel. the CPEX Python host
+// does exactly that: `crates/ppe-hosts-python/src/credentials.rs`
 // builds a dedicated `credential` DTO carrying the token as a plain
 // string, so an identity resolver or token delegator can run in a
 // separate worker process. The reversal is deliberate — without it
@@ -208,7 +208,7 @@ pub enum DelegationMode {
     /// specific caller.
     AsCallerWorkload,
 
-    /// Outbound token represents *this* CPEX instance's own attested
+    /// Outbound token represents *this* PPE instance's own attested
     /// identity (`SecurityExtension.this_workload`) — used when the
     /// enforcement point calls infrastructure it owns, or a downstream
     /// that trusts only this instance with user context conveyed

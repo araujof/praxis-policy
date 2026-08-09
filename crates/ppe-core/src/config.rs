@@ -1,4 +1,4 @@
-// Location: ./crates/cpex-core/src/config.rs
+// Location: ./crates/ppe-core/src/config.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -26,14 +26,14 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use crate::error::PluginError;
 use crate::plugin::PluginConfig;
 
-/// Top-level CPEX configuration.
+/// Top-level PPE configuration.
 ///
 /// Parsed from a single YAML file. Plugin scoping mode is controlled
 /// by `plugin_settings.routing_enabled` — if absent or false, plugins
 /// use their own `conditions:` field (backward compatible). If true,
 /// the `routes:` and `global:` sections take over.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct CpexConfig {
+pub struct PolicyConfig {
     /// Global configuration — policies, defaults.
     /// Only used when `plugin_settings.routing_enabled` is true.
     #[serde(default)]
@@ -68,7 +68,7 @@ pub struct CpexConfig {
     pub plugin_settings: PluginSettings,
 }
 
-impl CpexConfig {
+impl PolicyConfig {
     /// Whether route-based plugin selection is enabled.
     pub fn routing_enabled(&self) -> bool {
         self.plugin_settings.routing_enabled
@@ -607,16 +607,16 @@ impl StringOrList {
     }
 }
 
-/// Load and parse a CPEX config from a YAML file.
-pub fn load_config(path: &Path) -> Result<CpexConfig, Box<PluginError>> {
+/// Load and parse a PPE config from a YAML file.
+pub fn load_config(path: &Path) -> Result<PolicyConfig, Box<PluginError>> {
     let content = std::fs::read_to_string(path).map_err(|e| PluginError::Config {
         message: format!("failed to read config file '{}': {}", path.display(), e),
     })?;
     parse_config(&content)
 }
 
-/// Parse a CPEX config from a YAML string.
-pub fn parse_config(yaml: &str) -> Result<CpexConfig, Box<PluginError>> {
+/// Parse a PPE config from a YAML string.
+pub fn parse_config(yaml: &str) -> Result<PolicyConfig, Box<PluginError>> {
     // Scan the raw YAML for renamed legacy keys before the typed parse:
     // `RouteEntry` / `GlobalConfig` / `PolicyGroup` silently ignore unknown
     // fields, so a stale `identity:` would otherwise be dropped and its
@@ -625,9 +625,10 @@ pub fn parse_config(yaml: &str) -> Result<CpexConfig, Box<PluginError>> {
         message: format!("failed to parse config YAML: {}", e),
     })?;
     reject_renamed_identity_key(&raw)?;
-    let mut config: CpexConfig = serde_yaml::from_value(raw).map_err(|e| PluginError::Config {
-        message: format!("failed to parse config YAML: {}", e),
-    })?;
+    let mut config: PolicyConfig =
+        serde_yaml::from_value(raw).map_err(|e| PluginError::Config {
+            message: format!("failed to parse config YAML: {}", e),
+        })?;
     merge_groups_into_policies(&mut config);
     validate_config(&config)?;
     Ok(config)
@@ -637,7 +638,7 @@ pub fn parse_config(yaml: &str) -> Result<CpexConfig, Box<PluginError>> {
 /// `global.policies` map (the deprecated alias location), so every resolver
 /// can keep reading a single map. Top-level entries win on a name collision
 /// — the canonical spelling takes precedence over the deprecated one.
-pub(crate) fn merge_groups_into_policies(config: &mut CpexConfig) {
+pub(crate) fn merge_groups_into_policies(config: &mut PolicyConfig) {
     if config.groups.is_empty() {
         return;
     }
@@ -701,9 +702,9 @@ pub(crate) fn reject_renamed_identity_key(raw: &serde_yaml::Value) -> Result<(),
 /// [`deserialize_plugin_refs`] folds into an empty structural `Vec`, leaving
 /// it for the APL visitor to consume). Those are resolved and validated at
 /// dispatch-plan build time, where an unknown or unreferenced plugin is logged
-/// and skipped (see `apl-cpex::dispatch_plan`). Keeping cpex-core's validation
+/// and skipped (see `praxis-policy-apl-runtime::dispatch_plan`). Keeping praxis-policy-core's validation
 /// free of APL semantics is intentional.
-pub(crate) fn validate_config(config: &CpexConfig) -> Result<(), Box<PluginError>> {
+pub(crate) fn validate_config(config: &PolicyConfig) -> Result<(), Box<PluginError>> {
     let mut seen_names = HashSet::new();
     for plugin in &config.plugins {
         if !seen_names.insert(&plugin.name) {
@@ -843,7 +844,7 @@ fn route_static_tags(route: &RouteEntry) -> impl Iterator<Item = &str> {
 /// `request_scope` and `request_tags` come from the host's
 /// `MetaExtension` on the request.
 pub fn resolve_plugins_for_entity(
-    config: &CpexConfig,
+    config: &PolicyConfig,
     entity_type: &str,
     entity_name: &str,
     request_scope: Option<&str>,
@@ -942,7 +943,7 @@ pub fn resolve_plugins_for_entity(
 /// (e.g. anonymous routes that explicitly opt out via
 /// `replace_inherited: true` + empty `steps: []`).
 pub fn resolve_identity_plugins_for_route(
-    config: &CpexConfig,
+    config: &PolicyConfig,
     entity_type: &str,
     entity_name: &str,
     request_scope: Option<&str>,
@@ -1041,7 +1042,7 @@ fn collect_plugin_refs(
 /// Scope matching: if a route declares a scope, the request must
 /// have the same scope. No scope on the route matches any request.
 fn find_matching_route<'a>(
-    config: &'a CpexConfig,
+    config: &'a PolicyConfig,
     entity_type: &str,
     entity_name: &str,
     request_scope: Option<&str>,
@@ -2403,7 +2404,7 @@ routes:
         assert!(non_matching.is_empty());
     }
 
-    fn deserialize_cfg(yaml: &str) -> Result<CpexConfig, String> {
+    fn deserialize_cfg(yaml: &str) -> Result<PolicyConfig, String> {
         serde_yaml::from_str(yaml).map_err(|e| e.to_string())
     }
 

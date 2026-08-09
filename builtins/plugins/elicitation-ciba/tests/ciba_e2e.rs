@@ -12,15 +12,15 @@ use std::collections::HashSet;
 use base64::Engine;
 use serde_json::json;
 
-use cpex_core::context::PluginContext;
-use cpex_core::elicitation::{
+use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::elicitation::{
     ElicitationOp, ElicitationOutcomeKind, ElicitationPayload, ElicitationStatusKind,
 };
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::hooks::trait_def::HookHandler;
-use cpex_core::plugin::{OnError, PluginConfig, PluginMode};
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::hooks::trait_def::HookHandler;
+use praxis_policy_core::plugin::{OnError, PluginConfig, PluginMode};
 
-use cpex_plugin_elicitation_ciba::CibaApprover;
+use praxis_policy_plugin_elicitation_ciba::CibaApprover;
 
 // ---------------------------------------------------------------------
 // Harness
@@ -43,7 +43,7 @@ fn approver(server_url: &str) -> CibaApprover {
         config: Some(json!({
             "backchannel_endpoint": format!("{server_url}/ciba/auth"),
             "token_endpoint": format!("{server_url}/token"),
-            "client_id": "cpex-gateway",
+            "client_id": "praxis-policy-gateway",
             "client_secret_source": { "kind": "literal", "secret": "shh" },
             // mockito serves http:// — allow it for the test only.
             "insecure_http": true,

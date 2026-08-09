@@ -21,14 +21,14 @@
 // # Context
 //
 // `args.context` is the operator-supplied context from the APL step. We
-// merge in CPEX-provided keys at well-known paths:
+// merge in PPE-provided keys at well-known paths:
 //
 //   - `context.delegation.{chain, depth}`  ← from bag's `delegation.*`
 //   - `context.meta.{entity_type, entity_name, scope, tags}` ← from bag's `meta.*`
 //   - `context.security.{labels, classification}` ← from bag's `security.*`
 //
 // Operators write Cedar policies against these stable paths. Any keys
-// the operator put in `args.context` win over CPEX-provided defaults on
+// the operator put in `args.context` win over PPE-provided defaults on
 // conflict — operator intent first.
 //
 // # Schema
@@ -37,9 +37,9 @@
 // the context's record shape against the action's declared context type.
 // Without a schema, Cedar accepts any record.
 
-use apl_core::attributes::{AttributeBag, AttributeValue};
-use apl_core::step::{PdpCall, PdpError};
 use cedar_policy::{EntityUid, Schema};
+use praxis_policy_apl_core::attributes::{AttributeBag, AttributeValue};
+use praxis_policy_apl_core::step::{PdpCall, PdpError};
 use serde_json::{json, Map, Value};
 
 /// Parsed pieces of a `PdpCall` ready to feed into
@@ -88,15 +88,15 @@ pub fn parse<'a>(
         .ok_or_else(|| PdpError::Dispatch("cedar:() `resource` missing".to_string()))?;
 
     // Build the merged context: operator-supplied `args.context` keys,
-    // overlaid on top of CPEX-derived context (delegation, meta,
+    // overlaid on top of PPE-derived context (delegation, meta,
     // security). On collision, the operator's value wins — they
     // explicitly wrote it.
-    let cpex_ctx = build_cpex_context(bag);
+    let policy_ctx = build_policy_context(bag);
     let operator_ctx = map
         .get(serde_yaml::Value::String("context".to_string()))
         .cloned()
         .unwrap_or(serde_yaml::Value::Null);
-    let mut merged = cpex_ctx;
+    let mut merged = policy_ctx;
     if !operator_ctx.is_null() {
         let op_json: Value = serde_json::to_value(&operator_ctx).map_err(|e| {
             PdpError::Dispatch(format!("cedar:() `context` not JSON-representable: {}", e))
@@ -122,20 +122,20 @@ pub fn parse<'a>(
     })
 }
 
-/// Build the CPEX-provided context block (everything under
+/// Build the PPE-provided context block (everything under
 /// `context.delegation`, `context.meta`, `context.security`) from the
 /// `AttributeBag`. Operators reason about these in Cedar policies via
 /// the well-known paths.
-fn build_cpex_context(bag: &AttributeBag) -> Value {
+fn build_policy_context(bag: &AttributeBag) -> Value {
     let mut root = Map::new();
 
     let mut delegation = Map::new();
     if let Some(depth) = bag.get_int("delegation.depth") {
         delegation.insert("depth".to_string(), json!(depth));
     }
-    // The full chain isn't currently in a flat bag key; apl-cmf
+    // The full chain isn't currently in a flat bag key; praxis-policy-apl-cmf
     // exposes presence-only `delegated=true` plus per-attribute hops.
-    // When apl-cmf grows a structured `delegation.chain` shape we'll
+    // When praxis-policy-apl-cmf grows a structured `delegation.chain` shape we'll
     // forward it here. For now, the depth + delegated bool let policies
     // do basic chain-depth bounds checks.
     if let Some(delegated) = bag.get_bool("delegated") {
@@ -187,7 +187,7 @@ fn build_cpex_context(bag: &AttributeBag) -> Value {
 
 /// Shallow merge `overlay` into `target`. Operator-supplied keys win on
 /// conflict at the top level; we don't try to deep-merge nested
-/// records (operator says `context.meta = {custom: "x"}` and CPEX-
+/// records (operator says `context.meta = {custom: "x"}` and PPE-
 /// provided context.meta is fully replaced). Keeps the semantics
 /// predictable.
 fn merge_into(target: &mut Value, overlay: Value) {

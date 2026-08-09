@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cpex/src/pdp_router.rs
+// Location: ./crates/ppe-apl-runtime/src/pdp_router.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -11,12 +11,12 @@
 // The PDP backends that ship in this workspace, each its own crate
 // registered here by dialect:
 //
-//   - **cedar** (`cpex-pdp-cedar-direct`) — in-process Cedar policy-set
+//   - **cedar** (`praxis-policy-pdp-cedar-direct`) — in-process Cedar policy-set
 //     evaluation.
 //   - **opa** — Open Policy Agent / Rego.
 //   - **authzen** — AuthZen-protocol external decision point.
 //   - **nemo** — NeMo reasoning backend.
-//   - **cel** (`cpex-pdp-cel`) — inline CEL boolean predicates authored in
+//   - **cel** (`praxis-policy-pdp-cel`) — inline CEL boolean predicates authored in
 //     the route YAML (`cel: { expr: "..." }`); smallest dep tree, no
 //     external policy store.
 //
@@ -35,8 +35,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use apl_core::attributes::AttributeBag;
-use apl_core::step::{PdpCall, PdpDecision, PdpDialect, PdpError, PdpResolver};
+use praxis_policy_apl_core::attributes::AttributeBag;
+use praxis_policy_apl_core::step::{PdpCall, PdpDecision, PdpDialect, PdpError, PdpResolver};
 
 /// Dispatches PDP calls to the right resolver based on
 /// `Step::Pdp.call.dialect`. Construct with `new()`, add resolvers via
@@ -122,7 +122,7 @@ impl PdpResolver for PdpRouter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use apl_core::evaluator::Decision;
+    use praxis_policy_apl_core::evaluator::Decision;
 
     struct FakePdp {
         dialect: PdpDialect,

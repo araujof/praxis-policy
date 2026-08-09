@@ -1,20 +1,20 @@
-// Location: ./crates/cpex-builtins/src/lib.rs
+// Location: ./crates/ppe-builtins/src/lib.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Fred Araujo
 
-//! CPEX built-in extension set.
+//! PPE built-in extension set.
 //!
 //! One crate that bundles the first-party plugins, PDPs, and session
-//! stores, each behind a cargo feature. A host depends on `cpex-builtins`
-//! (directly, or transitively through the `cpex` facade) and selects what
+//! stores, each behind a cargo feature. A host depends on `praxis-policy-builtins`
+//! (directly, or transitively through the `praxis-policy` facade) and selects what
 //! compiles in via the feature list:
 //!
 //! ```toml
 //! # the in-process default set
-//! cpex-builtins = "0.2"
+//! praxis-policy-builtins = "0.2"
 //! # a minimal subset
-//! cpex-builtins = { version = "0.2", default-features = false, features = ["pii-scanner"] }
+//! praxis-policy-builtins = { version = "0.2", default-features = false, features = ["pii-scanner"] }
 //! ```
 //!
 //! Then [`install_builtins`] registers every enabled factory and installs
@@ -26,30 +26,32 @@
 //! Registration is **explicit** (the [`register_builtins`] macro expands to
 //! `#[cfg]`-gated `register_factory` calls), not `inventory`/`linkme`-style
 //! link-section discovery — so the factory symbols survive the linker's
-//! dead-code GC when this crate is compiled into the `cpex-ffi` staticlib.
+//! dead-code GC when this crate is compiled into the CPEX FFI staticlib.
 
 use std::sync::Arc;
 
-use apl_core::step::PdpFactory;
-use apl_cpex::{register_apl, AplOptions, SessionStoreFactory};
-use cpex_core::manager::PluginManager;
+use praxis_policy_apl_core::step::PdpFactory;
+use praxis_policy_apl_runtime::{register_apl, AplOptions, SessionStoreFactory};
+use praxis_policy_core::manager::PluginManager;
 
 #[cfg(feature = "cedar-direct")]
-pub use cpex_pdp_cedar_direct::CedarDirectPdpFactory;
+pub use praxis_policy_pdp_cedar_direct::CedarDirectPdpFactory;
 #[cfg(feature = "cel")]
-pub use cpex_pdp_cel::CelPdpFactory;
+pub use praxis_policy_pdp_cel::CelPdpFactory;
 #[cfg(feature = "audit-logger")]
-pub use cpex_plugin_audit_logger::{AuditLoggerFactory, KIND as AUDIT_KIND};
+pub use praxis_policy_plugin_audit_logger::{AuditLoggerFactory, KIND as AUDIT_KIND};
 #[cfg(feature = "delegator-oauth")]
-pub use cpex_plugin_delegator_oauth::{OAuthDelegatorFactory, KIND as OAUTH_KIND};
+pub use praxis_policy_plugin_delegator_oauth::{OAuthDelegatorFactory, KIND as OAUTH_KIND};
 #[cfg(feature = "elicitation-ciba")]
-pub use cpex_plugin_elicitation_ciba::{CibaApproverFactory, KIND as CIBA_KIND};
+pub use praxis_policy_plugin_elicitation_ciba::{CibaApproverFactory, KIND as CIBA_KIND};
 #[cfg(feature = "identity-jwt")]
-pub use cpex_plugin_identity_jwt::{JwtIdentityFactory, KIND as JWT_KIND};
+pub use praxis_policy_plugin_identity_jwt::{JwtIdentityFactory, KIND as JWT_KIND};
 #[cfg(feature = "pii-scanner")]
-pub use cpex_plugin_pii_scanner::{PiiScannerFactory, KIND as PII_KIND};
+pub use praxis_policy_plugin_pii_scanner::{PiiScannerFactory, KIND as PII_KIND};
 #[cfg(feature = "valkey")]
-pub use cpex_session_valkey::{ValkeyConfig, ValkeySessionStoreFactory, KIND as VALKEY_KIND};
+pub use praxis_policy_session_valkey::{
+    ValkeyConfig, ValkeySessionStoreFactory, KIND as VALKEY_KIND,
+};
 
 /// Generate [`register_builtins`] from a feature → factory table. Each entry
 /// expands to a `#[cfg(feature = ...)]`-gated, **explicit**
@@ -57,7 +59,7 @@ pub use cpex_session_valkey::{ValkeyConfig, ValkeySessionStoreFactory, KIND as V
 /// crate's own `KIND` const.
 ///
 /// Explicit calls (vs `inventory`/`linkme` link-section registration) are
-/// deliberate: in the `cpex-ffi` staticlib the linker GCs sections nothing
+/// deliberate: in the CPEX FFI staticlib the linker GCs sections nothing
 /// references, which would silently drop auto-registered plugins. Naming
 /// each factory here keeps its object code alive.
 macro_rules! register_builtins {
@@ -82,11 +84,11 @@ macro_rules! register_builtins {
 }
 
 register_builtins! {
-    feature "identity-jwt"     => cpex_plugin_identity_jwt::JwtIdentityFactory,
-    feature "delegator-oauth"  => cpex_plugin_delegator_oauth::OAuthDelegatorFactory,
-    feature "elicitation-ciba" => cpex_plugin_elicitation_ciba::CibaApproverFactory,
-    feature "pii-scanner"      => cpex_plugin_pii_scanner::PiiScannerFactory,
-    feature "audit-logger"     => cpex_plugin_audit_logger::AuditLoggerFactory,
+    feature "identity-jwt"     => praxis_policy_plugin_identity_jwt::JwtIdentityFactory,
+    feature "delegator-oauth"  => praxis_policy_plugin_delegator_oauth::OAuthDelegatorFactory,
+    feature "elicitation-ciba" => praxis_policy_plugin_elicitation_ciba::CibaApproverFactory,
+    feature "pii-scanner"      => praxis_policy_plugin_pii_scanner::PiiScannerFactory,
+    feature "audit-logger"     => praxis_policy_plugin_audit_logger::AuditLoggerFactory,
 }
 
 /// The enabled PDP factories, ready to drop into
@@ -98,9 +100,11 @@ register_builtins! {
 pub fn builtin_pdps() -> Vec<Arc<dyn PdpFactory>> {
     let mut factories: Vec<Arc<dyn PdpFactory>> = Vec::new();
     #[cfg(feature = "cedar-direct")]
-    factories.push(Arc::new(cpex_pdp_cedar_direct::CedarDirectPdpFactory::new()));
+    factories.push(Arc::new(
+        praxis_policy_pdp_cedar_direct::CedarDirectPdpFactory::new(),
+    ));
     #[cfg(feature = "cel")]
-    factories.push(Arc::new(cpex_pdp_cel::CelPdpFactory::new()));
+    factories.push(Arc::new(praxis_policy_pdp_cel::CelPdpFactory::new()));
     factories
 }
 
@@ -113,7 +117,7 @@ pub fn builtin_session_store_factories() -> Vec<Arc<dyn SessionStoreFactory>> {
     let mut factories: Vec<Arc<dyn SessionStoreFactory>> = Vec::new();
     #[cfg(feature = "valkey")]
     factories.push(Arc::new(
-        cpex_session_valkey::ValkeySessionStoreFactory::new(),
+        praxis_policy_session_valkey::ValkeySessionStoreFactory::new(),
     ));
     factories
 }
@@ -148,8 +152,7 @@ mod tests {
 
     #[test]
     fn pdp_factories_track_enabled_features() {
-        let expected = cfg!(feature = "cedar-direct") as usize
-            + cfg!(feature = "cel") as usize;
+        let expected = cfg!(feature = "cedar-direct") as usize + cfg!(feature = "cel") as usize;
         assert_eq!(
             builtin_pdps().len(),
             expected,

@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cmf/src/mcp.rs
+// Location: ./crates/ppe-apl-cmf/src/mcp.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -24,8 +24,8 @@
 //   mcp.prompt.description  : String
 //   mcp.prompt.server_id    : String
 
-use apl_core::AttributeBag;
-use cpex_core::extensions::MCPExtension;
+use praxis_policy_apl_core::AttributeBag;
+use praxis_policy_core::extensions::MCPExtension;
 
 pub fn extract_mcp(mcp: &MCPExtension, bag: &mut AttributeBag) {
     if let Some(tool) = &mcp.tool {
@@ -72,7 +72,7 @@ pub fn extract_mcp(mcp: &MCPExtension, bag: &mut AttributeBag) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cpex_core::extensions::mcp::{ResourceMetadata, ToolMetadata};
+    use praxis_policy_core::extensions::mcp::{ResourceMetadata, ToolMetadata};
 
     #[test]
     fn tool_metadata_flattens() {

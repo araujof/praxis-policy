@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cmf/src/llm.rs
+// Location: ./crates/ppe-apl-cmf/src/llm.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -10,8 +10,8 @@
 //   llm.provider        : String
 //   llm.capabilities    : StringSet
 
-use apl_core::AttributeBag;
-use cpex_core::extensions::LLMExtension;
+use praxis_policy_apl_core::AttributeBag;
+use praxis_policy_core::extensions::LLMExtension;
 use std::collections::HashSet;
 
 pub fn extract_llm(llm: &LLMExtension, bag: &mut AttributeBag) {

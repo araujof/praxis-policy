@@ -1,4 +1,4 @@
-// Location: ./crates/cpex-core/src/extensions/routing.rs
+// Location: ./crates/ppe-core/src/extensions/routing.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -6,7 +6,7 @@
 // CandidateConstraintExtension — the backend candidate constraint the
 // APL `restrict` effect produces, carried as a typed extension slot.
 //
-// The policy engine (apl-cpex) folds every `restrict` a request emitted
+// The policy engine (praxis-policy-apl-runtime) folds every `restrict` a request emitted
 // into one of these and writes it into `Extensions.candidate_constraint`.
 // The host router/load-balancer (Praxis's policy filter) reads it TYPED
 // off `PipelineResult.modified_extensions` — the same in-process,
@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 
 /// What the host does when the constraint prunes every candidate.
 ///
-/// The host — not CPEX — makes the empty decision, since only it knows
+/// The host — not PPE — makes the empty decision, since only it knows
 /// which backends are actually reachable/healthy at selection time. The
 /// choice rides out with the constraint. Fail-closed by default.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -41,9 +41,9 @@ pub enum OnEmpty {
 /// grow, tier ceilings collect, `on_empty` takes the strictest). All
 /// monotone — it can only shrink the eligible set.
 ///
-/// Field shape mirrors the authoring form (`apl_core::CandidateConstraint`)
+/// Field shape mirrors the authoring form (`praxis_policy_apl_core::CandidateConstraint`)
 /// with one divergence: `max_cost_tier` (one ceiling per restrict) folds
-/// to `max_cost_tiers` (the *set* of ceilings). CPEX cannot order tier
+/// to `max_cost_tiers` (the *set* of ceilings). PPE cannot order tier
 /// names — that ordering is host-owned — so it emits every ceiling and
 /// the host requires `cost_tier ≤ all of them`, which is `≤ min` once the
 /// host applies its own tier order.
@@ -69,7 +69,7 @@ pub struct CandidateConstraintExtension {
 
     /// Every `cost_tier` ceiling emitted, de-duplicated. The host
     /// requires `cost_tier ≤` **all** of these (== `≤ min` under the
-    /// host's tier order). CPEX never orders them itself.
+    /// host's tier order). PPE never orders them itself.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub max_cost_tiers: Vec<String>,
 
@@ -122,7 +122,7 @@ impl CandidateConstraintExtension {
     ///
     /// ```
     /// use std::collections::BTreeMap;
-    /// use cpex_core::extensions::routing::CandidateConstraintExtension;
+    /// use praxis_policy_core::extensions::routing::CandidateConstraintExtension;
     ///
     /// let c = CandidateConstraintExtension {
     ///     allow_regions: Some(vec!["eu".into()]),

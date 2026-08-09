@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cpex/tests/delegate_step_e2e.rs
+// Location: ./crates/ppe-apl-runtime/tests/delegate_step_e2e.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -7,9 +7,9 @@
 //
 // Verifies the full flow:
 //   * APL parser produces a `Step::Delegate` from policy YAML.
-//   * apl-cpex's `RouteDispatchPlan::build` resolves the plugin's
+//   * praxis-policy-apl-runtime's `RouteDispatchPlan::build` resolves the plugin's
 //     `token.delegate` entry into `plan.delegation_entries`.
-//   * apl-cpex's `DelegationPluginInvoker` constructs a
+//   * praxis-policy-apl-runtime's `DelegationPluginInvoker` constructs a
 //     `DelegationPayload`, dispatches via
 //     `invoke_entries::<TokenDelegateHook>(...)`, applies the
 //     resulting payload to extensions, and surfaces granted_*
@@ -24,23 +24,23 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use chrono::{Duration, Utc};
 
-use cpex_core::context::PluginContext;
-use cpex_core::delegation::{DelegationPayload, TokenDelegateHook, HOOK_TOKEN_DELEGATE};
-use cpex_core::error::PluginViolation;
-use cpex_core::extensions::raw_credentials::{
+use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::delegation::{DelegationPayload, TokenDelegateHook, HOOK_TOKEN_DELEGATE};
+use praxis_policy_core::error::PluginViolation;
+use praxis_policy_core::extensions::raw_credentials::{
     RawCredentialsExtension, RawDelegatedToken, RawInboundToken, TokenKind, TokenRole,
 };
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::hooks::trait_def::{HookHandler, PluginResult};
-use cpex_core::manager::PluginManager;
-use cpex_core::plugin::{OnError, Plugin, PluginConfig, PluginMode};
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
+use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::plugin::{OnError, Plugin, PluginConfig, PluginMode};
 
-use apl_core::{
+use praxis_policy_apl_core::{
     compile_config, evaluate_route, AttributeBag, Decision, PdpCall, PdpDecision, PdpDialect,
     PdpError, PdpResolver, RoutePayload,
 };
 
-use apl_cpex::{
+use praxis_policy_apl_runtime::{
     CmfPluginInvoker, DelegationPluginInvoker, DispatchCache, MemorySessionStore, SessionStore,
 };
 
@@ -153,7 +153,7 @@ fn delegate_cfg(name: &str) -> PluginConfig {
 }
 
 /// Same as `delegate_cfg` but with declared capabilities. Capability
-/// names map to cpex-core's `filter_extensions` rules — e.g.
+/// names map to praxis-policy-core's `filter_extensions` rules — e.g.
 /// `read_subject`, `read_labels`, `read_inbound_credentials`,
 /// `read_delegation`. Used by cap-gating tests.
 fn delegate_cfg_with_caps(name: &str, caps: &[&str]) -> PluginConfig {
@@ -175,7 +175,7 @@ fn delegate_cfg_with_caps(name: &str, caps: &[&str]) -> PluginConfig {
 }
 
 // ---------------------------------------------------------------------
-// Stub PDP — apl-core's evaluator requires `&dyn PdpResolver`; no
+// Stub PDP — praxis-policy-apl-core's evaluator requires `&dyn PdpResolver`; no
 // scenario here exercises a PDP step, so an always-allow stub is
 // enough.
 // ---------------------------------------------------------------------
@@ -221,7 +221,7 @@ fn ext_with_bearer(token: &str) -> Extensions {
 /// tests can verify what a delegate plugin actually sees after the
 /// executor's per-entry filter narrows the view to declared caps.
 fn ext_with_subject_and_label(token: &str, subject_id: &str, label: &str) -> Extensions {
-    use cpex_core::extensions::{SecurityExtension, SubjectExtension};
+    use praxis_policy_core::extensions::{SecurityExtension, SubjectExtension};
 
     let mut raw = RawCredentialsExtension::default();
     raw.inbound_tokens.insert(
@@ -244,14 +244,14 @@ fn ext_with_subject_and_label(token: &str, subject_id: &str, label: &str) -> Ext
 }
 
 /// Wire up a PluginManager with one or more TokenDelegate plugins,
-/// run the route YAML through apl-core's compile, and return the
+/// run the route YAML through praxis-policy-apl-core's compile, and return the
 /// pieces a test needs to invoke a route.
 async fn build_setup(
     yaml: &str,
     plugins: Vec<(String, Arc<RecordingDelegate>, PluginConfig)>,
 ) -> (
     Arc<PluginManager>,
-    apl_core::CompiledConfig,
+    praxis_policy_apl_core::CompiledConfig,
     Arc<DispatchCache>,
 ) {
     let mgr = Arc::new(PluginManager::default());
@@ -321,9 +321,9 @@ routes:
         CmfPluginInvoker::for_request(
             Arc::clone(&mgr),
             extensions,
-            cpex_core::cmf::MessagePayload {
-                message: cpex_core::cmf::Message::text(
-                    cpex_core::cmf::enums::Role::User,
+            praxis_policy_core::cmf::MessagePayload {
+                message: praxis_policy_core::cmf::Message::text(
+                    praxis_policy_core::cmf::enums::Role::User,
                     "fetch compensation",
                 ),
             },
@@ -339,7 +339,7 @@ routes:
         invoker.plan_arc(),
     ));
 
-    let mut bag = apl_cmf::BagBuilder::new()
+    let mut bag = praxis_policy_apl_cmf::BagBuilder::new()
         .with_extensions(&invoker.current_extensions().await)
         .with_route_key(&route.route_key)
         .build();
@@ -348,10 +348,11 @@ routes:
         route,
         &mut bag,
         &mut payload,
-        &(Arc::new(AllowPdp) as Arc<dyn apl_core::PdpResolver>),
-        &(invoker.clone() as Arc<dyn apl_core::PluginInvoker>),
-        &(delegations.clone() as Arc<dyn apl_core::DelegationInvoker>),
-        &(Arc::new(apl_core::NoopElicitationInvoker) as Arc<dyn apl_core::ElicitationInvoker>),
+        &(Arc::new(AllowPdp) as Arc<dyn praxis_policy_apl_core::PdpResolver>),
+        &(invoker.clone() as Arc<dyn praxis_policy_apl_core::PluginInvoker>),
+        &(delegations.clone() as Arc<dyn praxis_policy_apl_core::DelegationInvoker>),
+        &(Arc::new(praxis_policy_apl_core::NoopElicitationInvoker)
+            as Arc<dyn praxis_policy_apl_core::ElicitationInvoker>),
     )
     .await;
 
@@ -361,7 +362,9 @@ routes:
     assert!(
         matches!(
             bag.get("delegation.granted"),
-            Some(apl_core::attributes::AttributeValue::Bool(true))
+            Some(praxis_policy_apl_core::attributes::AttributeValue::Bool(
+                true
+            ))
         ),
         "delegation.granted should be true; bag has: {:?}",
         bag.get("delegation.granted"),
@@ -446,9 +449,9 @@ routes:
         CmfPluginInvoker::for_request(
             Arc::clone(&mgr),
             extensions,
-            cpex_core::cmf::MessagePayload {
-                message: cpex_core::cmf::Message::text(
-                    cpex_core::cmf::enums::Role::User,
+            praxis_policy_core::cmf::MessagePayload {
+                message: praxis_policy_core::cmf::Message::text(
+                    praxis_policy_core::cmf::enums::Role::User,
                     "fetch comp",
                 ),
             },
@@ -464,7 +467,7 @@ routes:
         invoker.plan_arc(),
     ));
 
-    let mut bag = apl_cmf::BagBuilder::new()
+    let mut bag = praxis_policy_apl_cmf::BagBuilder::new()
         .with_extensions(&invoker.current_extensions().await)
         .with_route_key(&route.route_key)
         .build();
@@ -473,10 +476,11 @@ routes:
         route,
         &mut bag,
         &mut payload,
-        &(Arc::new(AllowPdp) as Arc<dyn apl_core::PdpResolver>),
-        &(invoker.clone() as Arc<dyn apl_core::PluginInvoker>),
-        &(delegations.clone() as Arc<dyn apl_core::DelegationInvoker>),
-        &(Arc::new(apl_core::NoopElicitationInvoker) as Arc<dyn apl_core::ElicitationInvoker>),
+        &(Arc::new(AllowPdp) as Arc<dyn praxis_policy_apl_core::PdpResolver>),
+        &(invoker.clone() as Arc<dyn praxis_policy_apl_core::PluginInvoker>),
+        &(delegations.clone() as Arc<dyn praxis_policy_apl_core::DelegationInvoker>),
+        &(Arc::new(praxis_policy_apl_core::NoopElicitationInvoker)
+            as Arc<dyn praxis_policy_apl_core::ElicitationInvoker>),
     )
     .await;
 
@@ -542,8 +546,11 @@ routes:
         CmfPluginInvoker::for_request(
             Arc::clone(&mgr),
             extensions,
-            cpex_core::cmf::MessagePayload {
-                message: cpex_core::cmf::Message::text(cpex_core::cmf::enums::Role::User, "any"),
+            praxis_policy_core::cmf::MessagePayload {
+                message: praxis_policy_core::cmf::Message::text(
+                    praxis_policy_core::cmf::enums::Role::User,
+                    "any",
+                ),
             },
             Arc::clone(&plan),
             Arc::clone(&session_store),
@@ -557,7 +564,7 @@ routes:
         invoker.plan_arc(),
     ));
 
-    let mut bag = apl_cmf::BagBuilder::new()
+    let mut bag = praxis_policy_apl_cmf::BagBuilder::new()
         .with_extensions(&invoker.current_extensions().await)
         .with_route_key(&route.route_key)
         .build();
@@ -566,10 +573,11 @@ routes:
         route,
         &mut bag,
         &mut payload,
-        &(Arc::new(AllowPdp) as Arc<dyn apl_core::PdpResolver>),
-        &(invoker.clone() as Arc<dyn apl_core::PluginInvoker>),
-        &(delegations.clone() as Arc<dyn apl_core::DelegationInvoker>),
-        &(Arc::new(apl_core::NoopElicitationInvoker) as Arc<dyn apl_core::ElicitationInvoker>),
+        &(Arc::new(AllowPdp) as Arc<dyn praxis_policy_apl_core::PdpResolver>),
+        &(invoker.clone() as Arc<dyn praxis_policy_apl_core::PluginInvoker>),
+        &(delegations.clone() as Arc<dyn praxis_policy_apl_core::DelegationInvoker>),
+        &(Arc::new(praxis_policy_apl_core::NoopElicitationInvoker)
+            as Arc<dyn praxis_policy_apl_core::ElicitationInvoker>),
     )
     .await;
 
@@ -654,8 +662,11 @@ routes:
         CmfPluginInvoker::for_request(
             Arc::clone(&mgr),
             extensions,
-            cpex_core::cmf::MessagePayload {
-                message: cpex_core::cmf::Message::text(cpex_core::cmf::enums::Role::User, "fanout"),
+            praxis_policy_core::cmf::MessagePayload {
+                message: praxis_policy_core::cmf::Message::text(
+                    praxis_policy_core::cmf::enums::Role::User,
+                    "fanout",
+                ),
             },
             Arc::clone(&plan),
             Arc::clone(&session_store),
@@ -669,7 +680,7 @@ routes:
         invoker.plan_arc(),
     ));
 
-    let mut bag = apl_cmf::BagBuilder::new()
+    let mut bag = praxis_policy_apl_cmf::BagBuilder::new()
         .with_extensions(&invoker.current_extensions().await)
         .with_route_key(&route.route_key)
         .build();
@@ -678,10 +689,11 @@ routes:
         route,
         &mut bag,
         &mut payload,
-        &(Arc::new(AllowPdp) as Arc<dyn apl_core::PdpResolver>),
-        &(invoker.clone() as Arc<dyn apl_core::PluginInvoker>),
-        &(delegations.clone() as Arc<dyn apl_core::DelegationInvoker>),
-        &(Arc::new(apl_core::NoopElicitationInvoker) as Arc<dyn apl_core::ElicitationInvoker>),
+        &(Arc::new(AllowPdp) as Arc<dyn praxis_policy_apl_core::PdpResolver>),
+        &(invoker.clone() as Arc<dyn praxis_policy_apl_core::PluginInvoker>),
+        &(delegations.clone() as Arc<dyn praxis_policy_apl_core::DelegationInvoker>),
+        &(Arc::new(praxis_policy_apl_core::NoopElicitationInvoker)
+            as Arc<dyn praxis_policy_apl_core::ElicitationInvoker>),
     )
     .await;
 
@@ -710,7 +722,7 @@ routes:
 // Capability gating on the delegate() step path.
 //
 // The executor calls `filter_extensions(&ext, &caps)` per entry before
-// each handler runs (executor.rs:440 in cpex-core). These tests pin
+// each handler runs (executor.rs:440 in praxis-policy-core). These tests pin
 // that behavior end-to-end for the `Step::Delegate` dispatch path —
 // proves that what an operator declares as `capabilities:` on a
 // `token.delegate` plugin is enforced exactly the same way it is for
@@ -773,9 +785,9 @@ routes:
         CmfPluginInvoker::for_request(
             Arc::clone(&mgr),
             extensions,
-            cpex_core::cmf::MessagePayload {
-                message: cpex_core::cmf::Message::text(
-                    cpex_core::cmf::enums::Role::User,
+            praxis_policy_core::cmf::MessagePayload {
+                message: praxis_policy_core::cmf::Message::text(
+                    praxis_policy_core::cmf::enums::Role::User,
                     "fetch compensation",
                 ),
             },
@@ -791,7 +803,7 @@ routes:
         invoker.plan_arc(),
     ));
 
-    let mut bag = apl_cmf::BagBuilder::new()
+    let mut bag = praxis_policy_apl_cmf::BagBuilder::new()
         .with_extensions(&invoker.current_extensions().await)
         .with_route_key(&route.route_key)
         .build();
@@ -800,10 +812,11 @@ routes:
         route,
         &mut bag,
         &mut payload,
-        &(Arc::new(AllowPdp) as Arc<dyn apl_core::PdpResolver>),
-        &(invoker.clone() as Arc<dyn apl_core::PluginInvoker>),
-        &(delegations.clone() as Arc<dyn apl_core::DelegationInvoker>),
-        &(Arc::new(apl_core::NoopElicitationInvoker) as Arc<dyn apl_core::ElicitationInvoker>),
+        &(Arc::new(AllowPdp) as Arc<dyn praxis_policy_apl_core::PdpResolver>),
+        &(invoker.clone() as Arc<dyn praxis_policy_apl_core::PluginInvoker>),
+        &(delegations.clone() as Arc<dyn praxis_policy_apl_core::DelegationInvoker>),
+        &(Arc::new(praxis_policy_apl_core::NoopElicitationInvoker)
+            as Arc<dyn praxis_policy_apl_core::ElicitationInvoker>),
     )
     .await;
 
@@ -879,8 +892,11 @@ routes:
         CmfPluginInvoker::for_request(
             Arc::clone(&mgr),
             extensions,
-            cpex_core::cmf::MessagePayload {
-                message: cpex_core::cmf::Message::text(cpex_core::cmf::enums::Role::User, "any"),
+            praxis_policy_core::cmf::MessagePayload {
+                message: praxis_policy_core::cmf::Message::text(
+                    praxis_policy_core::cmf::enums::Role::User,
+                    "any",
+                ),
             },
             Arc::clone(&plan),
             Arc::clone(&session_store),
@@ -894,7 +910,7 @@ routes:
         invoker.plan_arc(),
     ));
 
-    let mut bag = apl_cmf::BagBuilder::new()
+    let mut bag = praxis_policy_apl_cmf::BagBuilder::new()
         .with_extensions(&invoker.current_extensions().await)
         .with_route_key(&route.route_key)
         .build();
@@ -903,10 +919,11 @@ routes:
         route,
         &mut bag,
         &mut payload,
-        &(Arc::new(AllowPdp) as Arc<dyn apl_core::PdpResolver>),
-        &(invoker.clone() as Arc<dyn apl_core::PluginInvoker>),
-        &(delegations.clone() as Arc<dyn apl_core::DelegationInvoker>),
-        &(Arc::new(apl_core::NoopElicitationInvoker) as Arc<dyn apl_core::ElicitationInvoker>),
+        &(Arc::new(AllowPdp) as Arc<dyn praxis_policy_apl_core::PdpResolver>),
+        &(invoker.clone() as Arc<dyn praxis_policy_apl_core::PluginInvoker>),
+        &(delegations.clone() as Arc<dyn praxis_policy_apl_core::DelegationInvoker>),
+        &(Arc::new(praxis_policy_apl_core::NoopElicitationInvoker)
+            as Arc<dyn praxis_policy_apl_core::ElicitationInvoker>),
     )
     .await;
 

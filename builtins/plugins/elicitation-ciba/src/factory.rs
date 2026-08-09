@@ -6,7 +6,7 @@
 // `PluginFactory` impl for the CIBA elicitation handler. Lives here
 // (alongside the approver) so every host wires it up the same way.
 //
-// Operators declare it in CPEX YAML as:
+// Operators declare it in PPE YAML as:
 //
 //     plugins:
 //       - name: manager-approver
@@ -15,7 +15,7 @@
 //         config:
 //           backchannel_endpoint: https://kc/realms/corp/protocol/openid-connect/ext/ciba/auth
 //           token_endpoint:       https://kc/realms/corp/protocol/openid-connect/token
-//           client_id: cpex-gateway
+//           client_id: praxis-policy-gateway
 //           client_secret_source: { kind: env, name: CIBA_CLIENT_SECRET }
 //
 // Then policy routes name it: `require_approval(manager-approver, from: claim.manager, ...)`.
@@ -26,7 +26,7 @@
 
 use std::sync::Arc;
 
-use cpex_core::{
+use praxis_policy_core::{
     elicitation::{ElicitationHook, HOOK_ELICIT},
     error::PluginError,
     factory::{PluginFactory, PluginInstance},
@@ -36,7 +36,7 @@ use cpex_core::{
 
 use crate::CibaApprover;
 
-/// The plugin `kind:` string operators write in CPEX YAML to declare a
+/// The plugin `kind:` string operators write in PPE YAML to declare a
 /// CIBA elicitation handler.
 pub const KIND: &str = "elicitation/ciba";
 

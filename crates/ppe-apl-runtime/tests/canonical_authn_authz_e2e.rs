@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cpex/tests/canonical_authn_authz_e2e.rs
+// Location: ./crates/ppe-apl-runtime/tests/canonical_authn_authz_e2e.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Fred Araujo
@@ -10,37 +10,39 @@
 //
 //   routes:
 //     - tool: get_compensation
-//       authentication:            # cpex-core identity dispatch (identity.resolve)
+//       authentication:            # praxis-policy-core identity dispatch (identity.resolve)
 //         - corp-jwt
-//       authorization:             # apl-core authorization phases
+//       authorization:             # praxis-policy-apl-core authorization phases
 //         pre_invocation:
 //           - "plugin(audit-log)"
 //
 // The two blocks are handled by different layers — `authentication:` binds
-// identity plugins for the `identity.resolve` hook (cpex-core), while
+// identity plugins for the `identity.resolve` hook (praxis-policy-core), while
 // `authorization:` compiles into the APL route handler the visitor installs
-// on `cmf.tool_pre_invoke` (apl-cpex). Dropping `apl:` is what lets them sit
+// on `cmf.tool_pre_invoke` (praxis-policy-apl-runtime). Dropping `apl:` is what lets them sit
 // at the same level. This test exercises both from one loaded config.
 
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 
-use cpex_core::cmf::enums::Role;
-use cpex_core::cmf::{CmfHook, Message, MessagePayload};
-use cpex_core::context::PluginContext;
-use cpex_core::error::PluginError as CoreError;
-use cpex_core::extensions::MetaExtension;
-use cpex_core::factory::{PluginFactory, PluginInstance};
-use cpex_core::hooks::adapter::TypedHandlerAdapter;
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::hooks::trait_def::{HookHandler, PluginResult};
-use cpex_core::identity::{IdentityHook, IdentityPayload, TokenSource, HOOK_IDENTITY_RESOLVE};
-use cpex_core::manager::PluginManager;
-use cpex_core::plugin::{Plugin, PluginConfig};
-use cpex_core::registry::AnyHookHandler;
+use praxis_policy_core::cmf::enums::Role;
+use praxis_policy_core::cmf::{CmfHook, Message, MessagePayload};
+use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::error::PluginError as CoreError;
+use praxis_policy_core::extensions::MetaExtension;
+use praxis_policy_core::factory::{PluginFactory, PluginInstance};
+use praxis_policy_core::hooks::adapter::TypedHandlerAdapter;
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
+use praxis_policy_core::identity::{
+    IdentityHook, IdentityPayload, TokenSource, HOOK_IDENTITY_RESOLVE,
+};
+use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::plugin::{Plugin, PluginConfig};
+use praxis_policy_core::registry::AnyHookHandler;
 
-use apl_cpex::{register_apl, AplOptions, DispatchCache, MemorySessionStore};
+use praxis_policy_apl_runtime::{register_apl, AplOptions, DispatchCache, MemorySessionStore};
 
 // ---------------------------------------------------------------------
 // `authentication:` side — a minimal identity resolver that records it

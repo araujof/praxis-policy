@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cmf/src/framework.rs
+// Location: ./crates/ppe-apl-cmf/src/framework.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -12,8 +12,8 @@
 //   framework.graph_id             : String
 //   framework.metadata.<dotted>    : various (JSON walker — same as args)
 
-use apl_core::AttributeBag;
-use cpex_core::extensions::FrameworkExtension;
+use praxis_policy_apl_core::AttributeBag;
+use praxis_policy_core::extensions::FrameworkExtension;
 
 pub fn extract_framework(f: &FrameworkExtension, bag: &mut AttributeBag) {
     if let Some(v) = &f.framework {

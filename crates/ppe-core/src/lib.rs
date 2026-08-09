@@ -1,9 +1,9 @@
-// Location: ./crates/cpex-core/src/lib.rs
+// Location: ./crates/ppe-core/src/lib.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
-// CPEX Core library root.
+// PPE Core library root.
 //
 // Pure Rust plugin runtime with no FFI, WASM, or PyO3 dependencies.
 // Provides the PluginManager, 5-phase executor, hook registry,

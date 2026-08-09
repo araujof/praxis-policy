@@ -6,7 +6,7 @@
 // Build a `cedar_policy::Entities` set from:
 //
 //   - The `AttributeBag` — APL's view of `SecurityExtension` etc.
-//     populated upstream by apl-cmf. Source of the **principal** entity.
+//     populated upstream by praxis-policy-apl-cmf. Source of the **principal** entity.
 //   - `PdpCall.args.resource` — the resource description the policy
 //     author wrote in the `cedar:(...)` step. Source of the **resource**
 //     entity.
@@ -27,9 +27,9 @@
 
 use std::collections::HashSet;
 
-use apl_core::attributes::{AttributeBag, AttributeValue};
-use apl_core::step::PdpError;
 use cedar_policy::{Entities, Entity, Schema};
+use praxis_policy_apl_core::attributes::{AttributeBag, AttributeValue};
+use praxis_policy_apl_core::step::PdpError;
 use serde_json::{json, Map, Value};
 
 use crate::cedar_attrs::{
@@ -63,7 +63,7 @@ pub fn build(
 ///
 /// Operators with custom claim attributes write their Cedar policies
 /// against `principal.claims.foo` — those land via the `claim.foo` bag
-/// key, populated upstream by apl-cmf from `SubjectExtension.claims`.
+/// key, populated upstream by praxis-policy-apl-cmf from `SubjectExtension.claims`.
 pub fn build_principal(
     bag: &AttributeBag,
     schema: Option<&Schema>,
@@ -100,9 +100,9 @@ pub fn build_principal(
     attrs.insert(ATTR_TYPE.to_string(), json!(kind));
 
     // TODO(vocab consolidation, Phase C): `"role."`, `"perm."`, and
-    // `"subject.teams"` are apl-cmf bag-key conventions. The cedar
-    // crate would need a dependency on apl-cmf (or the BAG_* constants
-    // need to move into apl-core / a shared crate) before we can
+    // `"subject.teams"` are praxis-policy-apl-cmf bag-key conventions. The cedar
+    // crate would need a dependency on praxis-policy-apl-cmf (or the BAG_* constants
+    // need to move into praxis-policy-apl-core / a shared crate) before we can
     // reference them by symbol here. Left literal for now — the gap is
     // tracked in the `project_vocab_consolidation` memory.
     let roles = collect_prefixed_bools(bag, "role.");
@@ -206,7 +206,7 @@ fn qualify_type(bare: &str, namespace: Option<&str>) -> String {
 
 /// Read every `<prefix>X = true` key from the bag and return `[X, ...]`.
 /// Used for `role.*` → roles and `perm.*` → permissions, matching
-/// apl-cmf's presence-only encoding for role / permission membership.
+/// praxis-policy-apl-cmf's presence-only encoding for role / permission membership.
 fn collect_prefixed_bools(bag: &AttributeBag, prefix: &str) -> Vec<String> {
     let mut out: HashSet<String> = HashSet::new();
     for (key, value) in bag.iter() {

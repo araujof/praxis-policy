@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cmf/src/meta.rs
+// Location: ./crates/ppe-apl-cmf/src/meta.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -12,8 +12,8 @@
 //   meta.scope              : String
 //   meta.properties.<k>     : String
 
-use apl_core::AttributeBag;
-use cpex_core::extensions::MetaExtension;
+use praxis_policy_apl_core::AttributeBag;
+use praxis_policy_core::extensions::MetaExtension;
 use std::collections::HashSet;
 
 pub fn extract_meta(meta: &MetaExtension, bag: &mut AttributeBag) {

@@ -1,18 +1,18 @@
-// Location: ./crates/apl-cmf/src/lib.rs
+// Location: ./crates/ppe-apl-cmf/src/lib.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
-// apl-cmf — bridges typed cpex-core extensions into apl-core's flat
+// praxis-policy-apl-cmf — bridges typed praxis-policy-core extensions into praxis-policy-apl-core's flat
 // AttributeBag. This is where the *attribute vocabulary* APL policy
 // authors write against gets defined.
 //
 // Layering:
 //
-//   cpex-core  : typed extension data (SecurityExtension, …)
-//   apl-cmf    : ←── this crate, flat-key bridge
-//   apl-core   : language IR + evaluator (AttributeBag, predicates, pipelines)
-//   apl-cpex   : runtime adapter (hooks, PluginInvoker, PdpResolver)
+//   praxis-policy-core  : typed extension data (SecurityExtension, …)
+//   praxis-policy-apl-cmf    : ←── this crate, flat-key bridge
+//   praxis-policy-apl-core   : language IR + evaluator (AttributeBag, predicates, pipelines)
+//   praxis-policy-apl-runtime   : runtime adapter (hooks, PluginInvoker, PdpResolver)
 //
 // The crate is intentionally simple: each bridge is a pure function that
 // reads its typed source and writes flat keys into a borrowed bag. No
@@ -75,12 +75,12 @@ pub use provenance::extract_provenance;
 pub use request::extract_request;
 pub use security::{extract_client, extract_security, extract_workload};
 
-use apl_core::AttributeBag;
-use cpex_core::extensions::{DelegationExtension, Extensions, SecurityExtension};
+use praxis_policy_apl_core::AttributeBag;
+use praxis_policy_core::extensions::{DelegationExtension, Extensions, SecurityExtension};
 
 /// Fluent builder that composes the typed sources into a single bag.
 ///
-/// Lets the host (apl-cpex) write:
+/// Lets the host (praxis-policy-apl-runtime) write:
 /// ```ignore
 /// let bag = BagBuilder::new()
 ///     .with_security(&sec)
@@ -135,7 +135,7 @@ impl BagBuilder {
     /// **not** free on the request hot path. The route handler invokes this
     /// per request (once per phase), meaning a large tree is re-flattened on
     /// every request until a per-request caching optimization lands.
-    pub fn with_data(mut self, tree: &apl_core::AttributeTree) -> Self {
+    pub fn with_data(mut self, tree: &praxis_policy_apl_core::AttributeTree) -> Self {
         extract_data(tree, &mut self.bag);
         self
     }

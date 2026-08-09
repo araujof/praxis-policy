@@ -1,4 +1,4 @@
-// Location: ./crates/cpex-core/tests/delegation_e2e.rs
+// Location: ./crates/ppe-core/tests/delegation_e2e.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -31,18 +31,20 @@ use async_trait::async_trait;
 
 use chrono::{Duration as ChronoDuration, Utc};
 
-use cpex_core::context::PluginContext;
-use cpex_core::delegation::{
+use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::delegation::{
     AttenuationConfig, AuthEnforcedBy, DelegationPayload, TargetType, TokenDelegateHook,
     HOOK_TOKEN_DELEGATE,
 };
-use cpex_core::error::PluginError;
-use cpex_core::extensions::raw_credentials::{DelegationKey, DelegationMode, RawDelegatedToken};
-use cpex_core::extensions::{SecurityExtension, SubjectExtension};
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::hooks::trait_def::{HookHandler, PluginResult};
-use cpex_core::manager::PluginManager;
-use cpex_core::plugin::{OnError, Plugin, PluginConfig, PluginMode};
+use praxis_policy_core::error::PluginError;
+use praxis_policy_core::extensions::raw_credentials::{
+    DelegationKey, DelegationMode, RawDelegatedToken,
+};
+use praxis_policy_core::extensions::{SecurityExtension, SubjectExtension};
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
+use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::plugin::{OnError, Plugin, PluginConfig, PluginMode};
 
 // =====================================================================
 // Plugin fixtures
@@ -209,7 +211,7 @@ impl HookHandler<TokenDelegateHook> for RejectingHandler {
         _ext: &Extensions,
         _ctx: &mut PluginContext,
     ) -> PluginResult<DelegationPayload> {
-        PluginResult::deny(cpex_core::error::PluginViolation::new(
+        PluginResult::deny(praxis_policy_core::error::PluginViolation::new(
             "delegation.scope_too_broad",
             "requested scopes exceed inbound credential's authorization",
         ))
@@ -254,7 +256,7 @@ fn build_payload(target: &str, audience: &str, permissions: &[&str]) -> Delegati
         })
 }
 
-fn extract_delegation(result: &cpex_core::executor::PipelineResult) -> DelegationPayload {
+fn extract_delegation(result: &praxis_policy_core::executor::PipelineResult) -> DelegationPayload {
     DelegationPayload::from_pipeline_result(result)
         .expect("PipelineResult had no DelegationPayload — denied or wrong hook type")
 }
@@ -502,8 +504,8 @@ async fn apply_to_extensions_writes_delegated_token_keyed_by_subject() {
 async fn cap_gating_post_apply_through_cmf_dispatch() {
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-    use cpex_core::cmf::enums::Role;
-    use cpex_core::cmf::{CmfHook, Message, MessagePayload};
+    use praxis_policy_core::cmf::enums::Role;
+    use praxis_policy_core::cmf::{CmfHook, Message, MessagePayload};
 
     // ----- CMF plugin WITH read_delegated_tokens -----
     struct DelegatedTokenReader {

@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Authors: Teryl Taylor
 #
-# cpex-plugin-identity-jwt — JWT-based `IdentityResolveHandler`.
+# praxis-policy-plugin-identity-jwt — JWT-based `IdentityResolveHandler`.
 #
 # Validates inbound JWTs against configured trusted issuers
 # (signature + exp + aud + iss claims) and maps the validated claims
@@ -16,12 +16,12 @@
 # default-members.
 
 [package]
-name = "cpex-plugin-identity-jwt"
+name = "praxis-policy-plugin-identity-jwt"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
-description = "CPEX identity handler — JWT validation and claim mapping."
+description = "PPE identity handler — JWT validation and claim mapping."
 repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
@@ -29,7 +29,7 @@ categories.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-cpex-core = { workspace = true }
+praxis-policy-core = { workspace = true }
 
 # `jsonwebtoken` is the de facto JWT library for Rust. Supports
 # RS256/RS384/RS512, ES256/ES384, EdDSA, HS256/HS384/HS512. Default
@@ -50,7 +50,7 @@ jsonwebtoken = { version = "10", features = ["aws_lc_rs"] }
 base64 = "0.22"
 
 # `chrono` for the `resolved_at` timestamp on IdentityPayload. Comes
-# in transitively via cpex-core already; redeclaring keeps the
+# in transitively via praxis-policy-core already; redeclaring keeps the
 # direct-dep relationship visible.
 chrono = { workspace = true }
 
@@ -62,7 +62,7 @@ tracing = { workspace = true }
 # Async HTTP — used by `DecodingKeySource::build_async()` to fetch
 # IdP JWKS during `Plugin::initialize()`. We default the rustls-tls
 # backend (no OpenSSL system dep) and turn off any features we don't
-# use to keep the dep tree lean. cpex-plugin-delegator-oauth pulls reqwest
+# use to keep the dep tree lean. praxis-policy-plugin-delegator-oauth pulls reqwest
 # too, so cargo dedups to one copy.
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
@@ -72,7 +72,7 @@ futures = { workspace = true }
 
 # `tokio::spawn` + `tokio::time::interval` for the background JWKS
 # refresh tasks introduced in Slice B. The runtime is already in
-# the workspace dep tree via cpex-core / apl-cpex, so this just
+# the workspace dep tree via praxis-policy-core / praxis-policy-apl-runtime, so this just
 # makes the existing types directly nameable here. We only need
 # the runtime + time features at runtime; full "macros / rt / rt-multi-thread"
 # was test-only previously.

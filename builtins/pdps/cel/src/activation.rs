@@ -26,8 +26,8 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use apl_core::attributes::{AttributeBag, AttributeValue};
 use cel::{Context, Value};
+use praxis_policy_apl_core::attributes::{AttributeBag, AttributeValue};
 
 /// Build a CEL evaluation context from the policy bag plus the `cel:`
 /// step's extra args.

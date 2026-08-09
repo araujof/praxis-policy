@@ -1,11 +1,11 @@
-// Location: ./crates/apl-cpex/src/session_resolver.rs
+// Location: ./crates/ppe-apl-runtime/src/session_resolver.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
 // 3-tier session-id resolver. The Python apl-plugins `SessionResolver`
 // (cpex/framework/session.py) shipped a 4-tier version including a
-// client-supplied `X-CPEX-Session-Id` header tier. **That tier is
+// client-supplied `X-PPE-Session-Id` header tier. **That tier is
 // excluded by design here**: an authenticated client can set the
 // header to another subject's known session id and inherit their
 // accumulated taint labels, or to a new value and escape their own
@@ -38,7 +38,7 @@
 //
 //   2. `identity`   — derived: sha256(sub : caller_workload : this_workload)[:16].
 //      No special infrastructure needed; the triple is already populated
-//      by `cpex-plugin-identity-jwt`'s claim mapping. Same user + same agent +
+//      by `praxis-policy-plugin-identity-jwt`'s claim mapping. Same user + same agent +
 //      same gateway = same session, stable across token refresh (the
 //      claims are stable even when the token string isn't).
 //
@@ -49,10 +49,10 @@
 //
 // Each tier reads from a typed `Extensions` field, not raw JWT/HTTP
 // payloads — those have already been mapped by upstream identity
-// plugins (cpex-plugin-identity-jwt). The resolver stays free of crypto /
+// plugins (praxis-policy-plugin-identity-jwt). The resolver stays free of crypto /
 // parsing logic.
 
-use cpex_core::extensions::Extensions;
+use praxis_policy_core::extensions::Extensions;
 use sha2::{Digest, Sha256};
 
 /// Which tier produced the session id. Useful for diagnostics / audit
@@ -121,7 +121,7 @@ fn subject_scoped(subject_id: Option<&str>, raw: &str) -> Option<String> {
 /// a single gateway and single agent.
 pub fn resolve_session(ext: &Extensions) -> Option<(String, SessionSource)> {
     // The authenticated subject, populated by the identity resolvers
-    // (cpex-plugin-identity-jwt) before this runs. Every client/upstream-supplied
+    // (praxis-policy-plugin-identity-jwt) before this runs. Every client/upstream-supplied
     // session value below is bound to it so one principal can't address
     // another's session bucket.
     let subject_id = ext
@@ -192,7 +192,7 @@ pub fn resolve_session(ext: &Extensions) -> Option<(String, SessionSource)> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cpex_core::extensions::{
+    use praxis_policy_core::extensions::{
         AgentExtension, Extensions, HttpExtension, SecurityExtension, SubjectExtension,
         WorkloadIdentity,
     };
@@ -490,13 +490,13 @@ mod tests {
         assert_eq!(sid, subject_scoped(Some("alice"), "from-claim").unwrap());
     }
 
-    // The client-supplied `X-CPEX-Session-Id` header tier is
+    // The client-supplied `X-PPE-Session-Id` header tier is
     // intentionally absent — it has no slot in the walk above.
     //
     // The Python `SessionResolver` included a header tier; cpex Rust
     // does not. See the module-level doc comment for the threat model.
     // A spoofing-regression guard lives below in
-    // `header_x_cpex_session_id_is_ignored`.
+    // `header_x_policy_session_id_is_ignored`.
 
     #[test]
     fn tier2_identity_derived_when_no_claim() {
@@ -627,8 +627,8 @@ mod tests {
     }
 
     #[test]
-    fn header_x_cpex_session_id_is_ignored() {
-        // The Python apl-plugins resolver honored an `X-CPEX-Session-Id`
+    fn header_x_policy_session_id_is_ignored() {
+        // The Python apl-plugins resolver honored an `X-PPE-Session-Id`
         // header tier between token_claim and identity. We deliberately
         // dropped it: an authenticated client could set the header to
         // another subject's session id and inherit their accumulated
@@ -648,7 +648,7 @@ mod tests {
         };
         let mut http = HttpExtension::default();
         http.request_headers
-            .insert("X-CPEX-Session-Id".into(), "sess-bob-stolen".into());
+            .insert("X-PPE-Session-Id".into(), "sess-bob-stolen".into());
         let ext = Extensions {
             security: Some(Arc::new(sec)),
             http: Some(Arc::new(http)),
@@ -659,7 +659,7 @@ mod tests {
         assert_eq!(
             src,
             SessionSource::Identity,
-            "header tier was removed; resolver must NOT honor X-CPEX-Session-Id",
+            "header tier was removed; resolver must NOT honor X-PPE-Session-Id",
         );
         assert_ne!(
             sid, "sess-bob-stolen",

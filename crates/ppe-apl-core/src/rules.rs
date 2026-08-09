@@ -1,4 +1,4 @@
-// Location: ./crates/apl-core/src/rules.rs
+// Location: ./crates/ppe-apl-core/src/rules.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -9,7 +9,7 @@
 // YAML / database / any other ConfigSource. The evaluator (later)
 // consumes the IR plus an AttributeBag and returns a decision.
 //
-// IR types are kept small and pure-data — no dependencies on cpex-core
+// IR types are kept small and pure-data — no dependencies on praxis-policy-core
 // extensions, no evaluation logic.
 
 use serde::{Deserialize, Serialize};
@@ -433,7 +433,7 @@ impl PhaseSet {
 /// Custom response to attach when a route's policy denies (e.g., equivalent
 /// to a Kuadrant `AuthPolicy` `response.unauthorized` `denyWith`).
 /// Carried on the route and surfaced on the deny outcome's
-/// `details` map by the host (apl-cpex), so a host can render a custom
+/// `details` map by the host (praxis-policy-apl-runtime), so a host can render a custom
 /// HTTP response. All fields optional; an absent block leaves the host's
 /// default denial response unchanged.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -512,7 +512,7 @@ impl CompiledRoute {
     }
 
     /// Apply a more-specific policy layer on top of this one. Used by
-    /// orchestrators (apl-cpex's visitor) to stack the unified-config
+    /// orchestrators (praxis-policy-apl-runtime's visitor) to stack the unified-config
     /// hierarchy least-to-most-specific:
     ///
     /// ```text

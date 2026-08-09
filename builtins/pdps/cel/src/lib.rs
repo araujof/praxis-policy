@@ -3,15 +3,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
-// cpex-pdp-cel — `PdpResolver` over the `cel` (Common Expression Language)
+// praxis-policy-pdp-cel — `PdpResolver` over the `cel` (Common Expression Language)
 // interpreter.
 //
 // # Where this lives in the stack
 //
-//   APL evaluator (apl-core)
+//   APL evaluator (praxis-policy-apl-core)
 //        │  `cel: { expr: "..." }` step
 //        ▼
-//   PdpRouter (apl-cpex)        — dispatches by dialect (PdpDialect::Cel)
+//   PdpRouter (praxis-policy-apl-runtime)        — dispatches by dialect (PdpDialect::Cel)
 //        │  resolver.evaluate(call, bag)
 //        ▼
 //   CelResolver                 — THIS CRATE

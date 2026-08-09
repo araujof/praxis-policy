@@ -36,7 +36,7 @@
 //   ${delegation.granted.audience}             ${meta.entity_name}
 //
 // The vocabulary mirrors the `MessageView` projection (the bag is
-// populated by apl-cmf's `extract_security` / `extract_args` from the
+// populated by praxis-policy-apl-cmf's `extract_security` / `extract_args` from the
 // same source data the view sees), so a Cedar resource template and an
 // OPA `input.X` rego path can name the same attribute the same way.
 // When (in a separate refactor) `AttributeBag` becomes a derived
@@ -53,8 +53,8 @@
 //     literal would mask author bugs.
 //   - Mappings + sequences recurse into their members.
 
-use apl_core::attributes::{AttributeBag, AttributeValue};
-use apl_core::step::PdpError;
+use praxis_policy_apl_core::attributes::{AttributeBag, AttributeValue};
+use praxis_policy_apl_core::step::PdpError;
 
 /// Recursively walk `value`, substituting any `${<bag-key>}` scalar with
 /// the corresponding bag value. Mappings and sequences recurse. Other
@@ -112,7 +112,7 @@ fn substitute(
         PdpError::Dispatch(format!(
             "cedar:() references `{}` but the bag has no key `{}` — \
              check the spelling against the projection vocabulary \
-             populated by apl-cmf (security / payload extractors)",
+             populated by praxis-policy-apl-cmf (security / payload extractors)",
             original, key
         ))
     })?;

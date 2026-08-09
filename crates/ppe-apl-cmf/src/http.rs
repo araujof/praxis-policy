@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cmf/src/http.rs
+// Location: ./crates/ppe-apl-cmf/src/http.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -17,8 +17,8 @@
 //   http.request_headers.<name>    : String  (lowercased name)
 //   http.response_headers.<name>   : String  (lowercased name)
 
-use apl_core::AttributeBag;
-use cpex_core::extensions::HttpExtension;
+use praxis_policy_apl_core::AttributeBag;
+use praxis_policy_core::extensions::HttpExtension;
 
 use crate::constants::{BAG_HTTP_HOST, BAG_HTTP_METHOD, BAG_HTTP_PATH, BAG_HTTP_SCHEME};
 

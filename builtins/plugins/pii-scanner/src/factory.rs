@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use cpex_core::{
+use praxis_policy_core::{
     cmf::CmfHook,
     error::PluginError,
     factory::{PluginFactory, PluginInstance},
@@ -15,7 +15,7 @@ use cpex_core::{
 
 use crate::scanner::PiiScanner;
 
-/// `kind:` string operators write in CPEX YAML to declare a PII
+/// `kind:` string operators write in PPE YAML to declare a PII
 /// scanner instance.
 pub const KIND: &str = "validator/pii-scan";
 
@@ -37,7 +37,7 @@ impl PluginFactory for PiiScannerFactory {
         if config.hooks.is_empty() {
             return Err(Box::new(PluginError::Config {
                 message: format!(
-                    "plugin '{}' (cpex-plugin-pii-scanner): `hooks:` must list at \
+                    "plugin '{}' (praxis-policy-plugin-pii-scanner): `hooks:` must list at \
                      least one CMF hook to scan on (e.g. cmf.tool_pre_invoke)",
                     config.name
                 ),
@@ -55,7 +55,7 @@ impl PluginFactory for PiiScannerFactory {
                 // bound is the number of plugin × hook pairs in
                 // config (small, bounded).
                 let leaked: &'static str = Box::leak(h.clone().into_boxed_str());
-                let adapter: Arc<dyn cpex_core::registry::AnyHookHandler> =
+                let adapter: Arc<dyn praxis_policy_core::registry::AnyHookHandler> =
                     Arc::new(TypedHandlerAdapter::<CmfHook, _>::new(Arc::clone(&scanner)));
                 (leaked, adapter)
             })

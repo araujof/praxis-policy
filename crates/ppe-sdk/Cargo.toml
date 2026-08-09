@@ -1,15 +1,15 @@
-# Location: ./crates/cpex-sdk/Cargo.toml
+# Location: ./crates/ppe-sdk/Cargo.toml
 # Copyright 2025
 # SPDX-License-Identifier: Apache-2.0
 # Authors: Teryl Taylor
 #
-# CPEX SDK — lean crate for plugin authors.
-# Re-exports the Plugin trait and payload/result types from cpex-core
+# PPE SDK — lean crate for plugin authors.
+# Re-exports the Plugin trait and payload/result types from praxis-policy-core
 # without pulling in the PluginManager, hosts, or FFI.
 
 [package]
-name = "cpex-sdk"
-description = "CPEX plugin author SDK — Plugin trait, payloads, and result types."
+name = "praxis-policy-sdk"
+description = "PPE plugin author SDK — Plugin trait, payloads, and result types."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -21,7 +21,7 @@ categories.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-cpex-core = { workspace = true }
+praxis-policy-core = { workspace = true }
 
 [lints]
 workspace = true

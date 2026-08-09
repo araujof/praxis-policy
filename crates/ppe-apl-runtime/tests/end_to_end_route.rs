@@ -1,15 +1,15 @@
-// Location: ./crates/apl-cpex/tests/end_to_end_route.rs
+// Location: ./crates/ppe-apl-runtime/tests/end_to_end_route.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
 // End-to-end integration: APL YAML config → `compile_config` →
-// `evaluate_route` → `CmfPluginInvoker::invoke` → typed CPEX dispatch
+// `evaluate_route` → `CmfPluginInvoker::invoke` → typed PPE dispatch
 // via `invoke_named::<CmfHook>` → real plugin handler → result mapped
-// back through apl-core's `Decision`.
+// back through praxis-policy-apl-core's `Decision`.
 //
-// This is the load-bearing test for v0 — it proves apl-core +
-// apl-cpex + cpex-core compose through their public surfaces.
+// This is the load-bearing test for v0 — it proves praxis-policy-apl-core +
+// praxis-policy-apl-runtime + praxis-policy-core compose through their public surfaces.
 //
 // The earlier `cmf_invoker_dispatch.rs` exercised the invoker
 // directly. This file goes one layer up: the host writes a tiny APL
@@ -19,24 +19,24 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use cpex_core::cmf::enums::Role;
-use cpex_core::cmf::{CmfHook, Message, MessagePayload};
-use cpex_core::context::PluginContext;
-use cpex_core::error::{PluginError as CoreError, PluginViolation};
-use cpex_core::factory::{PluginFactory, PluginInstance};
-use cpex_core::hooks::adapter::TypedHandlerAdapter;
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::hooks::trait_def::{HookHandler, PluginResult};
-use cpex_core::manager::PluginManager;
-use cpex_core::plugin::{Plugin, PluginConfig};
+use praxis_policy_core::cmf::enums::Role;
+use praxis_policy_core::cmf::{CmfHook, Message, MessagePayload};
+use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::error::{PluginError as CoreError, PluginViolation};
+use praxis_policy_core::factory::{PluginFactory, PluginInstance};
+use praxis_policy_core::hooks::adapter::TypedHandlerAdapter;
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
+use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::plugin::{Plugin, PluginConfig};
 
-use apl_core::pipeline::TaintScope;
-use apl_core::{
+use praxis_policy_apl_core::pipeline::TaintScope;
+use praxis_policy_apl_core::{
     compile_config, evaluate_route, AttributeBag, Decision, NoopDelegationInvoker,
     NoopElicitationInvoker, PdpCall, PdpDecision, PdpDialect, PdpError, PdpResolver, RoutePayload,
 };
 
-use apl_cpex::{
+use praxis_policy_apl_runtime::{
     register_apl, AplOptions, CmfPluginInvoker, DispatchCache, MemorySessionStore, SessionStore,
     SessionStoreError,
 };
@@ -46,26 +46,28 @@ use apl_cpex::{
 // derives for them. Tier-0 session ids are subject-bound, so these tests must key the store by the resolved value rather
 // than the raw string they supply.
 fn session_ext_and_key(session_id: &str, subject_id: &str) -> (Extensions, String) {
-    let mut agent = cpex_core::extensions::AgentExtension::default();
+    let mut agent = praxis_policy_core::extensions::AgentExtension::default();
     agent.session_id = Some(session_id.into());
-    let mut subject = cpex_core::extensions::SubjectExtension::default();
+    let mut subject = praxis_policy_core::extensions::SubjectExtension::default();
     subject.id = Some(subject_id.into());
     let ext = Extensions {
         agent: Some(Arc::new(agent)),
-        security: Some(Arc::new(cpex_core::extensions::SecurityExtension {
-            subject: Some(subject),
-            ..Default::default()
-        })),
+        security: Some(Arc::new(
+            praxis_policy_core::extensions::SecurityExtension {
+                subject: Some(subject),
+                ..Default::default()
+            },
+        )),
         ..Default::default()
     };
-    let key = apl_cpex::session_resolver::resolve_session(&ext)
+    let key = praxis_policy_apl_runtime::session_resolver::resolve_session(&ext)
         .expect("subject-bound session resolves")
         .0;
     (ext, key)
 }
 
 // ---------------------------------------------------------------------
-// Stub PDP — apl-core requires `&dyn PdpResolver`, but no scenario in
+// Stub PDP — praxis-policy-apl-core requires `&dyn PdpResolver`, but no scenario in
 // this file exercises a PDP step, so an always-allow stub is enough.
 // ---------------------------------------------------------------------
 
@@ -184,7 +186,7 @@ async fn manager_with(kind: &str, factory: Box<dyn PluginFactory>) -> Arc<Plugin
     let mgr = PluginManager::default();
     mgr.register_factory(kind, factory);
     let yaml = format!("plugins:\n  - name: {0}\n    kind: {0}\n", kind);
-    let cfg = cpex_core::config::parse_config(&yaml).expect("parse_config");
+    let cfg = praxis_policy_core::config::parse_config(&yaml).expect("parse_config");
     mgr.load_config(cfg).expect("load_config");
     mgr.initialize().await.expect("initialize");
     Arc::new(mgr)
@@ -204,7 +206,7 @@ fn cmf_payload() -> MessagePayload {
 // Scenarios
 // ---------------------------------------------------------------------
 
-/// Route with one policy step `plugin(scope-gate)`. The CPEX plugin
+/// Route with one policy step `plugin(scope-gate)`. The PPE plugin
 /// registered under that name returns `allow()`. `evaluate_route` must
 /// therefore return `Decision::Allow` end-to-end. The hook name is now
 /// resolved from the root `plugins:` block in YAML — no hardcoded
@@ -245,10 +247,10 @@ routes:
         route,
         &mut bag,
         &mut payload,
-        &(Arc::new(AllowPdp) as Arc<dyn apl_core::PdpResolver>),
-        &(invoker.clone() as Arc<dyn apl_core::PluginInvoker>),
-        &(Arc::new(NoopDelegationInvoker) as Arc<dyn apl_core::DelegationInvoker>),
-        &(Arc::new(NoopElicitationInvoker) as Arc<dyn apl_core::ElicitationInvoker>),
+        &(Arc::new(AllowPdp) as Arc<dyn praxis_policy_apl_core::PdpResolver>),
+        &(invoker.clone() as Arc<dyn praxis_policy_apl_core::PluginInvoker>),
+        &(Arc::new(NoopDelegationInvoker) as Arc<dyn praxis_policy_apl_core::DelegationInvoker>),
+        &(Arc::new(NoopElicitationInvoker) as Arc<dyn praxis_policy_apl_core::ElicitationInvoker>),
     )
     .await;
 
@@ -258,7 +260,7 @@ routes:
     assert!(!decision.result_modified);
 }
 
-/// Same route shape, but the CPEX plugin denies. `evaluate_route` must
+/// Same route shape, but the PPE plugin denies. `evaluate_route` must
 /// surface that as `Decision::Deny` with the violation reason + code
 /// flowed through `CmfPluginInvoker`.
 #[tokio::test]
@@ -297,10 +299,10 @@ routes:
         route,
         &mut bag,
         &mut payload,
-        &(Arc::new(AllowPdp) as Arc<dyn apl_core::PdpResolver>),
-        &(invoker.clone() as Arc<dyn apl_core::PluginInvoker>),
-        &(Arc::new(NoopDelegationInvoker) as Arc<dyn apl_core::DelegationInvoker>),
-        &(Arc::new(NoopElicitationInvoker) as Arc<dyn apl_core::ElicitationInvoker>),
+        &(Arc::new(AllowPdp) as Arc<dyn praxis_policy_apl_core::PdpResolver>),
+        &(invoker.clone() as Arc<dyn praxis_policy_apl_core::PluginInvoker>),
+        &(Arc::new(NoopDelegationInvoker) as Arc<dyn praxis_policy_apl_core::DelegationInvoker>),
+        &(Arc::new(NoopElicitationInvoker) as Arc<dyn praxis_policy_apl_core::ElicitationInvoker>),
     )
     .await;
 
@@ -381,7 +383,7 @@ async fn tainting_manager() -> Arc<PluginManager> {
     let mgr = PluginManager::default();
     mgr.register_factory("tagger", Box::new(TaintingPluginFactory));
     let yaml = "plugins:\n  - name: tagger\n    kind: tagger\n    capabilities: [append_labels, read_labels]\n";
-    let cfg = cpex_core::config::parse_config(yaml).expect("parse_config");
+    let cfg = praxis_policy_core::config::parse_config(yaml).expect("parse_config");
     mgr.load_config(cfg).expect("load_config");
     mgr.initialize().await.expect("initialize");
     Arc::new(mgr)
@@ -424,10 +426,10 @@ routes:
         route,
         &mut bag,
         &mut payload,
-        &(Arc::new(AllowPdp) as Arc<dyn apl_core::PdpResolver>),
-        &(invoker.clone() as Arc<dyn apl_core::PluginInvoker>),
-        &(Arc::new(NoopDelegationInvoker) as Arc<dyn apl_core::DelegationInvoker>),
-        &(Arc::new(NoopElicitationInvoker) as Arc<dyn apl_core::ElicitationInvoker>),
+        &(Arc::new(AllowPdp) as Arc<dyn praxis_policy_apl_core::PdpResolver>),
+        &(invoker.clone() as Arc<dyn praxis_policy_apl_core::PluginInvoker>),
+        &(Arc::new(NoopDelegationInvoker) as Arc<dyn praxis_policy_apl_core::DelegationInvoker>),
+        &(Arc::new(NoopElicitationInvoker) as Arc<dyn praxis_policy_apl_core::ElicitationInvoker>),
     )
     .await;
 
@@ -518,10 +520,10 @@ routes:
         route,
         &mut bag,
         &mut payload,
-        &(Arc::new(AllowPdp) as Arc<dyn apl_core::PdpResolver>),
-        &(invoker.clone() as Arc<dyn apl_core::PluginInvoker>),
-        &(Arc::new(NoopDelegationInvoker) as Arc<dyn apl_core::DelegationInvoker>),
-        &(Arc::new(NoopElicitationInvoker) as Arc<dyn apl_core::ElicitationInvoker>),
+        &(Arc::new(AllowPdp) as Arc<dyn praxis_policy_apl_core::PdpResolver>),
+        &(invoker.clone() as Arc<dyn praxis_policy_apl_core::PluginInvoker>),
+        &(Arc::new(NoopDelegationInvoker) as Arc<dyn praxis_policy_apl_core::DelegationInvoker>),
+        &(Arc::new(NoopElicitationInvoker) as Arc<dyn praxis_policy_apl_core::ElicitationInvoker>),
     )
     .await;
     assert_eq!(decision.decision, Decision::Allow);
@@ -578,10 +580,10 @@ routes:
         route,
         &mut bag,
         &mut payload,
-        &(Arc::new(AllowPdp) as Arc<dyn apl_core::PdpResolver>),
-        &(invoker.clone() as Arc<dyn apl_core::PluginInvoker>),
-        &(Arc::new(NoopDelegationInvoker) as Arc<dyn apl_core::DelegationInvoker>),
-        &(Arc::new(NoopElicitationInvoker) as Arc<dyn apl_core::ElicitationInvoker>),
+        &(Arc::new(AllowPdp) as Arc<dyn praxis_policy_apl_core::PdpResolver>),
+        &(invoker.clone() as Arc<dyn praxis_policy_apl_core::PluginInvoker>),
+        &(Arc::new(NoopDelegationInvoker) as Arc<dyn praxis_policy_apl_core::DelegationInvoker>),
+        &(Arc::new(NoopElicitationInvoker) as Arc<dyn praxis_policy_apl_core::ElicitationInvoker>),
     )
     .await;
     assert_eq!(decision.decision, Decision::Allow);
@@ -676,7 +678,7 @@ routes:
 // Route matching keys on the request's `meta` (entity type + name), so a
 // request must carry tool meta for the `tool: get_weather` handler to fire.
 fn set_tool_meta(ext: &mut Extensions, tool: &str) {
-    let mut meta = cpex_core::extensions::MetaExtension::default();
+    let mut meta = praxis_policy_core::extensions::MetaExtension::default();
     meta.entity_type = Some("tool".to_string());
     meta.entity_name = Some(tool.to_string());
     ext.meta = Some(Arc::new(meta));
@@ -826,7 +828,7 @@ async fn load_failure_carries_route_response() {
     assert_eq!(
         violation
             .details
-            .get(apl_cmf::constants::DETAIL_HTTP_STATUS),
+            .get(praxis_policy_apl_cmf::constants::DETAIL_HTTP_STATUS),
         Some(&serde_json::json!(503)),
         "load_failed denial must carry the route's custom response status"
     );
@@ -856,7 +858,7 @@ async fn persist_failure_carries_route_response() {
     assert_eq!(
         violation
             .details
-            .get(apl_cmf::constants::DETAIL_HTTP_STATUS),
+            .get(praxis_policy_apl_cmf::constants::DETAIL_HTTP_STATUS),
         Some(&serde_json::json!(503)),
         "persist_failed denial must carry the route's custom response status"
     );
@@ -985,7 +987,7 @@ struct RecordingFactory {
     store: Arc<RecordingSessionStore>,
 }
 
-impl apl_cpex::SessionStoreFactory for RecordingFactory {
+impl praxis_policy_apl_runtime::SessionStoreFactory for RecordingFactory {
     fn kind(&self) -> &str {
         "recording-fake"
     }

@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cpex/src/message_projection.rs
+// Location: ./crates/ppe-apl-runtime/src/message_projection.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor, Fred Araujo
@@ -29,7 +29,7 @@
 
 use serde_json::Value;
 
-use cpex_core::cmf::{ContentPart, Message};
+use praxis_policy_core::cmf::{ContentPart, Message};
 
 /// Rewrite the first text part of `msg` with `new_text`. If there is no
 /// text part, append one. Mirrors what `MessagePayload`'s normal
@@ -273,8 +273,8 @@ fn warn_on_conflict(base_value: Option<&Value>, pre_value: &Value, key: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cpex_core::cmf::enums::Role;
-    use cpex_core::cmf::{ToolCall, ToolResult};
+    use praxis_policy_core::cmf::enums::Role;
+    use praxis_policy_core::cmf::{ToolCall, ToolResult};
 
     fn tool_call_message() -> Message {
         Message::with_content(

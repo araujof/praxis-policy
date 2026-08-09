@@ -6,16 +6,16 @@
 // Build-time errors for `CedarDirectResolver`. All variants fire at
 // construction (parse, validate, load); never at request time.
 //
-// Request-time errors flow through `apl_core::PdpError` because that's
+// Request-time errors flow through `praxis_policy_apl_core::PdpError` because that's
 // the trait's return type. The two error stories are deliberately
 // separate — build errors are config faults the operator fixes once;
 // request errors are per-evaluation issues the host has to handle
 // continuously.
 //
 // `BuildError` implements `std::error::Error` (via thiserror), so it
-// boxes cleanly into `apl_cpex::visitor::VisitorError` when the
+// boxes cleanly into `praxis_policy_apl_runtime::visitor::VisitorError` when the
 // AplConfigVisitor builds a resolver from a unified-config block. The
-// visitor then wraps that into `cpex_core::PluginError::Config` on its
+// visitor then wraps that into `praxis_policy_core::PluginError::Config` on its
 // way out of `load_config_yaml`. Each layer wraps the layer below using
 // its own native error type — no dep inversion required to make the
 // error flow work.

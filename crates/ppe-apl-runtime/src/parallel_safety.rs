@@ -1,21 +1,21 @@
-// Location: ./crates/apl-cpex/src/parallel_safety.rs
+// Location: ./crates/ppe-apl-runtime/src/parallel_safety.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
 // Route-compile-time plugin-mode validation for APL `parallel:` blocks.
 //
-// `apl-core::Effect::validate_parallel_purity` already rejects FieldOp /
+// `praxis-policy-apl-core::Effect::validate_parallel_purity` already rejects FieldOp /
 // Delegate at the IR level — those are statically detectable without
 // any plugin knowledge. Plugin calls (`Effect::Plugin { name }`) need
 // a second pass because their concurrency-safety depends on each
 // plugin's registered `PluginMode` — information that lives in the
 // PluginManager, not the IR.
 //
-// Lives in apl-cpex because:
-//   * apl-core can't see plugin modes (plugin-agnostic by design)
+// Lives in praxis-policy-apl-runtime because:
+//   * praxis-policy-apl-core can't see plugin modes (plugin-agnostic by design)
 //   * The PluginManager is constructed in the host integration, not in
-//     apl-core's compiler
+//     praxis-policy-apl-core's compiler
 //   * The visitor that turns YAML routes into `CompiledRoute`s is the
 //     natural place to run all post-IR-level validations together
 //
@@ -39,16 +39,16 @@
 // confusing "but my plugin ran and the bag didn't change" runtime
 // surprise.
 
-use apl_core::rules::{CompiledRoute, Effect};
-use cpex_core::manager::PluginManager;
-use cpex_core::plugin::PluginMode;
+use praxis_policy_apl_core::rules::{CompiledRoute, Effect};
+use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::plugin::PluginMode;
 
 /// Read-only "what mode is plugin X registered with" lookup, used by
 /// the validator. A trait (rather than a `&PluginManager`) so:
 ///
 ///   * Tests can pass a small HashMap-backed mock without constructing
 ///     a real `PluginManager` (which requires plugin registration and
-///     a bunch of cpex-core internal types).
+///     a bunch of praxis-policy-core internal types).
 ///   * Future consumers that store plugin modes in a different shape
 ///     (e.g. a separate config catalogue) plug in without forcing them
 ///     to back the lookup with a full PluginManager.
@@ -143,7 +143,7 @@ fn walk_effect<L: PluginModeLookup + ?Sized>(
         // Other variants (Allow/Deny/Plugin-not-in-parallel/Delegate/
         // Taint/FieldOp) don't carry nested effects today. Note that
         // `Delegate` / `FieldOp` inside Parallel was already rejected
-        // by `apl-core::Effect::validate_parallel_purity` at parse
+        // by `praxis-policy-apl-core::Effect::validate_parallel_purity` at parse
         // time — no need to re-check here.
         _ => {},
     }
@@ -190,11 +190,11 @@ fn is_safe_in_parallel(mode: PluginMode) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use apl_core::rules::Expression;
+    use praxis_policy_apl_core::rules::Expression;
     use std::collections::HashMap;
 
     /// Test mock — a plain `HashMap<name, mode>`. Implements the
-    /// lookup trait without needing the real cpex-core registry's
+    /// lookup trait without needing the real praxis-policy-core registry's
     /// plugin / hook registration machinery.
     struct MockLookup(HashMap<String, PluginMode>);
 

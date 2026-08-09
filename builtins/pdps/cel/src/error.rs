@@ -7,15 +7,15 @@
 // (parsing the unified-config block); never at request time.
 //
 // Request-time problems (a bad `expr`, an undeclared variable, a
-// non-boolean result) flow through `apl_core::PdpError` / a fail-closed
+// non-boolean result) flow through `praxis_policy_apl_core::PdpError` / a fail-closed
 // `PdpDecision::Deny` because that's the trait's return surface —
 // deliberately separate from build errors, which are config faults the
 // operator fixes once.
 //
 // `BuildError` implements `std::error::Error` (via thiserror), so it
-// boxes cleanly into `apl_cpex::visitor::VisitorError` when the
+// boxes cleanly into `praxis_policy_apl_runtime::visitor::VisitorError` when the
 // AplConfigVisitor builds a resolver from a unified-config block. The
-// visitor wraps that into `cpex_core::PluginError::Config` on its way out
+// visitor wraps that into `praxis_policy_core::PluginError::Config` on its way out
 // of `load_config_yaml`.
 
 use thiserror::Error;

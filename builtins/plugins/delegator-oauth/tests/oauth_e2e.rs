@@ -24,16 +24,16 @@
 
 use std::sync::Arc;
 
-use cpex_core::delegation::{
+use praxis_policy_core::delegation::{
     AttenuationConfig, AuthEnforcedBy, DelegationPayload, DelegationSubject, TargetType,
     TokenDelegateHook, HOOK_TOKEN_DELEGATE,
 };
-use cpex_core::extensions::raw_credentials::{DelegationMode, TokenRole};
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::manager::PluginManager;
-use cpex_core::plugin::{OnError, PluginConfig, PluginMode};
+use praxis_policy_core::extensions::raw_credentials::{DelegationMode, TokenRole};
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::plugin::{OnError, PluginConfig, PluginMode};
 
-use cpex_plugin_delegator_oauth::OAuthDelegator;
+use praxis_policy_plugin_delegator_oauth::OAuthDelegator;
 
 use mockito::{Matcher, Server};
 use serde_json::json;
@@ -99,7 +99,7 @@ async fn build_manager(token_endpoint: &str) -> Arc<PluginManager> {
 async fn invoke(
     mgr: &Arc<PluginManager>,
     payload: DelegationPayload,
-) -> cpex_core::executor::PipelineResult {
+) -> praxis_policy_core::executor::PipelineResult {
     let (result, _bg) = mgr
         .invoke_named::<TokenDelegateHook>(
             HOOK_TOKEN_DELEGATE,

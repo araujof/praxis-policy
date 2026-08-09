@@ -1,4 +1,4 @@
-// Location: ./crates/apl-core/src/step.rs
+// Location: ./crates/ppe-apl-core/src/step.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -16,8 +16,8 @@
 // `Step` is the union over these forms plus the existing `Rule`. The async
 // `evaluate_steps` function walks a Step list, dispatching PDP calls via
 // `PdpResolver` and plugin calls via `PluginInvoker`. Taint dispatch is
-// recognized but no-op in apl-core — actual SessionStore writes happen in
-// `apl-cpex`, which has access to that machinery.
+// recognized but no-op in praxis-policy-apl-core — actual SessionStore writes happen in
+// `praxis-policy-apl-runtime`, which has access to that machinery.
 //
 // Covers effects, PDP integration, and the PdpResolver seam.
 
@@ -55,7 +55,7 @@ pub(crate) enum Step {
         on_allow: Vec<Step>,
     },
 
-    /// `plugin(name)` — invoke a CPEX-registered plugin. The plugin's
+    /// `plugin(name)` — invoke a PPE-registered plugin. The plugin's
     /// `PluginResult` decision becomes the step's outcome.
     Plugin { name: String },
 
@@ -66,7 +66,7 @@ pub(crate) enum Step {
     Delegate(DelegateStep),
 
     /// `taint(label[, scope])` — apply a taint label. Always succeeds;
-    /// never produces a Deny. SessionStore dispatch happens in apl-cpex.
+    /// never produces a Deny. SessionStore dispatch happens in praxis-policy-apl-runtime.
     Taint {
         label: String,
         scopes: Vec<TaintScope>,
@@ -75,7 +75,7 @@ pub(crate) enum Step {
     /// `restrict: { ... }` — narrow the backend candidate set. Always
     /// succeeds; never produces a Deny (accumulating, same family as
     /// `Taint`). The evaluator collects the emitted constraint; a higher
-    /// layer (apl-cpex) folds it into a `CandidateConstraintExtension`
+    /// layer (praxis-policy-apl-runtime) folds it into a `CandidateConstraintExtension`
     /// the host serializes to its router.
     Restrict {
         spec: crate::constraint::RestrictSpec,
@@ -84,14 +84,14 @@ pub(crate) enum Step {
     /// `require_approval(...)` / `confirm(...)` / … — dispatch an
     /// elicitation to a human and resume once resolved. The elicitation
     /// analogue of `Delegate`; resolution is dispatched to an
-    /// `ElicitationHandler` plugin via apl-cpex.
+    /// `ElicitationHandler` plugin via praxis-policy-apl-runtime.
     Elicit(ElicitStep),
 }
 
 /// One delegation invocation inside `pre_invocation:` or `post_invocation:`.
 ///
-/// At runtime the apl-cpex `DelegationInvoker` constructs a
-/// `cpex_core::delegation::DelegationPayload` from
+/// At runtime the praxis-policy-apl-runtime `DelegationInvoker` constructs a
+/// `praxis_policy_core::delegation::DelegationPayload` from
 ///   * the inbound bearer token (pulled from
 ///     `Extensions.raw_credentials.inbound_tokens`),
 ///   * this step's `args` (target / audience / permissions / mode /
@@ -105,7 +105,7 @@ pub(crate) enum Step {
 /// in the policy bag for downstream rules to inspect.
 ///
 /// `args` is a free-form map because each delegation backend has its
-/// own typed config shape; apl-core treats it as opaque and hands it
+/// own typed config shape; praxis-policy-apl-core treats it as opaque and hands it
 /// to the plugin via the existing per-call config-override pathway.
 ///
 /// # Multiple `delegate(...)` in one phase (most-recent-wins)
@@ -176,8 +176,8 @@ pub enum ElicitKind {
 
 impl ElicitKind {
     /// The snake_case wire name (matches the serde representation). Used
-    /// by the apl-cpex bridge to pass `kind` to channel plugins as a
-    /// string, since cpex-core can't depend on this enum.
+    /// by the praxis-policy-apl-runtime bridge to pass `kind` to channel plugins as a
+    /// string, since praxis-policy-core can't depend on this enum.
     pub fn as_str(&self) -> &'static str {
         match self {
             ElicitKind::Approval => "approval",
@@ -196,7 +196,7 @@ impl ElicitKind {
 /// the agent's retries, validates the response, and resumes.
 ///
 /// Structurally the elicitation analogue of [`DelegateStep`]: the DSL
-/// carries the verb; apl-cpex dispatches resolution to the named
+/// carries the verb; praxis-policy-apl-runtime dispatches resolution to the named
 /// `ElicitationHandler` plugin (`plugin_name`, resolved exactly like
 /// `delegate(...)`). The key
 /// difference from delegation — which completes within one request — is
@@ -215,7 +215,7 @@ impl ElicitKind {
 /// against `scope` before the phase may proceed.
 ///
 /// `config_override` is a free-form map for channel-specific params
-/// (e.g. CIBA `details_link`, Slack block-kit options); apl-core treats
+/// (e.g. CIBA `details_link`, Slack block-kit options); praxis-policy-apl-core treats
 /// it as opaque and hands it to the plugin via the same per-call
 /// config-override pathway delegation uses.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -228,7 +228,7 @@ pub struct ElicitStep {
     /// its plugin. The first positional argument of the sugar verb (e.g.
     /// `require_approval(manager-approver, ...)`). Which backend it speaks
     /// (CIBA / Slack / in-band) is the plugin's own opaque config, not
-    /// something apl-core interprets.
+    /// something praxis-policy-apl-core interprets.
     pub plugin_name: String,
 
     /// Optional channel label for audit/observability only (e.g.
@@ -270,7 +270,7 @@ pub struct ElicitStep {
     pub timeout: Option<String>,
 
     /// Per-call config overrides for channel-specific params, layered on
-    /// the plugin's default config. Opaque to apl-core.
+    /// the plugin's default config. Opaque to praxis-policy-apl-core.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub config_override: Option<serde_yaml::Value>,
 
@@ -287,14 +287,14 @@ pub struct ElicitStep {
 }
 
 /// A PDP invocation, opaque-args style. Resolvers parse `args` based on
-/// the dialect they handle — apl-core doesn't impose a Cedar/OPA/AuthZen
+/// the dialect they handle — praxis-policy-apl-core doesn't impose a Cedar/OPA/AuthZen
 /// schema on `args`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PdpCall {
     pub dialect: PdpDialect,
     /// Dialect-specific call arguments — typically a map for Cedar
     /// (`action`, `resource`, …) or a string for OPA/AuthZen/NeMo
-    /// (a path or query). Resolvers parse this; apl-core treats it
+    /// (a path or query). Resolvers parse this; praxis-policy-apl-core treats it
     /// as opaque.
     pub args: serde_yaml::Value,
 }
@@ -303,12 +303,12 @@ pub struct PdpCall {
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum PdpDialect {
-    /// Bare Cedar policy evaluation (`cpex-pdp-cedar-direct`).
+    /// Bare Cedar policy evaluation (`praxis-policy-pdp-cedar-direct`).
     Cedar,
     Opa,
     AuthZen,
     NeMo,
-    /// CEL (Common Expression Language) evaluation — `cpex-pdp-cel`.
+    /// CEL (Common Expression Language) evaluation — `praxis-policy-pdp-cel`.
     /// The `cel:` step carries an `expr:` string that must evaluate to a
     /// boolean against the policy `AttributeBag` (exposed to CEL as nested
     /// namespaces: `subject.id`, `delegation.depth`, `session.labels`, …).
@@ -340,7 +340,7 @@ impl PdpDialect {
 /// clients, AuthZen clients, NeMo Guardrails — anything that can answer
 /// "given this call, allow or deny?" against a request context.
 ///
-/// `apl-cpex` provides the bridge from CPEX plugins (e.g. `cedar-direct`)
+/// `praxis-policy-apl-runtime` provides the bridge from PPE plugins (e.g. `cedar-direct`)
 /// to this trait so the host doesn't have to know about the plugin types.
 #[async_trait]
 pub trait PdpResolver: Send + Sync {
@@ -357,16 +357,16 @@ pub trait PdpResolver: Send + Sync {
 
 /// Build a [`PdpResolver`] from a unified-config block. Implemented per
 /// PDP backend (cedar-direct, opa, …) and registered with
-/// the apl-cpex visitor so unified-config YAML can declare PDPs
+/// the praxis-policy-apl-runtime visitor so unified-config YAML can declare PDPs
 /// without the host pre-constructing them in code.
 ///
-/// Hosts register a factory by handing it to apl-cpex's
+/// Hosts register a factory by handing it to praxis-policy-apl-runtime's
 /// `AplOptions.pdp_factories`. When the visitor walks the unified
 /// config and finds a `global.apl.pdp[].kind` matching the factory's
 /// reported `kind()`, it calls `build` with the rest of that block.
 ///
 /// The error type is `Box<dyn Error + Send + Sync>` to keep this trait
-/// in apl-core (which has no cpex deps). apl-cpex's visitor wraps
+/// in praxis-policy-apl-core (which has no cpex deps). praxis-policy-apl-runtime's visitor wraps
 /// the boxed error into `VisitorError` → `PluginError::Config` at the
 /// manager boundary.
 pub trait PdpFactory: Send + Sync {
@@ -406,9 +406,9 @@ pub enum DispatchPhase {
 }
 
 /// Context for one plugin invocation: tells the invoker the *intent* of
-/// the call so it can dispatch to the right CPEX hook contract.
+/// the call so it can dispatch to the right PPE hook contract.
 ///
-/// `Step` is the policy / post_policy case — the invoker (apl-cpex side)
+/// `Step` is the policy / post_policy case — the invoker (praxis-policy-apl-runtime side)
 /// already holds a typed payload reference; APL doesn't need to pass one.
 ///
 /// `Field` is the pipe-chain case — APL is focused on a specific field
@@ -416,7 +416,7 @@ pub enum DispatchPhase {
 /// `PluginOutcome.modified_value`.
 ///
 /// Both variants carry a `DispatchPhase` so the invoker can resolve the
-/// right hook entry against the cpex-core hook routing table when the
+/// right hook entry against the praxis-policy-core hook routing table when the
 /// plugin registered for multiple hooks.
 #[derive(Debug, Clone, Copy)]
 pub enum PluginInvocation<'a> {
@@ -446,8 +446,8 @@ impl<'a> PluginInvocation<'a> {
     }
 }
 
-/// Plugin invocation dispatch. apl-cpex wraps the CPEX `PluginManager`
-/// behind this trait so the apl-core evaluator stays free of cpex-core
+/// Plugin invocation dispatch. praxis-policy-apl-runtime wraps the PPE `PluginManager`
+/// behind this trait so the praxis-policy-apl-core evaluator stays free of praxis-policy-core
 /// dependencies.
 #[async_trait]
 pub trait PluginInvoker: Send + Sync {
@@ -462,8 +462,8 @@ pub trait PluginInvoker: Send + Sync {
 }
 
 /// Delegation dispatch — invokes a `TokenDelegateHook` plugin to mint
-/// a downstream credential. apl-cpex implements this against
-/// `cpex_core::PluginManager::invoke_entries::<TokenDelegateHook>`.
+/// a downstream credential. praxis-policy-apl-runtime implements this against
+/// `praxis_policy_core::PluginManager::invoke_entries::<TokenDelegateHook>`.
 ///
 /// The invoker holds the request-scoped `Extensions` internally
 /// (same pattern as `CmfPluginInvoker`), so the trait method doesn't
@@ -553,7 +553,7 @@ impl DelegationInvoker for NoopDelegationInvoker {
 }
 
 /// Elicitation dispatch — drives a human-in-the-loop step (approval,
-/// confirmation, step-up, …) through a channel plugin. apl-cpex
+/// confirmation, step-up, …) through a channel plugin. praxis-policy-apl-runtime
 /// implements this against the named `ElicitationHandler` plugin
 /// (`step.plugin_name`, resolved `name → entry` like delegation); tests
 /// and un-wired hosts pass [`NoopElicitationInvoker`].
@@ -779,7 +779,7 @@ impl ElicitationInvoker for NoopElicitationInvoker {
 /// channel — for evaluator tests and offline demos.
 ///
 /// NOT for production: it makes no actual approval decision. Hosts wire a
-/// real channel invoker (e.g. the apl-cpex `ElicitationHandler` bridge).
+/// real channel invoker (e.g. the praxis-policy-apl-runtime `ElicitationHandler` bridge).
 #[derive(Default)]
 pub struct AutoApprovingElicitor;
 
@@ -911,7 +911,7 @@ impl Step {
 /// chain attributes (`delegation.depth`, `delegation.origin`,
 /// `delegation.chain`, ...) populated by identity resolver plugins
 /// via `IdentityPayload.delegation` + apply-to-extensions, then
-/// surfaced through apl-cmf's BagBuilder.
+/// surfaced through praxis-policy-apl-cmf's BagBuilder.
 ///
 /// The `delegation.granted.*` sub-namespace defined here is for
 /// OUTBOUND results — what came back from a `delegate(...)` step

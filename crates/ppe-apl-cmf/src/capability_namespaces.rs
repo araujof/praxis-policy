@@ -1,11 +1,11 @@
-// Location: ./crates/apl-cmf/src/capability_namespaces.rs
+// Location: ./crates/ppe-apl-cmf/src/capability_namespaces.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
 // Capability → bag-namespace mapping for operator visibility.
 //
-// cpex-core's `filter_extensions(&ext, &caps)` decides which
+// praxis-policy-core's `filter_extensions(&ext, &caps)` decides which
 // `Extensions` slots a plugin sees based on its declared
 // `capabilities:` list. The CMF extractors then flatten those slots
 // into bag attributes under well-known prefixes. This module is the
@@ -44,7 +44,7 @@ struct CapabilityEntry {
 }
 
 /// The mapping table — single source of truth for which bag
-/// namespaces a capability unlocks. Keep in sync with cpex-core's
+/// namespaces a capability unlocks. Keep in sync with praxis-policy-core's
 /// `filter_extensions` rules and the per-extension extractor
 /// modules (`security.rs`, `delegation.rs`, etc.).
 const TABLE: &[CapabilityEntry] = &[

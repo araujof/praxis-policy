@@ -1,4 +1,4 @@
-// Location: ./crates/cpex-core/src/registry.rs
+// Location: ./crates/ppe-core/src/registry.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -445,7 +445,7 @@ impl PluginRegistry {
     /// Returns every (hook_name, HookEntry) pair where the entry's plugin
     /// matches the given name. Used by external orchestrators that need
     /// to build pre-resolved dispatch lineups for a single plugin across
-    /// every hook it registered to (e.g. apl-cpex deciding which entry
+    /// every hook it registered to (e.g. praxis-policy-apl-runtime deciding which entry
     /// handles step-style invocations vs field-style invocations for the
     /// same plugin). Owned tuples — no borrows held on the registry.
     pub fn entries_for_plugin(&self, plugin_name: &str) -> Vec<(String, HookEntry)> {

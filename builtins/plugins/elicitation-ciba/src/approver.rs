@@ -22,7 +22,7 @@
 // Construction errors → `Box<PluginError>` (`PluginError::Config`).
 // Runtime *failures* (network, OP rejection, malformed response) →
 // `PluginResult::deny(PluginViolation::new(code, reason))`, which the
-// apl-cpex bridge maps to an `ElicitationError` and the apl-core
+// praxis-policy-apl-runtime bridge maps to an `ElicitationError` and the praxis-policy-apl-core
 // evaluator then routes through the step's `on_error`. Normal lifecycle
 // *states* (pending / approved / denied / expired) are NOT failures —
 // they're returned as data on the payload via `modify_payload`.
@@ -35,15 +35,15 @@ use chrono::Utc;
 use serde::Deserialize;
 use zeroize::Zeroizing;
 
-use cpex_core::context::PluginContext;
-use cpex_core::elicitation::{
+use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::elicitation::{
     ElicitationHook, ElicitationOp, ElicitationOutcomeKind, ElicitationPayload,
     ElicitationStatusKind,
 };
-use cpex_core::error::{PluginError, PluginViolation};
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::hooks::trait_def::{HookHandler, PluginResult};
-use cpex_core::plugin::{Plugin, PluginConfig};
+use praxis_policy_core::error::{PluginError, PluginViolation};
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
+use praxis_policy_core::plugin::{Plugin, PluginConfig};
 
 use crate::config::{require_https, CibaConfig};
 use crate::store::{Correlation, CorrelationStore, InMemoryCorrelationStore};
@@ -144,7 +144,7 @@ impl CibaApprover {
         // `invalid_binding_message`). CIBA's binding_message is an
         // anti-phishing correlation code shown on both devices, not the
         // full transaction text — the canonical, human-readable `purpose`
-        // is recorded upstream (apl-core audit). So derive a valid code
+        // is recorded upstream (praxis-policy-apl-core audit). So derive a valid code
         // from it.
         let binding_message = payload.purpose().map(sanitize_binding_message);
 
@@ -437,7 +437,7 @@ struct OAuthError {
 
 fn cfg_err(plugin: &str, msg: String) -> Box<PluginError> {
     Box::new(PluginError::Config {
-        message: format!("plugin '{plugin}' (cpex-plugin-elicitation-ciba): {msg}"),
+        message: format!("plugin '{plugin}' (praxis-policy-plugin-elicitation-ciba): {msg}"),
     })
 }
 
@@ -464,7 +464,7 @@ fn invalid(payload: &ElicitationPayload, reason: &str) -> PluginResult<Elicitati
 /// the requester's and the approver's devices so the human can confirm
 /// they're approving the same transaction. The full, canonical
 /// human-readable context is the step's `purpose` (kept verbatim in the
-/// apl-core audit record) and is delivered to the approver's device by
+/// praxis-policy-apl-core audit record) and is delivered to the approver's device by
 /// the Authentication Channel + intent registry.
 ///
 /// To keep the cue readable rather than mangled, **whitespace runs become

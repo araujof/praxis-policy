@@ -1,9 +1,9 @@
-// Location: ./crates/cpex-core/src/error.rs
+// Location: ./crates/ppe-core/src/error.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
-// Error types for the CPEX plugin framework.
+// Error types for the PPE plugin framework.
 //
 // Provides structured error types for plugin execution failures,
 // policy violations, timeouts, and configuration errors. Mirrors
@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-/// Top-level error type for the CPEX framework.
+/// Top-level error type for the PPE framework.
 ///
 /// Covers plugin execution failures, policy violations, timeouts,
 /// and configuration issues. Each variant carries enough context
@@ -42,7 +42,7 @@ pub enum PluginError {
         details: HashMap<String, serde_json::Value>,
         /// Protocol-level error code for the host to map to the wire
         /// format. MCP: JSON-RPC codes (e.g., -32603). HTTP: status
-        /// codes. The host interprets this; CPEX just carries it.
+        /// codes. The host interprets this; PPE just carries it.
         proto_error_code: Option<i64>,
     },
 
@@ -193,7 +193,7 @@ impl From<&PluginError> for PluginErrorRecord {
 /// # Examples
 ///
 /// ```
-/// use cpex_core::error::PluginViolation;
+/// use praxis_policy_core::error::PluginViolation;
 ///
 /// let v = PluginViolation::new("missing_permission", "User lacks pii_access");
 /// assert_eq!(v.code, "missing_permission");

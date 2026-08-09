@@ -9,12 +9,12 @@ use async_trait::async_trait;
 use regex::Regex;
 use serde_json::Value;
 
-use cpex_core::cmf::{CmfHook, ContentPart, Message, MessagePayload};
-use cpex_core::context::PluginContext;
-use cpex_core::error::{PluginError, PluginViolation};
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::hooks::trait_def::{HookHandler, PluginResult};
-use cpex_core::plugin::{Plugin, PluginConfig};
+use praxis_policy_core::cmf::{CmfHook, ContentPart, Message, MessagePayload};
+use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::error::{PluginError, PluginViolation};
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
+use praxis_policy_core::plugin::{Plugin, PluginConfig};
 
 use crate::config::{PiiPattern, PiiScanMode, PiiScannerConfig};
 
@@ -35,7 +35,7 @@ impl PiiScanner {
         let raw = cfg.config.as_ref().ok_or_else(|| {
             Box::new(PluginError::Config {
                 message: format!(
-                    "plugin '{}' (cpex-plugin-pii-scanner) requires a `config:` block",
+                    "plugin '{}' (praxis-policy-plugin-pii-scanner) requires a `config:` block",
                     cfg.name
                 ),
             })
@@ -43,7 +43,7 @@ impl PiiScanner {
         let typed: PiiScannerConfig = serde_json::from_value(raw.clone()).map_err(|e| {
             Box::new(PluginError::Config {
                 message: format!(
-                    "plugin '{}' (cpex-plugin-pii-scanner) config parse failed: {e}",
+                    "plugin '{}' (praxis-policy-plugin-pii-scanner) config parse failed: {e}",
                     cfg.name
                 ),
             })
@@ -169,7 +169,7 @@ fn compile_patterns(
         let re = Regex::new(&re_str).map_err(|e| {
             Box::new(PluginError::Config {
                 message: format!(
-                    "plugin '{plugin_name}' (cpex-plugin-pii-scanner): pattern '{name}' \
+                    "plugin '{plugin_name}' (praxis-policy-plugin-pii-scanner): pattern '{name}' \
                      failed to compile: {e}"
                 ),
             })
@@ -220,8 +220,8 @@ fn _force_link_arc(_: Arc<()>) {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cpex_core::cmf::{Role, ToolCall};
-    use cpex_core::plugin::{OnError, PluginConfig, PluginMode};
+    use praxis_policy_core::cmf::{Role, ToolCall};
+    use praxis_policy_core::plugin::{OnError, PluginConfig, PluginMode};
     use serde_json::json;
     use std::collections::HashMap;
 

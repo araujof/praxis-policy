@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cpex/tests/restrict_e2e.rs
+// Location: ./crates/ppe-apl-runtime/tests/restrict_e2e.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -11,12 +11,14 @@
 
 use std::sync::Arc;
 
-use cpex_core::cmf::enums::Role;
-use cpex_core::cmf::{CmfHook, Message, MessagePayload};
-use cpex_core::extensions::{CandidateConstraintExtension, Extensions, MetaExtension, OnEmpty};
-use cpex_core::manager::PluginManager;
+use praxis_policy_core::cmf::enums::Role;
+use praxis_policy_core::cmf::{CmfHook, Message, MessagePayload};
+use praxis_policy_core::extensions::{
+    CandidateConstraintExtension, Extensions, MetaExtension, OnEmpty,
+};
+use praxis_policy_core::manager::PluginManager;
 
-use apl_cpex::{register_apl, AplOptions, DispatchCache, MemorySessionStore};
+use praxis_policy_apl_runtime::{register_apl, AplOptions, DispatchCache, MemorySessionStore};
 
 fn cmf_payload(text: &str) -> MessagePayload {
     MessagePayload {

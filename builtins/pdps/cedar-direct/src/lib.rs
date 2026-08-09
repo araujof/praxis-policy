@@ -3,14 +3,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
-// cpex-pdp-cedar-direct — `PdpResolver` over the bare `cedar-policy` crate.
+// praxis-policy-pdp-cedar-direct — `PdpResolver` over the bare `cedar-policy` crate.
 //
 // # Where this lives in the stack
 //
-//   APL evaluator (apl-core)
+//   APL evaluator (praxis-policy-apl-core)
 //        │  `cedar:(action:..., resource:..., context:...)` step
 //        ▼
-//   PdpRouter (apl-cpex)        — dispatches by dialect
+//   PdpRouter (praxis-policy-apl-runtime)        — dispatches by dialect
 //        │  resolver.evaluate(call, bag)
 //        ▼
 //   CedarDirectResolver         — THIS CRATE
@@ -42,7 +42,7 @@
 //
 // # Principal
 //
-// The principal entity is built from the `AttributeBag` that apl-cmf
+// The principal entity is built from the `AttributeBag` that praxis-policy-apl-cmf
 // populated from `SecurityExtension.subject`:
 //
 //   - `subject.id`        → entity id (required; missing → request-time error)
@@ -58,10 +58,10 @@
 // trust domains) populate them upstream via identity-hook plugins; this
 // crate just reads what the bag carries.
 //
-// # CPEX-provided context
+// # PPE-provided context
 //
 // In addition to whatever the policy author put in `args.context`, the
-// resolver merges in well-known CPEX context paths so policies can
+// resolver merges in well-known PPE context paths so policies can
 // reason about them with a stable schema:
 //
 //   - `context.delegation` — `{ chain: [...], depth: N }` from

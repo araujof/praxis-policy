@@ -1,9 +1,9 @@
-// Location: ./crates/cpex-core/src/extensions/mod.rs
+// Location: ./crates/ppe-core/src/extensions/mod.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
-// Typed extension models for the CPEX framework.
+// Typed extension models for the PPE framework.
 //
 // Each extension carries contextual metadata with an explicit
 // mutability tier enforced by the processing pipeline. Extensions

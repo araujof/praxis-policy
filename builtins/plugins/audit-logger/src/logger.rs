@@ -8,12 +8,12 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use serde_json::{json, Map, Value};
 
-use cpex_core::cmf::{CmfHook, ContentPart, MessagePayload};
-use cpex_core::context::PluginContext;
-use cpex_core::error::PluginError;
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::hooks::trait_def::{HookHandler, PluginResult};
-use cpex_core::plugin::{Plugin, PluginConfig};
+use praxis_policy_core::cmf::{CmfHook, ContentPart, MessagePayload};
+use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::error::PluginError;
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
+use praxis_policy_core::plugin::{Plugin, PluginConfig};
 
 use crate::config::{AuditDestination, AuditLoggerConfig};
 
@@ -32,7 +32,7 @@ impl AuditLogger {
             Some(raw) => serde_json::from_value(raw.clone()).map_err(|e| {
                 Box::new(PluginError::Config {
                     message: format!(
-                        "plugin '{}' (cpex-plugin-audit-logger) config parse failed: {e}",
+                        "plugin '{}' (praxis-policy-plugin-audit-logger) config parse failed: {e}",
                         cfg.name
                     ),
                 })
@@ -188,9 +188,9 @@ fn _force_link_arc(_: Arc<()>) {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cpex_core::cmf::{Message, Role, ToolCall};
-    use cpex_core::extensions::{MetaExtension, SecurityExtension, SubjectExtension};
-    use cpex_core::plugin::{OnError, PluginConfig, PluginMode};
+    use praxis_policy_core::cmf::{Message, Role, ToolCall};
+    use praxis_policy_core::extensions::{MetaExtension, SecurityExtension, SubjectExtension};
+    use praxis_policy_core::plugin::{OnError, PluginConfig, PluginMode};
     use std::collections::HashMap;
     use std::sync::Arc;
 

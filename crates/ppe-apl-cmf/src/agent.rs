@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cmf/src/agent.rs
+// Location: ./crates/ppe-apl-cmf/src/agent.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -15,8 +15,8 @@
 //   agent.conversation.summary   : String
 //   agent.conversation.topics    : StringSet
 
-use apl_core::AttributeBag;
-use cpex_core::extensions::AgentExtension;
+use praxis_policy_apl_core::AttributeBag;
+use praxis_policy_core::extensions::AgentExtension;
 use std::collections::HashSet;
 
 pub fn extract_agent(agent: &AgentExtension, bag: &mut AttributeBag) {
@@ -54,7 +54,7 @@ pub fn extract_agent(agent: &AgentExtension, bag: &mut AttributeBag) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cpex_core::extensions::agent::ConversationContext;
+    use praxis_policy_core::extensions::agent::ConversationContext;
 
     #[test]
     fn populates_present_fields_only() {

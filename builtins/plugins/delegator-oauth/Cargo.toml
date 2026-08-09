@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Authors: Teryl Taylor
 #
-# cpex-plugin-delegator-oauth — `TokenDelegateHandler` that performs RFC 8693
+# praxis-policy-plugin-delegator-oauth — `TokenDelegateHandler` that performs RFC 8693
 # OAuth 2.0 token exchange against any compliant IdP.
 #
 # # Why this exists
@@ -15,14 +15,14 @@
 # endpoint with `grant_type=urn:ietf:params:oauth:grant-type:token-exchange`,
 # parse the JSON response, build a `RawDelegatedToken`.
 #
-# # When to reach for this vs `cpex-plugin-delegator-biscuit`
+# # When to reach for this vs the CPEX Biscuit delegator
 #
-# - **`cpex-plugin-delegator-oauth`** (this crate) — IdP-mediated. Use when
+# - **`praxis-policy-plugin-delegator-oauth`** (this crate) — IdP-mediated. Use when
 #   the deployment already runs an OAuth server (Keycloak, Auth0,
 #   Hydra, Zitadel, Janssen Jans Auth Server) and wants centralized
 #   audit/revocation. Every delegation costs an IdP roundtrip;
 #   gateway must hold IdP client credentials.
-# - **`cpex-plugin-delegator-biscuit`** (slice 7) — decentralized capability
+# - **the CPEX Biscuit delegator** (slice 7) — decentralized capability
 #   tokens via biscuit attenuation. No IdP roundtrip. Use for
 #   federated agent ecosystems where there's no shared IdP.
 #
@@ -30,12 +30,12 @@
 # swappable at config time.
 
 [package]
-name = "cpex-plugin-delegator-oauth"
+name = "praxis-policy-plugin-delegator-oauth"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
-description = "CPEX delegation handler — RFC 8693 OAuth 2.0 token exchange."
+description = "PPE delegation handler — RFC 8693 OAuth 2.0 token exchange."
 repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
@@ -43,7 +43,7 @@ categories.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-cpex-core = { workspace = true }
+praxis-policy-core = { workspace = true }
 
 # `reqwest` for the HTTP POST to the IdP token endpoint. Default
 # features pull `rustls` for TLS — we explicitly disable the

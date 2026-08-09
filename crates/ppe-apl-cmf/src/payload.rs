@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cmf/src/payload.rs
+// Location: ./crates/ppe-apl-cmf/src/payload.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -19,7 +19,7 @@
 //
 // Null values are skipped (consistent with bag's missing-key semantics).
 
-use apl_core::AttributeBag;
+use praxis_policy_apl_core::AttributeBag;
 use serde_json::Value;
 use std::collections::HashSet;
 
@@ -41,7 +41,7 @@ pub fn extract_result(result: &Value, bag: &mut AttributeBag) {
 /// args/result — nested objects recurse, string arrays become
 /// `StringSet`s (so `data.tenants.x.allowed_models` supports `contains`
 /// and interpolated `restrict` references).
-pub fn extract_data(tree: &apl_core::AttributeTree, bag: &mut AttributeBag) {
+pub fn extract_data(tree: &praxis_policy_apl_core::AttributeTree, bag: &mut AttributeBag) {
     walk(tree.as_value(), "data", bag);
 }
 
@@ -162,7 +162,7 @@ mod tests {
 
     #[test]
     fn data_tree_flattens_under_data_namespace() {
-        let tree = apl_core::AttributeTree::new(json!({
+        let tree = praxis_policy_apl_core::AttributeTree::new(json!({
             "org": { "default_region": "us" },
             "tenants": {
                 "acme-eu": { "data_region": "eu", "allowed_models": ["anthropic/*", "vllm/*"] }
@@ -185,7 +185,7 @@ mod tests {
     #[test]
     fn empty_data_tree_adds_nothing() {
         let mut bag = AttributeBag::new();
-        extract_data(&apl_core::AttributeTree::empty(), &mut bag);
+        extract_data(&praxis_policy_apl_core::AttributeTree::empty(), &mut bag);
         assert!(bag.is_empty());
     }
 }

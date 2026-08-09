@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
-// cpex-plugin-audit-logger — CMF plugin that emits one structured JSON
+// praxis-policy-plugin-audit-logger — CMF plugin that emits one structured JSON
 // audit record per dispatched request. The record captures:
 //
 //   * timestamp + correlation id

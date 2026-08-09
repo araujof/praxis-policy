@@ -1,4 +1,4 @@
-// Location: ./crates/cpex-core/src/extensions/container.rs
+// Location: ./crates/ppe-core/src/extensions/container.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -236,7 +236,7 @@ impl Extensions {
             && ptr_eq_opt(&self.framework, &modified.framework)
             && ptr_eq_opt(&self.meta, &modified.meta)
         // NOTE: `raw_credentials` is INTENTIONALLY excluded from the
-        // immutable check. Framework orchestrators (apl-cpex's
+        // immutable check. Framework orchestrators (praxis-policy-apl-runtime's
         // DelegationPluginInvoker) legitimately write
         // `delegated_tokens.*` via the shared Mutex during route
         // evaluation, producing a new Arc by the time the synthetic
@@ -302,7 +302,7 @@ impl Extensions {
         self.custom = owned.custom.map(Arc::new);
         // `raw_credentials` is shared by Arc in `OwnedExtensions` —
         // plugins don't mutate it directly. But framework orchestrators
-        // (apl-cpex's DelegationPluginInvoker) DO write delegated_tokens
+        // (praxis-policy-apl-runtime's DelegationPluginInvoker) DO write delegated_tokens
         // / inbound_tokens through the shared `Arc<Mutex<Extensions>>`
         // before the synthetic handler returns. We must propagate
         // those writes back so callers of `invoke_named` see the

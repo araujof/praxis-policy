@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cpex/tests/config_override.rs
+// Location: ./crates/ppe-apl-runtime/tests/config_override.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -11,7 +11,7 @@
 //
 //   1. `AplConfigVisitor` parses the override into `CompiledRoute.plugin_overrides`.
 //   2. `RouteDispatchPlan::build` calls `manager.build_override_entries(name, config, caps, on_error)`.
-//   3. cpex-core's `build_override_entries` invokes the plugin factory
+//   3. praxis-policy-core's `build_override_entries` invokes the plugin factory
 //      with the merged `PluginConfig`, calls `initialize()` on the
 //      result, and wraps every returned handler in a fresh `PluginRef`
 //      with an independent circuit breaker.
@@ -25,19 +25,19 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use cpex_core::cmf::enums::Role;
-use cpex_core::cmf::{CmfHook, Message, MessagePayload};
-use cpex_core::context::PluginContext;
-use cpex_core::error::{PluginError as CoreError, PluginViolation};
-use cpex_core::extensions::MetaExtension;
-use cpex_core::factory::{PluginFactory, PluginInstance};
-use cpex_core::hooks::adapter::TypedHandlerAdapter;
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::hooks::trait_def::{HookHandler, PluginResult};
-use cpex_core::manager::PluginManager;
-use cpex_core::plugin::{Plugin, PluginConfig};
+use praxis_policy_core::cmf::enums::Role;
+use praxis_policy_core::cmf::{CmfHook, Message, MessagePayload};
+use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::error::{PluginError as CoreError, PluginViolation};
+use praxis_policy_core::extensions::MetaExtension;
+use praxis_policy_core::factory::{PluginFactory, PluginInstance};
+use praxis_policy_core::hooks::adapter::TypedHandlerAdapter;
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
+use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::plugin::{Plugin, PluginConfig};
 
-use apl_cpex::{register_apl, AplOptions, DispatchCache, MemorySessionStore};
+use praxis_policy_apl_runtime::{register_apl, AplOptions, DispatchCache, MemorySessionStore};
 
 // =====================================================================
 // Fixtures
@@ -435,12 +435,12 @@ routes:
 async fn on_error_override_plumbs_through_to_trusted_config() {
     use std::collections::HashMap;
 
-    use apl_core::plugin_decl::{PluginDeclaration, PluginOverride, PluginRegistry};
-    use apl_core::rules::{CompiledRoute, Effect};
-    use apl_cpex::{DispatchCache, RouteDispatchPlan};
-    use cpex_core::plugin::OnError;
+    use praxis_policy_apl_core::plugin_decl::{PluginDeclaration, PluginOverride, PluginRegistry};
+    use praxis_policy_apl_core::rules::{CompiledRoute, Effect};
+    use praxis_policy_apl_runtime::{DispatchCache, RouteDispatchPlan};
+    use praxis_policy_core::plugin::OnError;
 
-    // Single-plugin cpex-core config — load it via the manager so the
+    // Single-plugin praxis-policy-core config — load it via the manager so the
     // plugin is registered. No APL visitor / routes wiring needed —
     // we'll build the routes manually below to focus on what the
     // dispatch plan does with overrides.
@@ -457,7 +457,7 @@ plugins:
     // Construct the APL plugin registry by hand to match what
     // `compile_config` would have produced for the YAML's `plugins:`
     // block. `RouteDispatchPlan::build` consults this to know which
-    // plugins to resolve through cpex-core.
+    // plugins to resolve through praxis-policy-core.
     let mut registry = PluginRegistry::new();
     registry.insert(
         "gate".to_string(),

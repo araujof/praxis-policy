@@ -1,14 +1,14 @@
-// Location: ./crates/apl-cpex/tests/visitor_e2e.rs
+// Location: ./crates/ppe-apl-runtime/tests/visitor_e2e.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
-// End-to-end integration: unified-config YAML → cpex-core
+// End-to-end integration: unified-config YAML → praxis-policy-core
 // `load_config_yaml` → `AplConfigVisitor` walks global / defaults / tags
 // / routes → `PluginManager::annotate_route` installs phase-bound
 // `AplRouteHandler`s → host calls `invoke_named::<CmfHook>` with meta →
 // route-annotation short-circuit fires the handler → APL evaluator runs
-// the layered route → real CPEX plugins dispatch through
+// the layered route → real PPE plugins dispatch through
 // `CmfPluginInvoker` inside the handler.
 //
 // This is the load-bearing test for the visitor + annotation flow. It
@@ -22,19 +22,19 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use cpex_core::cmf::enums::Role;
-use cpex_core::cmf::{CmfHook, Message, MessagePayload};
-use cpex_core::context::PluginContext;
-use cpex_core::error::{PluginError as CoreError, PluginViolation};
-use cpex_core::extensions::MetaExtension;
-use cpex_core::factory::{PluginFactory, PluginInstance};
-use cpex_core::hooks::adapter::TypedHandlerAdapter;
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::hooks::trait_def::{HookHandler, PluginResult};
-use cpex_core::manager::PluginManager;
-use cpex_core::plugin::{Plugin, PluginConfig};
+use praxis_policy_core::cmf::enums::Role;
+use praxis_policy_core::cmf::{CmfHook, Message, MessagePayload};
+use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::error::{PluginError as CoreError, PluginViolation};
+use praxis_policy_core::extensions::MetaExtension;
+use praxis_policy_core::factory::{PluginFactory, PluginInstance};
+use praxis_policy_core::hooks::adapter::TypedHandlerAdapter;
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
+use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::plugin::{Plugin, PluginConfig};
 
-use apl_cpex::{register_apl, AplOptions, DispatchCache, MemorySessionStore};
+use praxis_policy_apl_runtime::{register_apl, AplOptions, DispatchCache, MemorySessionStore};
 
 // =====================================================================
 // Test plugins — `allow-gate` (passes through) and `deny-gate` (denies).
@@ -86,7 +86,10 @@ impl PluginFactory for AllowGateFactory {
 fn hooks_for<H>(
     config: &PluginConfig,
     plugin: Arc<H>,
-) -> Vec<(&'static str, Arc<dyn cpex_core::registry::AnyHookHandler>)>
+) -> Vec<(
+    &'static str,
+    Arc<dyn praxis_policy_core::registry::AnyHookHandler>,
+)>
 where
     H: HookHandler<CmfHook> + Plugin + 'static,
 {
@@ -102,7 +105,7 @@ where
     hook_names
         .into_iter()
         .map(|name| {
-            let adapter: Arc<dyn cpex_core::registry::AnyHookHandler> =
+            let adapter: Arc<dyn praxis_policy_core::registry::AnyHookHandler> =
                 Arc::new(TypedHandlerAdapter::<CmfHook, _>::new(Arc::clone(&plugin)));
             (name, adapter)
         })
@@ -163,7 +166,7 @@ fn meta_for_tool(name: &str) -> MetaExtension {
 /// then wire the APL visitor in via `register_apl`. Returns
 /// `Arc<PluginManager>` so the caller can dispatch through
 /// `invoke_named`. The visitor self-populates its plugin registry from
-/// cpex-core's parsed `Vec<PluginConfig>` via `visit_plugins` — no host
+/// praxis-policy-core's parsed `Vec<PluginConfig>` via `visit_plugins` — no host
 /// pre-parse needed.
 async fn build_manager_with_visitor(yaml: &str) -> Arc<PluginManager> {
     let mgr = Arc::new(PluginManager::default());
@@ -344,7 +347,7 @@ routes:
 /// Scope routing: a scoped annotation overrides the unscoped default for
 /// the matching scope, while requests in other scopes fall back to the
 /// unscoped annotation. Proves the visitor's `meta.scope` propagation is
-/// keying annotations correctly through cpex-core's annotation table.
+/// keying annotations correctly through praxis-policy-core's annotation table.
 #[tokio::test]
 async fn visitor_scoped_annotation_overrides_unscoped() {
     // Two routes for the same tool: one scoped to `vs-a`, one unscoped.
@@ -872,7 +875,7 @@ routes:
 
 /// A `plugins:` map at `global.defaults.<entity>` scope loads through
 /// the full pipeline. Before the fix this failed at the structural
-/// `CpexConfig` parse (the defaults group's `plugins` is also a `Vec`).
+/// `PolicyConfig` parse (the defaults group's `plugins` is also a `Vec`).
 /// The default layer contributes the policy; the route inherits it.
 #[tokio::test]
 async fn flat_defaults_plugins_map_loads_through_full_pipeline() {

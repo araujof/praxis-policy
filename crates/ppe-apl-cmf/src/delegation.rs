@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cmf/src/delegation.rs
+// Location: ./crates/ppe-apl-cmf/src/delegation.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -17,8 +17,8 @@
 // bag. Policies that need that depth call out to a plugin or PDP; the
 // bag stays scalar.
 
-use apl_core::AttributeBag;
-use cpex_core::extensions::DelegationExtension;
+use praxis_policy_apl_core::AttributeBag;
+use praxis_policy_core::extensions::DelegationExtension;
 
 /// Flatten a `DelegationExtension` into the bag.
 pub fn extract_delegation(del: &DelegationExtension, bag: &mut AttributeBag) {
@@ -39,7 +39,7 @@ pub fn extract_delegation(del: &DelegationExtension, bag: &mut AttributeBag) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cpex_core::extensions::{DelegationHop, DelegationStrategy};
+    use praxis_policy_core::extensions::{DelegationHop, DelegationStrategy};
 
     #[test]
     fn empty_delegation_sets_zero_depth_and_delegated_false() {

@@ -1,4 +1,4 @@
-// Location: ./crates/apl-core/src/attributes.rs
+// Location: ./crates/ppe-apl-core/src/attributes.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -6,7 +6,7 @@
 // AttributeBag — flat namespace for policy evaluation.
 //
 // The DSL evaluates predicates against a flat bag of named, typed values.
-// Each attribute source (cpex-core extensions, route args, session context,
+// Each attribute source (praxis-policy-core extensions, route args, session context,
 // custom plugin namespaces) drops keys into the bag through the
 // `AttributeExtractor` trait.
 //
@@ -15,7 +15,7 @@
 // New attribute sources are additive: implement `AttributeExtractor` for
 // them and the evaluator picks them up unchanged.
 //
-// Mapping from cpex-core extensions into the bag lives in `apl-cmf`, not
+// Mapping from praxis-policy-core extensions into the bag lives in `praxis-policy-apl-cmf`, not
 // here.
 
 use serde::{Deserialize, Serialize};
@@ -206,13 +206,13 @@ impl AttributeBag {
 /// Source of attributes. Implementors drop keys into the bag under a
 /// consistent namespace prefix:
 ///
-/// - cpex-core `SecurityExtension.subject`  → `subject.*`, `role.*`, `perm.*`
-/// - cpex-core `SecurityExtension.client`   → `client.*`
-/// - cpex-core `DelegationExtension`        → `delegation.*`, `delegated`
+/// - praxis-policy-core `SecurityExtension.subject`  → `subject.*`, `role.*`, `perm.*`
+/// - praxis-policy-core `SecurityExtension.client`   → `client.*`
+/// - praxis-policy-core `DelegationExtension`        → `delegation.*`, `delegated`
 /// - Route args                              → `args.*`
 /// - Session context                         → `session.*`
 ///
-/// Implementations for the cpex-core extensions live in `apl-cmf`, not here.
+/// Implementations for the praxis-policy-core extensions live in `praxis-policy-apl-cmf`, not here.
 pub trait AttributeExtractor {
     fn extract(&self, bag: &mut AttributeBag);
 }

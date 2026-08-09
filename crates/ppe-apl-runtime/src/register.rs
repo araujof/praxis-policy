@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cpex/src/register.rs
+// Location: ./crates/ppe-apl-runtime/src/register.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -33,10 +33,10 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use cpex_core::manager::PluginManager;
-use cpex_core::visitor::ConfigVisitor;
+use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::visitor::ConfigVisitor;
 
-use apl_core::step::{PdpFactory, PdpResolver};
+use praxis_policy_apl_core::step::{PdpFactory, PdpResolver};
 
 use crate::dispatch_plan::DispatchCache;
 use crate::session_store::{SessionStore, SessionStoreFactory};
@@ -117,7 +117,7 @@ impl AplOptions {
 /// manager's visitor list.
 ///
 /// After this call, the next `mgr.load_config_yaml(yaml)` invocation
-/// will walk the visitor: cpex-core's [`visit_plugins`][vp] populates
+/// will walk the visitor: praxis-policy-core's [`visit_plugins`][vp] populates
 /// the APL plugin registry from `&[PluginConfig]`; `visit_global`
 /// processes any `global.apl.pdp[]` entries by dispatching to the
 /// registered `pdp_factories`; the hierarchy walk stacks `global.apl`
@@ -125,21 +125,21 @@ impl AplOptions {
 /// `apl:` into compiled routes; one `AplRouteHandler` is installed
 /// per route per phase via [`PluginManager::annotate_route`][ar].
 ///
-/// [vp]: cpex_core::visitor::ConfigVisitor::visit_plugins
-/// [ar]: cpex_core::manager::PluginManager::annotate_route
+/// [vp]: praxis_policy_core::visitor::ConfigVisitor::visit_plugins
+/// [ar]: praxis_policy_core::manager::PluginManager::annotate_route
 ///
 /// # Example
 ///
 /// ```ignore
 /// use std::sync::Arc;
-/// use cpex_core::manager::PluginManager;
-/// use apl_cpex::{register_apl, AplOptions};
-/// use cpex_pdp_cedar_direct::CedarDirectPdpFactory;
+/// use praxis_policy_core::manager::PluginManager;
+/// use praxis_policy_apl_runtime::{register_apl, AplOptions};
+/// use praxis_policy_pdp_cedar_direct::CedarDirectPdpFactory;
 ///
 /// let mgr = Arc::new(PluginManager::default());
 /// mgr.register_factory("scope-gate", Box::new(ScopeGateFactory));
 ///
-/// apl_cpex::register_apl(&mgr, AplOptions {
+/// praxis_policy_apl_runtime::register_apl(&mgr, AplOptions {
 ///     dispatch_cache: dispatch_cache.clone(),
 ///     session_store: session_store.clone(),
 ///     pdps: vec![],                                       // none code-supplied

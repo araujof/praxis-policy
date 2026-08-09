@@ -49,13 +49,13 @@ use chrono::Utc;
 use serde::Deserialize;
 use zeroize::Zeroizing;
 
-use cpex_core::context::PluginContext;
-use cpex_core::delegation::{DelegationPayload, DelegationSubject, TokenDelegateHook};
-use cpex_core::error::{PluginError, PluginViolation};
-use cpex_core::extensions::raw_credentials::RawDelegatedToken;
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::hooks::trait_def::{HookHandler, PluginResult};
-use cpex_core::plugin::{Plugin, PluginConfig};
+use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::delegation::{DelegationPayload, DelegationSubject, TokenDelegateHook};
+use praxis_policy_core::error::{PluginError, PluginViolation};
+use praxis_policy_core::extensions::raw_credentials::RawDelegatedToken;
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
+use praxis_policy_core::plugin::{Plugin, PluginConfig};
 
 use super::config::OAuthDelegatorConfig;
 
@@ -65,7 +65,7 @@ const GRANT_TYPE_TOKEN_EXCHANGE: &str = "urn:ietf:params:oauth:grant-type:token-
 
 /// RFC 6749 §4.4 client-credentials grant — "give me a token as
 /// myself". Used when the delegation subject is `this_workload` (this
-/// CPEX instance itself): there is no inbound credential to exchange,
+/// PPE instance itself): there is no inbound credential to exchange,
 /// and its identity is the OAuth client identity it already
 /// authenticates with.
 const GRANT_TYPE_CLIENT_CREDENTIALS: &str = "client_credentials";
@@ -109,7 +109,7 @@ impl OAuthDelegator {
         let raw = cfg.config.as_ref().ok_or_else(|| {
             Box::new(PluginError::Config {
                 message: format!(
-                    "plugin '{}' (cpex-plugin-delegator-oauth) requires a `config:` block",
+                    "plugin '{}' (praxis-policy-plugin-delegator-oauth) requires a `config:` block",
                     cfg.name
                 ),
             })
@@ -117,7 +117,7 @@ impl OAuthDelegator {
         let typed: OAuthDelegatorConfig = serde_json::from_value(raw.clone()).map_err(|e| {
             Box::new(PluginError::Config {
                 message: format!(
-                    "plugin '{}' (cpex-plugin-delegator-oauth) config parse failed: {e}",
+                    "plugin '{}' (praxis-policy-plugin-delegator-oauth) config parse failed: {e}",
                     cfg.name
                 ),
             })
@@ -126,7 +126,7 @@ impl OAuthDelegator {
         if typed.token_endpoint.trim().is_empty() {
             return Err(Box::new(PluginError::Config {
                 message: format!(
-                    "plugin '{}' (cpex-plugin-delegator-oauth): token_endpoint must be non-empty",
+                    "plugin '{}' (praxis-policy-plugin-delegator-oauth): token_endpoint must be non-empty",
                     cfg.name
                 ),
             }));
@@ -139,7 +139,7 @@ impl OAuthDelegator {
         if let Err(e) = require_https(&typed.token_endpoint, typed.insecure_http) {
             return Err(Box::new(PluginError::Config {
                 message: format!(
-                    "plugin '{}' (cpex-plugin-delegator-oauth): token_endpoint {e}",
+                    "plugin '{}' (praxis-policy-plugin-delegator-oauth): token_endpoint {e}",
                     cfg.name,
                 ),
             }));
@@ -147,7 +147,7 @@ impl OAuthDelegator {
         if typed.client_id.trim().is_empty() {
             return Err(Box::new(PluginError::Config {
                 message: format!(
-                    "plugin '{}' (cpex-plugin-delegator-oauth): client_id must be non-empty",
+                    "plugin '{}' (praxis-policy-plugin-delegator-oauth): client_id must be non-empty",
                     cfg.name
                 ),
             }));
@@ -156,7 +156,7 @@ impl OAuthDelegator {
         let secret = typed.client_secret_source.resolve().map_err(|e| {
             Box::new(PluginError::Config {
                 message: format!(
-                    "plugin '{}' (cpex-plugin-delegator-oauth) client secret resolve failed: {e}",
+                    "plugin '{}' (praxis-policy-plugin-delegator-oauth) client secret resolve failed: {e}",
                     cfg.name
                 ),
             })
@@ -168,7 +168,7 @@ impl OAuthDelegator {
             .map_err(|e| {
                 Box::new(PluginError::Config {
                     message: format!(
-                        "plugin '{}' (cpex-plugin-delegator-oauth) HTTP client build failed: {e}",
+                        "plugin '{}' (praxis-policy-plugin-delegator-oauth) HTTP client build failed: {e}",
                         cfg.name
                     ),
                 })
@@ -552,7 +552,7 @@ impl HookHandler<TokenDelegateHook> for OAuthDelegator {
             && !self.warned_missing_act.swap(true, Ordering::Relaxed)
         {
             tracing::warn!(
-                target: "cpex::delegation",
+                target: "praxis_policy::delegation",
                 token_endpoint = %self.typed.token_endpoint,
                 "actor was requested (RFC 8693 actor_token) but the minted token carries no `act` claim; \
                  the token service may implement impersonation only (e.g. Keycloak Standard Token Exchange) \

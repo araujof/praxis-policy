@@ -8,7 +8,7 @@
 //   1. declares a `cel` PDP under `global.apl.pdp[]`,
 //   2. attaches a `cel:(expr: "...")` policy step to a route,
 //
-// must flow a real decision from the cpex-core dispatcher through
+// must flow a real decision from the praxis-policy-core dispatcher through
 // `AplConfigVisitor` → `PdpFactory` → `CelResolver` → the `cel`
 // interpreter → back into the route handler's allow/deny split.
 //
@@ -23,14 +23,16 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use cpex_core::cmf::enums::Role;
-use cpex_core::cmf::{CmfHook, Message, MessagePayload};
-use cpex_core::extensions::{MetaExtension, SecurityExtension, SubjectExtension, SubjectType};
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::manager::PluginManager;
+use praxis_policy_core::cmf::enums::Role;
+use praxis_policy_core::cmf::{CmfHook, Message, MessagePayload};
+use praxis_policy_core::extensions::{
+    MetaExtension, SecurityExtension, SubjectExtension, SubjectType,
+};
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::manager::PluginManager;
 
-use apl_cpex::{register_apl, AplOptions, DispatchCache, MemorySessionStore};
-use cpex_pdp_cel::CelPdpFactory;
+use praxis_policy_apl_runtime::{register_apl, AplOptions, DispatchCache, MemorySessionStore};
+use praxis_policy_pdp_cel::CelPdpFactory;
 
 // The config the visitor walks. A `cel:` step whose expression reads the
 // common attribute vocabulary (`subject.id`, `role.*`) the cmf BagBuilder
@@ -164,7 +166,7 @@ async fn config_declared_cel_pdp_denies_non_matching_subject() {
 /// A malformed CEL PDP config (`on_error: maybe`) must be rejected at
 /// `load_config_yaml` rather than discovered on first request. The
 /// visitor → `CelPdpFactory::build` → `CelResolver::from_config` chain
-/// surfaces `BuildError::ConfigShape` as a `cpex_core::PluginError`,
+/// surfaces `BuildError::ConfigShape` as a `praxis_policy_core::PluginError`,
 /// which bubbles out of load.
 #[tokio::test]
 async fn malformed_on_error_is_rejected_at_load() {

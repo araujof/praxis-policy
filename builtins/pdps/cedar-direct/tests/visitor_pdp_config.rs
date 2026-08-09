@@ -9,7 +9,7 @@
 //   2. embeds Cedar policy text inline in that declaration,
 //   3. attaches a `cedar:(...)` policy step to a route,
 //
-// must flow a real authorization decision from the cpex-core dispatcher
+// must flow a real authorization decision from the praxis-policy-core dispatcher
 // through `AplConfigVisitor` → `PdpFactory` → `CedarDirectResolver` →
 // Cedar's `Authorizer` → back into the route handler's deny/allow split.
 //
@@ -25,14 +25,16 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use cpex_core::cmf::enums::Role;
-use cpex_core::cmf::{CmfHook, Message, MessagePayload};
-use cpex_core::extensions::{MetaExtension, SecurityExtension, SubjectExtension, SubjectType};
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::manager::PluginManager;
+use praxis_policy_core::cmf::enums::Role;
+use praxis_policy_core::cmf::{CmfHook, Message, MessagePayload};
+use praxis_policy_core::extensions::{
+    MetaExtension, SecurityExtension, SubjectExtension, SubjectType,
+};
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::manager::PluginManager;
 
-use apl_cpex::{register_apl, AplOptions, DispatchCache, MemorySessionStore};
-use cpex_pdp_cedar_direct::CedarDirectPdpFactory;
+use praxis_policy_apl_runtime::{register_apl, AplOptions, DispatchCache, MemorySessionStore};
+use praxis_policy_pdp_cedar_direct::CedarDirectPdpFactory;
 
 // The configuration the visitor walks. Single Cedar permit policy that
 // only fires for principals carrying the `reader` role; everything else

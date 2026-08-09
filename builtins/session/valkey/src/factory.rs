@@ -4,13 +4,13 @@
 // Authors: Fred Araujo
 //
 // `ValkeySessionStoreFactory` — the `SessionStoreFactory` that lets the
-// apl-cpex visitor build a `ValkeySessionStore` from a
+// praxis-policy-apl-runtime visitor build a `ValkeySessionStore` from a
 // `global.apl.session_store: { kind: valkey, ... }` block. Mirrors the
 // PDP factories (CelPdpFactory, CedarDirectPdpFactory).
 
 use std::sync::Arc;
 
-use apl_cpex::{SessionStore, SessionStoreFactory};
+use praxis_policy_apl_runtime::{SessionStore, SessionStoreFactory};
 
 use crate::config::ValkeyConfig;
 use crate::store::ValkeySessionStore;

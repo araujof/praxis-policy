@@ -1,4 +1,4 @@
-// Location: ./crates/cpex-core/src/elicitation/payload.rs
+// Location: ./crates/ppe-core/src/elicitation/payload.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -9,7 +9,7 @@
 //
 //   * **Input** (private — bridge-supplied, never mutated by handlers) —
 //     `operation`, `elicitation_id`, `kind`, `from`, `purpose`, `scope`,
-//     `timeout`, `channel`. Set once by the apl-cpex bridge before
+//     `timeout`, `channel`. Set once by the praxis-policy-apl-runtime bridge before
 //     `invoke_entries::<ElicitationHook>`. Read through accessors; no
 //     setters or mutable field access at the module boundary.
 //
@@ -36,14 +36,14 @@
 // The hours-long human gap lives in the channel (e.g. Keycloak CIBA),
 // never in a handler call — each operation is short and synchronous.
 //
-// # Decoupling from apl-core
+// # Decoupling from praxis-policy-apl-core
 //
-// cpex-core does not depend on apl-core, so this module defines its own
+// praxis-policy-core does not depend on praxis-policy-apl-core, so this module defines its own
 // `ElicitationOp` / `ElicitationStatusKind` / `ElicitationOutcomeKind`
-// rather than reusing apl-core's `ElicitKind` / `ElicitationStatus`. The
-// apl-cpex bridge maps between the two. `kind` is a free string
+// rather than reusing praxis-policy-apl-core's `ElicitKind` / `ElicitationStatus`. The
+// praxis-policy-apl-runtime bridge maps between the two. `kind` is a free string
 // (`"approval"`, `"confirm"`, …) — the per-kind *validation contract* is
-// the apl-core runtime's job, so the handler only needs it informationally.
+// the praxis-policy-apl-core runtime's job, so the handler only needs it informationally.
 //
 // # Rejection
 //
@@ -73,7 +73,7 @@ pub enum ElicitationOp {
 }
 
 /// Current state of a dispatched elicitation, reported by a `Check`
-/// handler. Mirrors apl-core's `ElicitationStatus` shape without the
+/// handler. Mirrors praxis-policy-apl-core's `ElicitationStatus` shape without the
 /// dependency.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -110,10 +110,10 @@ pub struct ElicitationPayload {
 
     /// Elicitation kind (`"approval"`, `"confirm"`, `"step_up"`, …) —
     /// informational for the handler; the validation contract is enforced
-    /// by the apl-core runtime, not here.
+    /// by the praxis-policy-apl-core runtime, not here.
     kind: String,
 
-    /// Resolved approver identity (the apl-core `from` attr already
+    /// Resolved approver identity (the praxis-policy-apl-core `from` attr already
     /// resolved against the request bag by the bridge). For CIBA this is
     /// the `login_hint`.
     from: String,

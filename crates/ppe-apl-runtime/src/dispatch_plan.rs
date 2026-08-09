@@ -1,19 +1,19 @@
-// Location: ./crates/apl-cpex/src/dispatch_plan.rs
+// Location: ./crates/ppe-apl-runtime/src/dispatch_plan.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
 // `RouteDispatchPlan` + `DispatchCache` — pre-resolved per-route plugin
-// lineup that lets APL bypass cpex-core's hook-name + condition routing
+// lineup that lets APL bypass praxis-policy-core's hook-name + condition routing
 // while still going through the executor's full 5-phase pipeline.
 //
 // # Why pre-resolve?
 //
-// cpex-core's `invoke_named(hook_name, ...)` resolves the lineup on
+// praxis-policy-core's `invoke_named(hook_name, ...)` resolves the lineup on
 // every call: hook lookup → route/condition filter → group by mode →
 // dispatch. APL routes are already authoritative lineups (the YAML's
 // `routes.<r>.policy: [plugin(x), plugin(y)]` IS the plan). Re-resolving
-// per call wastes work and lets cpex-core's parallel routing model
+// per call wastes work and lets praxis-policy-core's parallel routing model
 // (entity-based conditions) override APL's intent.
 //
 // Building once per `(route_key, snapshot_generation)` and caching turns
@@ -43,21 +43,21 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, RwLock};
 
-use cpex_core::delegation::HOOK_TOKEN_DELEGATE;
-use cpex_core::elicitation::HOOK_ELICIT;
-use cpex_core::hooks::{lookup_hook_metadata, HookPhase};
-use cpex_core::manager::PluginManager;
-use cpex_core::plugin::OnError;
-use cpex_core::registry::HookEntry;
+use praxis_policy_core::delegation::HOOK_TOKEN_DELEGATE;
+use praxis_policy_core::elicitation::HOOK_ELICIT;
+use praxis_policy_core::hooks::{lookup_hook_metadata, HookPhase};
+use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::plugin::OnError;
+use praxis_policy_core::registry::HookEntry;
 
-use apl_core::pipeline::Stage;
-use apl_core::plugin_decl::{EffectivePlugin, PluginRegistry};
-use apl_core::rules::{CompiledRoute, Effect};
+use praxis_policy_apl_core::pipeline::Stage;
+use praxis_policy_apl_core::plugin_decl::{EffectivePlugin, PluginRegistry};
+use praxis_policy_apl_core::rules::{CompiledRoute, Effect};
 
 /// Per-plugin pre-resolved entries for one route. Stores ALL hook
 /// entries the plugin registered (keyed by hook name) so the
 /// dispatcher can pick the right one for the current context via the
-/// cpex-core hook routing table (`hooks::metadata::lookup`).
+/// praxis-policy-core hook routing table (`hooks::metadata::lookup`).
 ///
 /// Replaces the prior `step_entry` / `field_entry` slot model, which
 /// used a brittle naming heuristic to classify hooks and silently
@@ -76,7 +76,7 @@ pub struct RoutePluginEntry {
 impl RoutePluginEntry {
     /// Pick the entry whose registered hook matches the current
     /// dispatch context. Walks `entries_by_hook`, consults the
-    /// cpex-core hook metadata table for each, returns the first
+    /// praxis-policy-core hook metadata table for each, returns the first
     /// matching entry.
     ///
     /// `requested_entity_type` comes from the request's
@@ -131,9 +131,9 @@ pub struct RouteDispatchPlan {
 impl RouteDispatchPlan {
     /// Build a plan for the given route. Walks all steps + pipeline
     /// stages, collects the unique set of plugin names, resolves each
-    /// against cpex-core, and applies any APL route-level overrides.
+    /// against praxis-policy-core, and applies any APL route-level overrides.
     ///
-    /// Plugins referenced by APL but absent from cpex-core's registry
+    /// Plugins referenced by APL but absent from praxis-policy-core's registry
     /// (or absent from the APL `plugins:` block) are logged at `warn`
     /// and excluded — dispatch then fails with `PluginError::NotFound`
     /// when those plugins are invoked, which is the right behavior for
@@ -164,7 +164,7 @@ impl RouteDispatchPlan {
             let config_override = override_block.and_then(|o| o.config.as_ref());
             let caps_override: Option<std::collections::HashSet<String>> = if matches!(
                 eff.capabilities,
-                apl_core::plugin_decl::CapsView::Override(_)
+                praxis_policy_apl_core::plugin_decl::CapsView::Override(_)
             ) {
                 Some(eff.capabilities.as_slice().iter().cloned().collect())
             } else {
@@ -174,7 +174,7 @@ impl RouteDispatchPlan {
                 .and_then(|o| o.on_error.as_deref())
                 .and_then(parse_on_error);
 
-            // Hand the override decision to cpex-core. When no overrides
+            // Hand the override decision to praxis-policy-core. When no overrides
             // are declared, this returns the base entries unchanged
             // (no allocation, no factory call). When only caps/on_error
             // differ, it wraps the shared base plugin in a fresh
@@ -201,7 +201,7 @@ impl RouteDispatchPlan {
 
             // Store every (hook_name, HookEntry) pair the plugin
             // registered. Dispatch-time entry selection (pick_entry)
-            // consults cpex-core's hook routing table per hook name.
+            // consults praxis-policy-core's hook routing table per hook name.
             // Replaces the prior naming heuristic.
             let mut entries_by_hook: HashMap<String, HookEntry> = HashMap::new();
             for (hook_name, entry) in entries {
@@ -283,11 +283,11 @@ impl RouteDispatchPlan {
         self.plugins.get(plugin_name)
     }
 
-    /// Resolve a single plugin's entries straight off cpex-core, with
+    /// Resolve a single plugin's entries straight off praxis-policy-core, with
     /// no APL route-level overrides. Convenience for tests and for hosts
     /// that wire the invoker without a `CompiledRoute` in scope (e.g.
     /// adapters that invoke a single plugin imperatively). Returns
-    /// `None` if cpex-core has no entries for the plugin.
+    /// `None` if praxis-policy-core has no entries for the plugin.
     pub fn resolve_plugin(manager: &PluginManager, plugin_name: &str) -> Option<RoutePluginEntry> {
         let base_entries = manager.find_plugin_entries(plugin_name);
         if base_entries.is_empty() {
@@ -412,7 +412,7 @@ pub(crate) fn collect_plugin_names(route: &CompiledRoute) -> Vec<String> {
 /// `CompiledRoute` can dispatch to (with per-route overrides applied).
 ///
 /// This is what the synthetic `AplRouteHandler`'s `PluginConfig.capabilities`
-/// must be set to: cpex-core's executor filters the `Extensions` view
+/// must be set to: praxis-policy-core's executor filters the `Extensions` view
 /// before invoking every plugin (including the synthetic one), so if
 /// the handler has fewer capabilities than its inner plugins need,
 /// downstream views get doubly-filtered and label/delegation mutations
@@ -480,7 +480,7 @@ pub(crate) fn route_capability_union(
 /// across all `CmfPluginInvoker::for_request` calls so plans built for
 /// one request can be reused by the next.
 ///
-/// Cache key is the APL `route_key`. Entries pair with the cpex-core
+/// Cache key is the APL `route_key`. Entries pair with the praxis-policy-core
 /// snapshot generation observed at build time; a mismatch on lookup
 /// triggers eviction and rebuild. v0 keys on `route_key` only —
 /// entity-aware caching (entity_type/entity_name from `MetaExtension`)

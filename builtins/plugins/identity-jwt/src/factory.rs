@@ -8,7 +8,7 @@
 // Praxis filter, Envoy bridge, CLI test harness — wires it up the
 // same way.
 //
-// Operators declare it in CPEX YAML as:
+// Operators declare it in PPE YAML as:
 //
 //     plugins:
 //       - name: jwt-resolver
@@ -27,7 +27,7 @@
 
 use std::sync::Arc;
 
-use cpex_core::{
+use praxis_policy_core::{
     error::PluginError,
     factory::{PluginFactory, PluginInstance},
     hooks::TypedHandlerAdapter,
@@ -37,7 +37,7 @@ use cpex_core::{
 
 use crate::JwtIdentityResolver;
 
-/// The plugin `kind:` string operators write in CPEX YAML to declare
+/// The plugin `kind:` string operators write in PPE YAML to declare
 /// a JWT identity resolver.
 pub const KIND: &str = "identity/jwt";
 

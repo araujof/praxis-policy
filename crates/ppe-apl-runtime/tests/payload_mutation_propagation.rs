@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cpex/tests/payload_mutation_propagation.rs
+// Location: ./crates/ppe-apl-runtime/tests/payload_mutation_propagation.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Fred Araujo
@@ -21,18 +21,20 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use cpex_core::cmf::enums::Role;
-use cpex_core::cmf::{CmfHook, ContentPart, Message, MessagePayload, ToolCall, ToolResult};
-use cpex_core::context::PluginContext;
-use cpex_core::error::PluginError as CoreError;
-use cpex_core::factory::{PluginFactory, PluginInstance};
-use cpex_core::hooks::adapter::TypedHandlerAdapter;
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::hooks::trait_def::{HookHandler, PluginResult};
-use cpex_core::manager::PluginManager;
-use cpex_core::plugin::{Plugin, PluginConfig};
+use praxis_policy_core::cmf::enums::Role;
+use praxis_policy_core::cmf::{
+    CmfHook, ContentPart, Message, MessagePayload, ToolCall, ToolResult,
+};
+use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::error::PluginError as CoreError;
+use praxis_policy_core::factory::{PluginFactory, PluginInstance};
+use praxis_policy_core::hooks::adapter::TypedHandlerAdapter;
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
+use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::plugin::{Plugin, PluginConfig};
 
-use apl_cpex::{register_apl, AplOptions, DispatchCache, MemorySessionStore};
+use praxis_policy_apl_runtime::{register_apl, AplOptions, DispatchCache, MemorySessionStore};
 
 // ---------------------------------------------------------------------
 // Fixtures
@@ -208,7 +210,7 @@ impl HookHandler<CmfHook> for DenyPlugin {
         _extensions: &Extensions,
         _ctx: &mut PluginContext,
     ) -> PluginResult<MessagePayload> {
-        PluginResult::deny(cpex_core::error::PluginViolation::new(
+        PluginResult::deny(praxis_policy_core::error::PluginViolation::new(
             "policy.forbidden",
             "test fixture denied this call",
         ))
@@ -322,7 +324,7 @@ async fn manager_with_yaml(
 /// Routes match on the request's entity type + name, so a request needs
 /// tool meta for the `tool: get_weather` handler to fire at all.
 fn tool_meta() -> Extensions {
-    let mut meta = cpex_core::extensions::MetaExtension::default();
+    let mut meta = praxis_policy_core::extensions::MetaExtension::default();
     meta.entity_type = Some("tool".to_string());
     meta.entity_name = Some("get_weather".to_string());
     Extensions {
@@ -362,7 +364,7 @@ fn payload_of(role: Role, parts: Vec<ContentPart>) -> MessagePayload {
 }
 
 /// The payload the host would forward, downcast back to CMF.
-fn forwarded(result: &cpex_core::executor::PipelineResult) -> MessagePayload {
+fn forwarded(result: &praxis_policy_core::executor::PipelineResult) -> MessagePayload {
     result
         .modified_payload
         .as_ref()

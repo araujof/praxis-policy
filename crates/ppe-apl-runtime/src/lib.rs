@@ -1,13 +1,13 @@
-// Location: ./crates/apl-cpex/src/lib.rs
+// Location: ./crates/ppe-apl-runtime/src/lib.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
-// apl-cpex — bridge between APL evaluator (`apl-core`) and CPEX runtime
-// (`cpex-core`).
+// praxis-policy-apl-runtime — bridge between APL evaluator (`praxis-policy-apl-core`) and PPE runtime
+// (`praxis-policy-core`).
 //
-// `apl-core::PluginInvoker` is string-typed by design (so `apl-core`
-// stays free of CPEX deps). The actual typed boundary lives in this
+// `praxis-policy-apl-core::PluginInvoker` is string-typed by design (so `praxis-policy-apl-core`
+// stays free of PPE deps). The actual typed boundary lives in this
 // crate: one `PluginInvoker` implementation per `HookTypeDef`. The
 // payload type is locked at the impl level — e.g. [`CmfPluginInvoker`]
 // can only dispatch to CMF hooks because every internal call goes
@@ -26,7 +26,7 @@
 // outbound MCP tools/call from the agent). Both are single-part, so the
 // route → MessageView matching collapses to "one route fires per
 // Message." When response-side handling lands, this assumption breaks
-// and apl-core's route-matching layer needs to switch from
+// and praxis-policy-apl-core's route-matching layer needs to switch from
 // routes-as-map to routes-as-list with a `match:` block filtering on
 // MessageView attributes. See the APL implementation memory's
 // "list-with-matchers" deferred item.

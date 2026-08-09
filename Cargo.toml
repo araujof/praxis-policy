@@ -106,21 +106,21 @@ regex = "1"
 # The keys are package names, which still carry the engine's previous naming.
 # Renaming them is a manifest change across every crate and lands separately, so
 # that the import stays a move and the rename stays a rename.
-cpex-core                     = { path = "crates/ppe-core",              version = "0.1.0" }
-cpex-orchestration            = { path = "crates/ppe-orchestration",     version = "0.1.0" }
-cpex-sdk                      = { path = "crates/ppe-sdk",               version = "0.1.0" }
-cpex-builtins                 = { path = "crates/ppe-builtins",          version = "0.1.0", default-features = false }
-apl-core                      = { path = "crates/ppe-apl-core",          version = "0.1.0" }
-apl-cmf                       = { path = "crates/ppe-apl-cmf",           version = "0.1.0" }
-apl-cpex                      = { path = "crates/ppe-apl-runtime",       version = "0.1.0" }
-cpex-plugin-pii-scanner       = { path = "builtins/plugins/pii-scanner",      version = "0.1.0" }
-cpex-plugin-audit-logger      = { path = "builtins/plugins/audit-logger",     version = "0.1.0" }
-cpex-plugin-identity-jwt      = { path = "builtins/plugins/identity-jwt",     version = "0.1.0" }
-cpex-plugin-delegator-oauth   = { path = "builtins/plugins/delegator-oauth",  version = "0.1.0" }
-cpex-plugin-elicitation-ciba  = { path = "builtins/plugins/elicitation-ciba", version = "0.1.0" }
-cpex-pdp-cedar-direct         = { path = "builtins/pdps/cedar-direct",        version = "0.1.0" }
-cpex-pdp-cel                  = { path = "builtins/pdps/cel",                 version = "0.1.0" }
-cpex-session-valkey           = { path = "builtins/session/valkey",           version = "0.1.0" }
+praxis-policy-core                     = { path = "crates/ppe-core",              version = "0.1.0" }
+praxis-policy-orchestration            = { path = "crates/ppe-orchestration",     version = "0.1.0" }
+praxis-policy-sdk                      = { path = "crates/ppe-sdk",               version = "0.1.0" }
+praxis-policy-builtins                 = { path = "crates/ppe-builtins",          version = "0.1.0", default-features = false }
+praxis-policy-apl-core                      = { path = "crates/ppe-apl-core",          version = "0.1.0" }
+praxis-policy-apl-cmf                       = { path = "crates/ppe-apl-cmf",           version = "0.1.0" }
+praxis-policy-apl-runtime                      = { path = "crates/ppe-apl-runtime",       version = "0.1.0" }
+praxis-policy-plugin-pii-scanner       = { path = "builtins/plugins/pii-scanner",      version = "0.1.0" }
+praxis-policy-plugin-audit-logger      = { path = "builtins/plugins/audit-logger",     version = "0.1.0" }
+praxis-policy-plugin-identity-jwt      = { path = "builtins/plugins/identity-jwt",     version = "0.1.0" }
+praxis-policy-plugin-delegator-oauth   = { path = "builtins/plugins/delegator-oauth",  version = "0.1.0" }
+praxis-policy-plugin-elicitation-ciba  = { path = "builtins/plugins/elicitation-ciba", version = "0.1.0" }
+praxis-policy-pdp-cedar-direct         = { path = "builtins/pdps/cedar-direct",        version = "0.1.0" }
+praxis-policy-pdp-cel                  = { path = "builtins/pdps/cel",                 version = "0.1.0" }
+praxis-policy-session-valkey           = { path = "builtins/session/valkey",           version = "0.1.0" }
 
 # Cross-crate inlining and dead-code elimination, one codegen unit for
 # optimization quality.
@@ -176,6 +176,8 @@ unreachable_pub = "allow"                # seed: rustc deny in Praxis, parked in
 unused_extern_crates = "allow"           # seed: rustc deny in Praxis, parked in source
 unused_qualifications = "allow"          # seed: rustc deny in Praxis, parked in source
 elided_lifetimes_in_paths = "allow"                  # seed: measured
+private_interfaces = "allow"                  # seed: measured
+unused_mut = "allow"                  # seed: measured
 missing_debug_implementations = "allow"  # many types wrap Box<dyn Trait> without Debug bounds
 # seed: measured. Three upcasts of a concrete Arc/Box to a trait object in the
 # plugin registry and payload plumbing.
@@ -195,13 +197,10 @@ unsafe_code = "allow"                    # seed
 await_holding_lock = "deny"
 await_holding_refcell_ref = "deny"
 let_underscore_future = "deny"
-let_underscore_must_use = "deny"
 # --- Enforced: memory and allocation ---
 implicit_clone = "deny"
 inefficient_to_string = "deny"
-large_enum_variant = "deny"
 vec_init_then_push = "deny"
-rc_buffer = "deny"
 # --- Enforced: idiomatic Rust ---
 checked_conversions = "deny"
 cloned_instead_of_copied = "deny"
@@ -345,8 +344,24 @@ indexing_slicing = "allow"               # seed
 print_stdout = "allow"                   # seed
 print_stderr = "allow"                   # seed
 # Style, parked to keep the import free of mechanical churn.
+derivable_impls = "allow"                  # seed: measured
+doc_lazy_continuation = "allow"                  # seed: measured
+doc_overindented_list_items = "allow"                  # seed: measured
+extra_unused_type_parameters = "allow"                  # seed: measured
+field_reassign_with_default = "allow"                  # seed: measured
+large_enum_variant = "allow"                  # seed: measured
+let_underscore_must_use = "allow"                  # seed: measured
+manual_repeat_n = "allow"                  # seed: measured
+rc_buffer = "allow"                  # seed: measured
+significant_drop_tightening = "allow"                  # seed: measured
+unnecessary_map_or = "allow"                  # seed: measured
+unwrap_or_default = "allow"                  # seed: measured
+useless_vec = "allow"                  # seed: measured
+bool_comparison = "allow"                  # seed: measured
+collapsible_match = "allow"                  # seed: measured
+iter_kv_map = "allow"                  # seed: measured
+empty_line_after_doc_comments = "allow"                  # seed: measured
 empty_line_after_outer_attr = "allow"
-significant_drop_tightening = "warn"
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "deny"

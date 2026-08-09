@@ -1,4 +1,4 @@
-// Location: ./crates/cpex-core/src/hooks/types.rs
+// Location: ./crates/ppe-core/src/hooks/types.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -26,8 +26,8 @@ use serde::{Deserialize, Serialize};
 /// # Examples
 ///
 /// ```
-/// use cpex_core::hooks::HookType;
-/// use cpex_core::hooks::types::hook_names;
+/// use praxis_policy_core::hooks::HookType;
+/// use praxis_policy_core::hooks::types::hook_names;
 ///
 /// // Use a built-in name constant
 /// let hook = HookType::new(hook_names::TOOL_PRE_INVOKE);

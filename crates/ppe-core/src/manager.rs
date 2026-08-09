@@ -1,4 +1,4 @@
-// Location: ./crates/cpex-core/src/manager.rs
+// Location: ./crates/ppe-core/src/manager.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor, Fred Araujo
@@ -32,7 +32,7 @@ use std::sync::{Arc, RwLock};
 use hashbrown::HashMap;
 use tracing::{error, info, warn};
 
-use crate::config::{self, CpexConfig};
+use crate::config::{self, PolicyConfig};
 use crate::context::PluginContextTable;
 use crate::error::PluginError;
 use crate::executor::{BackgroundTasks, Executor, ExecutorConfig, PipelineResult};
@@ -156,8 +156,8 @@ struct RuntimeSnapshot {
     /// Executor — stateless 5-phase pipeline engine.
     executor: Executor,
 
-    /// Parsed CPEX config (when loaded from file). Used for route resolution.
-    cpex_config: Option<CpexConfig>,
+    /// Parsed PPE config (when loaded from file). Used for route resolution.
+    policy_config: Option<PolicyConfig>,
 
     /// Maximum number of entries the route cache will hold. Once reached,
     /// new resolutions are computed normally but not memoized (reject-on-full).
@@ -172,12 +172,12 @@ struct RuntimeSnapshot {
     /// Per-hook keying lets an orchestrator install distinct handlers for
     /// `cmf.tool_pre_invoke` and `cmf.tool_post_invoke` on the same route —
     /// useful when the pre/post phases need different handler state (e.g.
-    /// apl-cpex's `AplRouteHandler` binds each instance to either
+    /// praxis-policy-apl-runtime's `AplRouteHandler` binds each instance to either
     /// `evaluate_pre` or `evaluate_post`).
     ///
     /// `scope` (None vs `Some("virtual-server-A")`) lets two virtual
     /// servers / gateways with the same tool name carry distinct
-    /// orchestrators. Matching mirrors cpex-core's existing
+    /// orchestrators. Matching mirrors praxis-policy-core's existing
     /// `find_matching_route` semantics: a scoped request first tries the
     /// exact `(et, en, Some(req_scope), hook)` annotation; on miss it falls
     /// back to the unscoped `(et, en, None, hook)` default. An unscoped
@@ -188,7 +188,7 @@ struct RuntimeSnapshot {
     /// The plugins listed under the matching route are *still* registered
     /// in the registry — they remain discoverable via `find_plugin_entries`
     /// so the annotated handler can dispatch into them by-name (this is
-    /// what apl-cpex's `AplRouteHandler` does via `CmfPluginInvoker` for
+    /// what praxis-policy-apl-runtime's `AplRouteHandler` does via `CmfPluginInvoker` for
     /// `plugin(name)` references inside APL rules).
     route_annotations: HashMap<AnnotationKey, crate::registry::HookEntry>,
 }
@@ -238,7 +238,7 @@ pub struct PluginManager {
 
     /// Monotonic config-generation counter. Bumped every time the runtime
     /// snapshot is swapped (factory mutation, config (re)load, plugin
-    /// register/unregister). External orchestrators (apl-cpex's dispatch
+    /// register/unregister). External orchestrators (praxis-policy-apl-runtime's dispatch
     /// plan cache) pair their cached values with the generation seen at
     /// build time; a generation mismatch on lookup signals "evict + rebuild."
     /// Starts at 0; first snapshot publish (empty registry) leaves it at 0,
@@ -259,7 +259,7 @@ pub struct PluginManager {
     /// in registration order during `load_config_yaml` (after plugin
     /// instantiation) so each visitor can inspect raw YAML sections and
     /// install handlers via `annotate_route`. Empty by default — the
-    /// `load_config(CpexConfig)` path skips visitors entirely.
+    /// `load_config(PolicyConfig)` path skips visitors entirely.
     visitors: RwLock<Vec<Arc<dyn crate::visitor::ConfigVisitor>>>,
 }
 
@@ -269,7 +269,7 @@ pub struct PluginManager {
 ///
 /// `user_patterns` / `content_types` on `PluginCondition` are not warned
 /// — they were wired up alongside this fix and now actually filter.
-fn warn_on_inactive_settings(cfg: &CpexConfig) {
+fn warn_on_inactive_settings(cfg: &PolicyConfig) {
     if !cfg.plugin_dirs.is_empty() {
         warn!(
             "config sets `plugin_dirs` (count={}) but the runtime does not \
@@ -334,19 +334,19 @@ fn instantiate_plugins_into(
 }
 
 /// Build a `RuntimeSnapshot` from a populated registry plus the YAML
-/// settings on `cpex_config`. Pulls executor timeout / short-circuit and
+/// settings on `policy_config`. Pulls executor timeout / short-circuit and
 /// the route-cache cap from `plugin_settings` so both registration paths
 /// agree on field-by-field translation.
-fn snapshot_from_config(registry: PluginRegistry, cpex_config: CpexConfig) -> RuntimeSnapshot {
+fn snapshot_from_config(registry: PluginRegistry, policy_config: PolicyConfig) -> RuntimeSnapshot {
     let executor = Executor::new(ExecutorConfig {
-        timeout_seconds: cpex_config.plugin_settings.plugin_timeout,
-        short_circuit_on_deny: cpex_config.plugin_settings.short_circuit_on_deny,
+        timeout_seconds: policy_config.plugin_settings.plugin_timeout,
+        short_circuit_on_deny: policy_config.plugin_settings.short_circuit_on_deny,
     });
-    let route_cache_max_entries = cpex_config.plugin_settings.route_cache_max_entries;
+    let route_cache_max_entries = policy_config.plugin_settings.route_cache_max_entries;
     RuntimeSnapshot {
         registry,
         executor,
-        cpex_config: Some(cpex_config),
+        policy_config: Some(policy_config),
         route_cache_max_entries,
         route_annotations: HashMap::new(),
     }
@@ -359,7 +359,7 @@ impl PluginManager {
         let snapshot = RuntimeSnapshot {
             registry: PluginRegistry::new(),
             executor: Executor::new(config.executor),
-            cpex_config: None,
+            policy_config: None,
             route_cache_max_entries: config.route_cache_max_entries,
             route_annotations: HashMap::new(),
         };
@@ -419,7 +419,7 @@ impl PluginManager {
 
     /// Monotonic counter that increments on every runtime snapshot swap
     /// (registry mutation, config (re)load). External orchestrators
-    /// (e.g. apl-cpex's dispatch-plan cache) pair their cached values
+    /// (e.g. praxis-policy-apl-runtime's dispatch-plan cache) pair their cached values
     /// with the generation seen at build time; a mismatch on lookup
     /// signals "evict + rebuild." `Acquire` pairs with the `Release`
     /// fetch_add in `mutate_runtime` / `try_mutate_runtime` so observing
@@ -468,8 +468,8 @@ impl PluginManager {
     /// manager.initialize().await?;
     /// ```
     pub fn load_config_file(&self, path: &Path) -> Result<(), Box<PluginError>> {
-        let cpex_config = config::load_config(path)?;
-        self.load_config(cpex_config)
+        let policy_config = config::load_config(path)?;
+        self.load_config(policy_config)
     }
 
     /// Load plugins from a parsed config.
@@ -477,8 +477,8 @@ impl PluginManager {
     /// Looks up each plugin's `kind` in the factory registry,
     /// instantiates the plugins, and registers them with their
     /// hook names from the config.
-    pub fn load_config(&self, cpex_config: CpexConfig) -> Result<(), Box<PluginError>> {
-        warn_on_inactive_settings(&cpex_config);
+    pub fn load_config(&self, policy_config: PolicyConfig) -> Result<(), Box<PluginError>> {
+        warn_on_inactive_settings(&policy_config);
 
         // Build the new snapshot from the current one — copy-on-write so
         // concurrent invokes keep using the existing config until we swap.
@@ -489,14 +489,14 @@ impl PluginManager {
         let current = self.runtime.load_full();
         let mut new_registry = current.registry.clone();
 
-        instantiate_plugins_into(&mut new_registry, &cpex_config.plugins, &factories)?;
+        instantiate_plugins_into(&mut new_registry, &policy_config.plugins, &factories)?;
 
         // Drop the factories read lock before taking other locks
         // (route_cache write below) to avoid lock-ordering hazards.
         drop(factories);
 
         self.runtime
-            .store(Arc::new(snapshot_from_config(new_registry, cpex_config)));
+            .store(Arc::new(snapshot_from_config(new_registry, policy_config)));
         // Same generation bump as mutate_runtime — load_config doesn't
         // go through that helper because it has to swap registry + executor
         // + cache-cap atomically as one snapshot.
@@ -519,10 +519,10 @@ impl PluginManager {
     }
 
     /// Load a unified-config YAML string. Parses the YAML twice — once
-    /// into a typed `CpexConfig` for plugin instantiation, once into a
+    /// into a typed `PolicyConfig` for plugin instantiation, once into a
     /// raw `serde_yaml::Value` so visitors can inspect orchestrator-
-    /// specific blocks (e.g. `apl:`) that cpex-core itself doesn't
-    /// model. Calls existing `load_config(cpex_config)` first, then
+    /// specific blocks (e.g. `apl:`) that praxis-policy-core itself doesn't
+    /// model. Calls existing `load_config(policy_config)` first, then
     /// walks each registered visitor over the raw YAML's sections in
     /// the documented hierarchy order:
     ///
@@ -539,16 +539,16 @@ impl PluginManager {
     /// method as a hard stop).
     pub fn load_config_yaml(self: &Arc<Self>, yaml: &str) -> Result<(), Box<PluginError>> {
         // Parse once into a Value so the raw shape is available to
-        // visitors. Then deserialize from that Value into CpexConfig —
+        // visitors. Then deserialize from that Value into PolicyConfig —
         // saves a second tokenize/lex pass vs parsing the string twice.
         let raw: serde_yaml::Value = serde_yaml::from_str(yaml).map_err(|e| {
             Box::new(PluginError::Config {
                 message: format!("YAML parse error: {}", e),
             })
         })?;
-        let mut cpex_config: CpexConfig = serde_yaml::from_value(raw.clone()).map_err(|e| {
+        let mut policy_config: PolicyConfig = serde_yaml::from_value(raw.clone()).map_err(|e| {
             Box::new(PluginError::Config {
-                message: format!("CpexConfig deserialize error: {}", e),
+                message: format!("PolicyConfig deserialize error: {}", e),
             })
         })?;
 
@@ -558,18 +558,18 @@ impl PluginManager {
         // group's plugins + `authentication:`), never rejects the renamed
         // `identity:` key, and never validates references.
         crate::config::reject_renamed_identity_key(&raw)?;
-        crate::config::merge_groups_into_policies(&mut cpex_config);
-        crate::config::validate_config(&cpex_config)?;
+        crate::config::merge_groups_into_policies(&mut policy_config);
+        crate::config::validate_config(&policy_config)?;
 
         // Snapshot the parsed routes + plugin declarations before
         // load_config moves the config — visitors get the typed
         // structures side-by-side with the raw YAML so they don't have
-        // to re-deserialize anything cpex-core has already validated.
-        let parsed_routes: Vec<crate::config::RouteEntry> = cpex_config.routes.clone();
-        let parsed_plugins: Vec<crate::plugin::PluginConfig> = cpex_config.plugins.clone();
+        // to re-deserialize anything praxis-policy-core has already validated.
+        let parsed_routes: Vec<crate::config::RouteEntry> = policy_config.routes.clone();
+        let parsed_plugins: Vec<crate::plugin::PluginConfig> = policy_config.plugins.clone();
 
         // Existing plugin-instantiation path.
-        self.load_config(cpex_config)?;
+        self.load_config(policy_config)?;
 
         // Visitor walk. No-op when no visitors registered — the common
         // case for hosts that don't use the orchestrator extension point.
@@ -699,23 +699,23 @@ impl PluginManager {
     /// at runtime, use `register_factory()` + `load_config()` instead
     /// so the manager owns the factories.
     pub fn from_config(
-        cpex_config: CpexConfig,
+        policy_config: PolicyConfig,
         factories: &PluginFactoryRegistry,
     ) -> Result<Self, Box<PluginError>> {
-        warn_on_inactive_settings(&cpex_config);
+        warn_on_inactive_settings(&policy_config);
 
         let manager = Self::new(ManagerConfig {
             executor: ExecutorConfig::default(),
-            route_cache_max_entries: cpex_config.plugin_settings.route_cache_max_entries,
+            route_cache_max_entries: policy_config.plugin_settings.route_cache_max_entries,
         });
 
         // Instantiate into a fresh registry, then publish atomically.
         let mut new_registry = PluginRegistry::new();
-        instantiate_plugins_into(&mut new_registry, &cpex_config.plugins, factories)?;
+        instantiate_plugins_into(&mut new_registry, &policy_config.plugins, factories)?;
 
         manager
             .runtime
-            .store(Arc::new(snapshot_from_config(new_registry, cpex_config)));
+            .store(Arc::new(snapshot_from_config(new_registry, policy_config)));
 
         Ok(manager)
     }
@@ -1143,7 +1143,7 @@ impl PluginManager {
     /// Find every (hook_name, HookEntry) pair belonging to the named
     /// plugin. Returns an empty `Vec` if the plugin isn't registered.
     ///
-    /// Used by external orchestrators (notably apl-cpex) that decide
+    /// Used by external orchestrators (notably praxis-policy-apl-runtime) that decide
     /// the per-route plugin lineup themselves and need handler refs +
     /// trusted_config to build pre-resolved dispatch plans. Cheaper than
     /// going through `invoke_named` per request because the caller can
@@ -1153,7 +1153,7 @@ impl PluginManager {
     ///
     /// Bypasses route/entity filtering — caller has already decided this
     /// plugin should run. APL's `routes:` is itself the authoritative
-    /// lineup; cpex-core's condition-based routing is a parallel model
+    /// lineup; praxis-policy-core's condition-based routing is a parallel model
     /// for non-APL hosts.
     pub fn find_plugin_entries(
         &self,
@@ -1215,7 +1215,7 @@ impl PluginManager {
     ///
     /// This is the integration point external orchestrators (APL, future
     /// Rego/Cedar-direct/Custom) use to drive plugins via their own
-    /// semantics instead of cpex-core's imperative `routes.*.plugins:`
+    /// semantics instead of praxis-policy-core's imperative `routes.*.plugins:`
     /// chain. Bumps the config generation so cached dispatch plans in
     /// downstream caches invalidate.
     ///
@@ -1223,7 +1223,7 @@ impl PluginManager {
     /// the executor reads `mode`, `on_error`, `capabilities`, etc. from
     /// it the same way it does for any other registered plugin. Capabilities
     /// should be a *superset* of what the orchestrator needs to read from
-    /// `Extensions` (cpex-core's per-plugin filter still applies to the
+    /// `Extensions` (praxis-policy-core's per-plugin filter still applies to the
     /// synthetic handler).
     ///
     /// The underlying `plugins:` chain for this route is *not* removed —
@@ -1300,9 +1300,9 @@ impl PluginManager {
         // Route annotation short-circuit: if the request's
         // (entity_type, entity_name) has an annotation that handles this
         // hook, return a one-entry list containing the annotated handler.
-        // External orchestrators (APL via apl-cpex; future Rego/Cedar)
+        // External orchestrators (APL via praxis-policy-apl-runtime; future Rego/Cedar)
         // register annotations to drive plugin dispatch under their own
-        // semantics instead of cpex-core's imperative chain. Underlying
+        // semantics instead of praxis-policy-core's imperative chain. Underlying
         // `plugins:` entries stay in the registry for the orchestrator
         // to dispatch into by-name via `invoke_entries`.
         if !snapshot.route_annotations.is_empty() {
@@ -1340,7 +1340,7 @@ impl PluginManager {
         // condition filtering. Empty conditions Vec means "fire always",
         // so this is backward-compatible with configs that don't use
         // conditions. Mirrors the Python implementation.
-        let cpex_config = match &snapshot.cpex_config {
+        let policy_config = match &snapshot.policy_config {
             Some(c) if c.routing_enabled() => c,
             _ => {
                 let filtered: Vec<_> = entries
@@ -1404,14 +1404,14 @@ impl PluginManager {
         // other hook, the generic plugins-block resolution applies.
         let resolved = if hook_name == crate::identity::HOOK_IDENTITY_RESOLVE {
             config::resolve_identity_plugins_for_route(
-                cpex_config,
+                policy_config,
                 entity_type,
                 entity_name,
                 request_scope,
             )
         } else {
             config::resolve_plugins_for_entity(
-                cpex_config,
+                policy_config,
                 entity_type,
                 entity_name,
                 request_scope,
@@ -1481,9 +1481,9 @@ impl PluginManager {
 
     /// Build per-hook `HookEntry`s for a plugin with optional route-
     /// level overrides. Used by external orchestrators (notably
-    /// apl-cpex's dispatch plan) that need to splice per-route plugin
+    /// praxis-policy-apl-runtime's dispatch plan) that need to splice per-route plugin
     /// variants — different `config`, narrower `capabilities`, different
-    /// `on_error` — into the dispatch lineup while keeping cpex-core
+    /// `on_error` — into the dispatch lineup while keeping praxis-policy-core
     /// the source of truth for instantiation and isolation.
     ///
     /// Behavior:
@@ -3886,7 +3886,7 @@ routes:
       - target
 "#
             );
-            let cpex_config = crate::config::parse_config(&yaml).unwrap();
+            let policy_config = crate::config::parse_config(&yaml).unwrap();
 
             let mgr = PluginManager::default();
             let counter = StdArc::new(AtomicUsize::new(0));
@@ -3914,7 +3914,7 @@ routes:
                 "test/allow",
                 Box::new(ParamFactory(StdArc::clone(&counter))),
             );
-            mgr.load_config(cpex_config).unwrap();
+            mgr.load_config(policy_config).unwrap();
             mgr.initialize().await.unwrap();
 
             let p: Box<dyn PluginPayload> = Box::new(TestPayload { value: "x".into() });
@@ -4135,12 +4135,12 @@ plugins:
 plugin_settings:
   plugin_timeout: 60
 "#;
-        let cpex_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = crate::config::parse_config(yaml).unwrap();
 
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
 
-        let mgr = PluginManager::from_config(cpex_config, &factories).unwrap();
+        let mgr = PluginManager::from_config(policy_config, &factories).unwrap();
         mgr.initialize().await.unwrap();
 
         assert_eq!(mgr.plugin_count(), 1);
@@ -4157,12 +4157,12 @@ plugins:
     mode: sequential
     priority: 10
 "#;
-        let cpex_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = crate::config::parse_config(yaml).unwrap();
 
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/deny", Box::new(DenyPluginFactory));
 
-        let mgr = PluginManager::from_config(cpex_config, &factories).unwrap();
+        let mgr = PluginManager::from_config(policy_config, &factories).unwrap();
         mgr.initialize().await.unwrap();
 
         let payload: Box<dyn PluginPayload> = Box::new(TestPayload {
@@ -4186,10 +4186,10 @@ plugins:
     kind: unknown/type
     hooks: [test_hook]
 "#;
-        let cpex_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = crate::config::parse_config(yaml).unwrap();
         let factories = PluginFactoryRegistry::new(); // empty — no factories
 
-        let result = PluginManager::from_config(cpex_config, &factories);
+        let result = PluginManager::from_config(policy_config, &factories);
         match result {
             Err(e) => assert!(
                 e.to_string().contains("no factory registered"),
@@ -4215,13 +4215,13 @@ plugins:
     mode: sequential
     priority: 10
 "#;
-        let cpex_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = crate::config::parse_config(yaml).unwrap();
 
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
         factories.register("test/deny", Box::new(DenyPluginFactory));
 
-        let mgr = PluginManager::from_config(cpex_config, &factories).unwrap();
+        let mgr = PluginManager::from_config(policy_config, &factories).unwrap();
         mgr.initialize().await.unwrap();
 
         assert_eq!(mgr.plugin_count(), 2);
@@ -4259,11 +4259,11 @@ plugins:
 routes:
   - tool: get_compensation
 "#;
-        let cpex_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = crate::config::parse_config(yaml).unwrap();
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
 
-        let mgr = PluginManager::from_config(cpex_config, &factories).unwrap();
+        let mgr = PluginManager::from_config(policy_config, &factories).unwrap();
         mgr.initialize().await.unwrap();
 
         assert_eq!(mgr.routing_cache_size(), 0);
@@ -4303,7 +4303,7 @@ routes:
     }
 
     /// Regression (typed path): `load_config_yaml` used to deserialize
-    /// `CpexConfig` directly and skip `parse_config`'s normalization, so a
+    /// `PolicyConfig` directly and skip `parse_config`'s normalization, so a
     /// top-level `groups:` bundle never folded into `global.policies` and a
     /// route joining it lost the group's plugins. Here the deny plugin lives
     /// ONLY in the group — if it isn't folded into resolution, nothing runs
@@ -4419,11 +4419,11 @@ routes:
   - tool: get_compensation
   - tool: send_email
 "#;
-        let cpex_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = crate::config::parse_config(yaml).unwrap();
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
 
-        let mgr = PluginManager::from_config(cpex_config, &factories).unwrap();
+        let mgr = PluginManager::from_config(policy_config, &factories).unwrap();
         mgr.initialize().await.unwrap();
 
         // context_table = None (first invocation)
@@ -4472,11 +4472,11 @@ plugins:
 routes:
   - tool: get_compensation
 "#;
-        let cpex_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = crate::config::parse_config(yaml).unwrap();
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
 
-        let mgr = PluginManager::from_config(cpex_config, &factories).unwrap();
+        let mgr = PluginManager::from_config(policy_config, &factories).unwrap();
         mgr.initialize().await.unwrap();
 
         // context_table = None (first invocation)
@@ -4513,11 +4513,11 @@ plugins:
 routes:
   - tool: get_compensation
 "#;
-        let cpex_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = crate::config::parse_config(yaml).unwrap();
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
 
-        let mgr = PluginManager::from_config(cpex_config, &factories).unwrap();
+        let mgr = PluginManager::from_config(policy_config, &factories).unwrap();
         mgr.initialize().await.unwrap();
 
         let payload: Box<dyn PluginPayload> = Box::new(TestPayload { value: "t".into() });
@@ -4589,11 +4589,11 @@ routes:
   - tool: b
   - tool: c
 "#;
-        let cpex_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = crate::config::parse_config(yaml).unwrap();
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
 
-        let mgr = PluginManager::from_config(cpex_config, &factories).unwrap();
+        let mgr = PluginManager::from_config(policy_config, &factories).unwrap();
         mgr.initialize().await.unwrap();
 
         let invoke_for = |entity: &'static str| -> (Box<dyn PluginPayload>, Extensions) {
@@ -4662,11 +4662,11 @@ plugins:
 routes:
   - tool: get_compensation
 "#;
-        let cpex_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = crate::config::parse_config(yaml).unwrap();
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
 
-        let mgr = PluginManager::from_config(cpex_config, &factories).unwrap();
+        let mgr = PluginManager::from_config(policy_config, &factories).unwrap();
         mgr.initialize().await.unwrap();
 
         let payload: Box<dyn PluginPayload> = Box::new(TestPayload { value: "t".into() });
@@ -4709,11 +4709,11 @@ plugins:
 routes:
   - tool: get_compensation
 "#;
-        let cpex_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = crate::config::parse_config(yaml).unwrap();
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
 
-        let mgr = PluginManager::from_config(cpex_config, &factories).unwrap();
+        let mgr = PluginManager::from_config(policy_config, &factories).unwrap();
         mgr.initialize().await.unwrap();
 
         // context_table = None (first invocation)
@@ -4768,12 +4768,12 @@ routes:
           config:
             max_requests: 10
 "#;
-        let cpex_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = crate::config::parse_config(yaml).unwrap();
 
         // Use register_factory + load_config so manager owns factories
         let mgr = PluginManager::default();
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
-        mgr.load_config(cpex_config).unwrap();
+        mgr.load_config(policy_config).unwrap();
         mgr.initialize().await.unwrap();
 
         // Invoke with routing — should create override instance
@@ -4874,11 +4874,11 @@ routes:
           config:
             max_requests: 10
 "#;
-        let cpex_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = crate::config::parse_config(yaml).unwrap();
 
         let mgr = PluginManager::default();
         mgr.register_factory("test/init_tracking", Box::new(InitTrackingFactory));
-        mgr.load_config(cpex_config).unwrap();
+        mgr.load_config(policy_config).unwrap();
         mgr.initialize().await.unwrap();
 
         // Base plugin was initialized exactly once during mgr.initialize().
@@ -4945,11 +4945,11 @@ routes:
           config:
             something: changed
 "#;
-        let cpex_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = crate::config::parse_config(yaml).unwrap();
 
         let mgr = PluginManager::default();
         mgr.register_factory("test/error_on_invoke", Box::new(ErrorOnInvokeFactory));
-        mgr.load_config(cpex_config).unwrap();
+        mgr.load_config(policy_config).unwrap();
         mgr.initialize().await.unwrap();
 
         assert!(
@@ -4990,11 +4990,11 @@ plugins:
 plugin_settings:
   plugin_timeout: 45
 "#;
-        let cpex_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = crate::config::parse_config(yaml).unwrap();
 
         let mgr = PluginManager::default();
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
-        mgr.load_config(cpex_config).unwrap();
+        mgr.load_config(policy_config).unwrap();
         mgr.initialize().await.unwrap();
 
         assert_eq!(mgr.plugin_count(), 1);
@@ -5072,11 +5072,11 @@ routes:
     plugins:
       - rate_limiter
 "#;
-        let cpex_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = crate::config::parse_config(yaml).unwrap();
         let mgr = PluginManager::default();
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
         mgr.register_factory("test/deny", Box::new(DenyPluginFactory));
-        mgr.load_config(cpex_config).unwrap();
+        mgr.load_config(policy_config).unwrap();
         mgr.initialize().await.unwrap();
 
         // context_table = None (first invocation)
@@ -5124,11 +5124,11 @@ plugins:
     mode: sequential
     priority: 20
 "#;
-        let cpex_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = crate::config::parse_config(yaml).unwrap();
         let mgr = PluginManager::default();
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
         mgr.register_factory("test/deny", Box::new(DenyPluginFactory));
-        mgr.load_config(cpex_config).unwrap();
+        mgr.load_config(policy_config).unwrap();
         mgr.initialize().await.unwrap();
 
         // context_table = None (first invocation)
@@ -5170,11 +5170,11 @@ routes:
     plugins:
       - denier
 "#;
-        let cpex_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = crate::config::parse_config(yaml).unwrap();
         let mgr = PluginManager::default();
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
         mgr.register_factory("test/deny", Box::new(DenyPluginFactory));
-        mgr.load_config(cpex_config).unwrap();
+        mgr.load_config(policy_config).unwrap();
         mgr.initialize().await.unwrap();
 
         // context_table = None (first invocation)
@@ -5230,11 +5230,11 @@ routes:
     plugins:
       - fallback_plugin
 "#;
-        let cpex_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = crate::config::parse_config(yaml).unwrap();
         let mgr = PluginManager::default();
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
         mgr.register_factory("test/deny", Box::new(DenyPluginFactory));
-        mgr.load_config(cpex_config).unwrap();
+        mgr.load_config(policy_config).unwrap();
         mgr.initialize().await.unwrap();
 
         // context_table = None (first invocation)
@@ -5289,11 +5289,11 @@ plugins:
 routes:
   - tool: get_compensation
 "#;
-        let cpex_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = crate::config::parse_config(yaml).unwrap();
         let mgr = PluginManager::default();
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
         mgr.register_factory("test/deny", Box::new(DenyPluginFactory));
-        mgr.load_config(cpex_config).unwrap();
+        mgr.load_config(policy_config).unwrap();
         mgr.initialize().await.unwrap();
 
         // context_table = None (first invocation)
@@ -5354,11 +5354,11 @@ routes:
       tags: [pii]
   - tool: send_email
 "#;
-        let cpex_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = crate::config::parse_config(yaml).unwrap();
         let mgr = PluginManager::default();
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
         mgr.register_factory("test/deny", Box::new(DenyPluginFactory));
-        mgr.load_config(cpex_config).unwrap();
+        mgr.load_config(policy_config).unwrap();
         mgr.initialize().await.unwrap();
 
         // context_table = None (first invocation)

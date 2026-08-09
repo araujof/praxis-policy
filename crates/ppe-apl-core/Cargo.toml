@@ -1,4 +1,4 @@
-# Location: ./crates/apl-core/Cargo.toml
+# Location: ./crates/ppe-apl-core/Cargo.toml
 # Copyright 2025
 # SPDX-License-Identifier: Apache-2.0
 # Authors: Teryl Taylor
@@ -7,7 +7,7 @@
 # Module structure follows docs/specs/apl-design.md §4.
 
 [package]
-name = "apl-core"
+name = "praxis-policy-apl-core"
 description = "APL — Authorization Policy Language core (compiler + evaluator)"
 version.workspace = true
 edition.workspace = true
@@ -25,7 +25,7 @@ rust-version.workspace = true
 ignored = ["serde"]
 
 [lib]
-# Plain rlib; APL is consumed by other workspace crates (apl-cmf, apl-cpex)
+# Plain rlib; APL is consumed by other workspace crates (praxis-policy-apl-cmf, praxis-policy-apl-runtime)
 # and does not need cdylib for FFI.
 
 [dependencies]
@@ -36,7 +36,7 @@ thiserror = { workspace = true }
 async-trait = { workspace = true }
 regex = { workspace = true }
 futures = { workspace = true }
-cpex-orchestration = { workspace = true }
+praxis-policy-orchestration = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

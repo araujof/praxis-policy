@@ -1,4 +1,4 @@
-// Location: ./crates/cpex-core/tests/identity_route_e2e.rs
+// Location: ./crates/ppe-core/tests/identity_route_e2e.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -24,17 +24,19 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 
-use cpex_core::config;
-use cpex_core::context::PluginContext;
-use cpex_core::extensions::{MetaExtension, SubjectExtension};
-use cpex_core::factory::{PluginFactory, PluginInstance};
-use cpex_core::hooks::adapter::TypedHandlerAdapter;
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::hooks::trait_def::{HookHandler, PluginResult};
-use cpex_core::identity::{IdentityHook, IdentityPayload, TokenSource, HOOK_IDENTITY_RESOLVE};
-use cpex_core::manager::PluginManager;
-use cpex_core::plugin::{Plugin, PluginConfig};
-use cpex_core::registry::AnyHookHandler;
+use praxis_policy_core::config;
+use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::extensions::{MetaExtension, SubjectExtension};
+use praxis_policy_core::factory::{PluginFactory, PluginInstance};
+use praxis_policy_core::hooks::adapter::TypedHandlerAdapter;
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
+use praxis_policy_core::identity::{
+    IdentityHook, IdentityPayload, TokenSource, HOOK_IDENTITY_RESOLVE,
+};
+use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::plugin::{Plugin, PluginConfig};
+use praxis_policy_core::registry::AnyHookHandler;
 
 // =====================================================================
 // Test plugin: a recording identity resolver
@@ -86,7 +88,7 @@ impl HookHandler<IdentityHook> for RecordingResolver {
         self.ledger.lock().unwrap().push(self.name.clone());
         self.invocation_count.fetch_add(1, Ordering::SeqCst);
 
-        // Capability-gating observation. cpex-core's executor calls
+        // Capability-gating observation. praxis-policy-core's executor calls
         // `filter_extensions(&ext, &caps)` BEFORE handing us `ext`,
         // so this snapshot reflects exactly what our declared
         // capabilities expose.
@@ -136,7 +138,7 @@ impl PluginFactory for RecordingFactory {
     fn create(
         &self,
         config: &PluginConfig,
-    ) -> Result<PluginInstance, Box<cpex_core::error::PluginError>> {
+    ) -> Result<PluginInstance, Box<praxis_policy_core::error::PluginError>> {
         self.factory_calls.fetch_add(1, Ordering::SeqCst);
         let plugin = Arc::new(RecordingResolver {
             cfg: config.clone(),
@@ -500,7 +502,7 @@ global:
 routes:
   - tool: get_weather
 "#;
-    let parsed = cpex_core::config::parse_config(yaml).expect("parse");
+    let parsed = praxis_policy_core::config::parse_config(yaml).expect("parse");
     mgr.load_config(parsed).expect("load");
     mgr.initialize().await.unwrap();
 
@@ -521,7 +523,7 @@ routes:
 }
 
 /// Full stack — global + tag bundle + route — in declared order.
-/// Proves the merge actually flows the layers through cpex-core's
+/// Proves the merge actually flows the layers through praxis-policy-core's
 /// dispatch in the order the resolver guarantees.
 #[tokio::test]
 async fn global_tag_route_identity_stack_dispatches_in_order() {
@@ -556,7 +558,7 @@ routes:
     authentication:
       - agent-context
 "#;
-    let parsed = cpex_core::config::parse_config(yaml).expect("parse");
+    let parsed = praxis_policy_core::config::parse_config(yaml).expect("parse");
     mgr.load_config(parsed).expect("load");
     mgr.initialize().await.unwrap();
 
@@ -615,7 +617,7 @@ routes:
       steps:
         - legacy-basic-auth
 "#;
-    let parsed = cpex_core::config::parse_config(yaml).expect("parse");
+    let parsed = praxis_policy_core::config::parse_config(yaml).expect("parse");
     mgr.load_config(parsed).expect("load");
     mgr.initialize().await.unwrap();
 
@@ -659,7 +661,7 @@ routes:
       replace_inherited: true
       steps: []
 "#;
-    let parsed = cpex_core::config::parse_config(yaml).expect("parse");
+    let parsed = praxis_policy_core::config::parse_config(yaml).expect("parse");
     mgr.load_config(parsed).expect("load");
     mgr.initialize().await.unwrap();
 
@@ -719,7 +721,7 @@ routes:
 // ---------------------------------------------------------------------
 // Capability gating on the identity dispatch path.
 //
-// Identity plugins go through cpex-core's executor like every other
+// Identity plugins go through praxis-policy-core's executor like every other
 // hook family — meaning `filter_extensions(&ext, &caps)` runs before
 // each handler invoke and narrows what the plugin sees to its
 // declared capabilities. These tests pin that behavior for the
@@ -738,7 +740,7 @@ fn ext_for_tool_with_subject_and_label(
     subject_id: &str,
     label: &str,
 ) -> Extensions {
-    use cpex_core::extensions::{SecurityExtension, SubjectExtension};
+    use praxis_policy_core::extensions::{SecurityExtension, SubjectExtension};
     let mut sec = SecurityExtension::default();
     sec.subject = Some(SubjectExtension {
         id: Some(subject_id.to_string()),
@@ -777,7 +779,7 @@ routes:
     authentication:
       - scoped-jwt
 "#;
-    let parsed = cpex_core::config::parse_config(yaml).expect("parse");
+    let parsed = praxis_policy_core::config::parse_config(yaml).expect("parse");
     mgr.load_config(parsed).expect("load");
     mgr.initialize().await.unwrap();
 
@@ -832,7 +834,7 @@ routes:
     authentication:
       - capless-jwt
 "#;
-    let parsed = cpex_core::config::parse_config(yaml).expect("parse");
+    let parsed = praxis_policy_core::config::parse_config(yaml).expect("parse");
     mgr.load_config(parsed).expect("load");
     mgr.initialize().await.unwrap();
 

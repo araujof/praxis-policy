@@ -1,4 +1,4 @@
-// Location: ./crates/apl-core/src/parser.rs
+// Location: ./crates/ppe-apl-core/src/parser.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -2738,7 +2738,7 @@ pub fn compile_config(yaml: &str) -> Result<CompiledConfig, ParseError> {
 /// land in `RouteYaml.other` via `#[serde(flatten)]`, a config still using
 /// an old name would otherwise be *silently dropped* — dropping a `policy:`
 /// block fails open (no authorization enforced). We reject them loudly
-/// instead. `identity` is renamed in cpex-core config, not here.
+/// instead. `identity` is renamed in praxis-policy-core config, not here.
 const RENAMED_FIELDS: [(&str, &str); 2] = [
     (
         "policy",
@@ -2874,7 +2874,7 @@ fn compile_apl_blocks(source: &str, raw: RouteYaml) -> Result<CompiledRoute, Par
 ///   ssn: "redact(!perm.view_ssn)"
 /// ```
 ///
-/// Used by external orchestrators (apl-cpex's `AplConfigVisitor`) that
+/// Used by external orchestrators (praxis-policy-apl-runtime's `AplConfigVisitor`) that
 /// have already located an APL block inside a larger unified-config
 /// YAML. `source` is woven into per-rule / per-pipeline diagnostic paths.
 /// Returns an empty `CompiledRoute` when the value is null or contains
@@ -4238,7 +4238,7 @@ routes:
         // post_invocation / args / result) is a "legacy" route per
         // apl-design and must be
         // omitted from the compiled output. Unknown route keys (e.g.
-        // legacy CPEX `priority`) are stashed in `other`, not errored.
+        // legacy PPE `priority`) are stashed in `other`, not errored.
         let yaml = r#"
 routes:
   legacy:

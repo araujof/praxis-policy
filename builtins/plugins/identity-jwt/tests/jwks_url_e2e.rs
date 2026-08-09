@@ -23,12 +23,14 @@
 
 use std::sync::Arc;
 
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::identity::{IdentityHook, IdentityPayload, TokenSource, HOOK_IDENTITY_RESOLVE};
-use cpex_core::manager::PluginManager;
-use cpex_core::plugin::{OnError, PluginConfig, PluginMode};
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::identity::{
+    IdentityHook, IdentityPayload, TokenSource, HOOK_IDENTITY_RESOLVE,
+};
+use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::plugin::{OnError, PluginConfig, PluginMode};
 
-use cpex_plugin_identity_jwt::{DecodingKeySource, JwtIdentityResolver};
+use praxis_policy_plugin_identity_jwt::{DecodingKeySource, JwtIdentityResolver};
 
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use mockito::Server;

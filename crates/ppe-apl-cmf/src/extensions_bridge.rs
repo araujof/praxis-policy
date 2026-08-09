@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cmf/src/extensions_bridge.rs
+// Location: ./crates/ppe-apl-cmf/src/extensions_bridge.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -6,13 +6,13 @@
 // Unified entry point: take an `Extensions` container, dispatch each
 // present slot to its per-extension extractor.
 //
-// This is the function `apl-cpex` will call at hook time after assembling
+// This is the function `praxis-policy-apl-runtime` will call at hook time after assembling
 // `Extensions` from the request. It guarantees every slot that's present
 // gets bridged, so a new extension type that adds an extractor module
 // shows up in the bag automatically.
 
-use apl_core::AttributeBag;
-use cpex_core::extensions::Extensions;
+use praxis_policy_apl_core::AttributeBag;
+use praxis_policy_core::extensions::Extensions;
 
 use crate::{
     agent::extract_agent, completion::extract_completion, custom::extract_custom,
@@ -64,7 +64,7 @@ pub fn extract_extensions(ext: &Extensions, bag: &mut AttributeBag) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cpex_core::extensions::{
+    use praxis_policy_core::extensions::{
         AgentExtension, DelegationExtension, LLMExtension, MetaExtension, SecurityExtension,
         SubjectExtension,
     };

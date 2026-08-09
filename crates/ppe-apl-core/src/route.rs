@@ -1,4 +1,4 @@
-// Location: ./crates/apl-core/src/route.rs
+// Location: ./crates/ppe-apl-core/src/route.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -7,7 +7,7 @@
 // `CompiledRoute` and a mutable payload, returning a unified decision plus
 // accumulated taints.
 //
-// This is the entry point apl-cpex calls into. Each phase has its own
+// This is the entry point praxis-policy-apl-runtime calls into. Each phase has its own
 // evaluator (see `evaluator.rs`); this module's job is to drive them in
 // the right order with the right transitions (apply field mutations, halt
 // on deny, thread taints across phases).
@@ -17,7 +17,7 @@
 //   - policy: walk steps; Deny halts
 //   - result: only runs if `payload.result.is_some()`; same as args
 //   - post_policy: walks steps; the spec leaves room for "observed only"
-//     handling, but apl-core surfaces the deny — the host (apl-cpex) chooses
+//     handling, but praxis-policy-apl-core surfaces the deny — the host (praxis-policy-apl-runtime) chooses
 //     whether to enforce it
 //
 // Missing fields are skipped silently — a pipeline can't transform what
@@ -69,7 +69,7 @@ pub struct RouteDecision {
     /// Taints accumulated from any phase. Empty unless a pipeline emitted them.
     pub taints: Vec<TaintEvent>,
     /// Backend candidate constraints emitted by `restrict` effects in any
-    /// phase. Empty unless a `restrict` fired. The host bridge (apl-cpex)
+    /// phase. Empty unless a `restrict` fired. The host bridge (praxis-policy-apl-runtime)
     /// folds these into a `CandidateConstraintExtension` it serializes to
     /// the router.
     pub constraints: Vec<crate::constraint::CandidateConstraint>,

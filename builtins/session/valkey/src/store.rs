@@ -24,9 +24,9 @@
 use std::fmt::Write as _;
 use std::time::Duration;
 
-use apl_cpex::{SessionStore, SessionStoreError};
 use async_trait::async_trait;
 use deadpool_redis::{Connection, Pool};
+use praxis_policy_apl_runtime::{SessionStore, SessionStoreError};
 use redis::AsyncCommands;
 use sha2::{Digest, Sha256};
 

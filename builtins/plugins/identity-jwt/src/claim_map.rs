@@ -24,7 +24,7 @@ use std::collections::HashMap;
 
 use serde_json::Value;
 
-use cpex_core::extensions::{ClientExtension, SubjectExtension, WorkloadIdentity};
+use praxis_policy_core::extensions::{ClientExtension, SubjectExtension, WorkloadIdentity};
 
 /// Convert a validated JWT's claim map into the typed identity slot
 /// for the resolver's configured role.

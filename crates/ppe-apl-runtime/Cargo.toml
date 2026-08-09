@@ -1,15 +1,15 @@
-# Location: ./crates/apl-cpex/Cargo.toml
+# Location: ./crates/ppe-apl-runtime/Cargo.toml
 # Copyright 2025
 # SPDX-License-Identifier: Apache-2.0
 # Authors: Teryl Taylor
 #
-# apl-cpex — the bridge between APL's evaluator (`apl-core`) and CPEX's
-# runtime (`cpex-core`). Provides per-hook-type implementations of
-# `apl-core::PluginInvoker` that translate APL plugin dispatch into typed
-# `cpex-core::PluginManager::invoke_named::<H>` calls.
+# praxis-policy-apl-runtime — the bridge between APL's evaluator (`praxis-policy-apl-core`) and PPE's
+# runtime (`praxis-policy-core`). Provides per-hook-type implementations of
+# `praxis-policy-apl-core::PluginInvoker` that translate APL plugin dispatch into typed
+# `praxis-policy-core::PluginManager::invoke_named::<H>` calls.
 #
-# Design constraints inherited from `apl-core`:
-#   - `apl-core` has zero CPEX deps; cross-crate boundary lives here.
+# Design constraints inherited from `praxis-policy-apl-core`:
+#   - `praxis-policy-apl-core` has zero PPE deps; cross-crate boundary lives here.
 #   - The PluginInvoker trait is string-typed; the typed boundary lives
 #     INSIDE each impl (one impl per HookTypeDef, e.g. CmfPluginInvoker
 #     for CMF, future DelegationPluginInvoker for delegation hooks).
@@ -17,12 +17,12 @@
 #     for the full request lifetime — never reconstructed from the bag.
 
 [package]
-name = "apl-cpex"
+name = "praxis-policy-apl-runtime"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
-description = "APL ↔ CPEX runtime bridge — per-hook PluginInvoker implementations."
+description = "APL ↔ PPE runtime bridge — per-hook PluginInvoker implementations."
 repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
@@ -30,9 +30,9 @@ categories.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-apl-core = { workspace = true }
-apl-cmf = { workspace = true }
-cpex-core = { workspace = true }
+praxis-policy-apl-core = { workspace = true }
+praxis-policy-apl-cmf = { workspace = true }
+praxis-policy-core = { workspace = true }
 async-trait = { workspace = true }
 chrono = { workspace = true }
 thiserror = { workspace = true }

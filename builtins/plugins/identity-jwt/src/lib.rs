@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
-// cpex-plugin-identity-jwt — JWT-based `IdentityResolveHandler` for APL.
+// praxis-policy-plugin-identity-jwt — JWT-based `IdentityResolveHandler` for APL.
 //
 // Validates inbound JWTs against configured trusted issuers and
 // maps validated claims into the request's `IdentityPayload`
@@ -30,7 +30,7 @@
 //
 // # When to use this vs alternatives
 //
-// - **`cpex-plugin-identity-jwt`** (this crate) — JWT-only flow.
+// - **`praxis-policy-plugin-identity-jwt`** (this crate) — JWT-only flow.
 //   Lightweight, ~5-15 transitive deps. The default choice for
 //   "validate a Bearer token, extract identity."
 // - **Custom resolver** — anyone with bespoke identity flows

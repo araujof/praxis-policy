@@ -10,7 +10,7 @@
 // the right side of `principal.` are *Cedar entity attribute names*
 // that this crate produces when it builds the principal entity from the
 // `AttributeBag`. Author-facing vocabulary, distinct from the
-// `apl-cmf::constants::BAG_*` bag-key vocabulary even when the words
+// `praxis-policy-apl-cmf::constants::BAG_*` bag-key vocabulary even when the words
 // happen to match.
 //
 // Keeping these constants in one module means a rename ripples to a
@@ -29,19 +29,19 @@ pub const ATTR_ID: &str = "id";
 pub const ATTR_TYPE: &str = "type";
 
 /// `roles` — `Set<String>` of role names the principal holds.
-/// Filled from `apl-cmf`'s `role.*` bag keys.
+/// Filled from `praxis-policy-apl-cmf`'s `role.*` bag keys.
 pub const ATTR_ROLES: &str = "roles";
 
 /// `permissions` — `Set<String>` of permission names.
-/// Filled from `apl-cmf`'s `perm.*` bag keys.
+/// Filled from `praxis-policy-apl-cmf`'s `perm.*` bag keys.
 pub const ATTR_PERMISSIONS: &str = "permissions";
 
 /// `teams` — `Set<String>` of team / group memberships.
-/// Filled from `apl-cmf`'s `subject.teams` bag key.
+/// Filled from `praxis-policy-apl-cmf`'s `subject.teams` bag key.
 pub const ATTR_TEAMS: &str = "teams";
 
 /// `claims` — `Record` of arbitrary JWT-style claims. Filled from
-/// `apl-cmf`'s `claim.*` bag keys.
+/// `praxis-policy-apl-cmf`'s `claim.*` bag keys.
 pub const ATTR_CLAIMS: &str = "claims";
 
 // JSON wrapping keys (Cedar's entity-from-JSON shape).

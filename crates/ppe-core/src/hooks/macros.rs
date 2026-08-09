@@ -1,4 +1,4 @@
-// Location: ./crates/cpex-core/src/hooks/macros.rs
+// Location: ./crates/ppe-core/src/hooks/macros.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor

@@ -1,4 +1,4 @@
-// Location: ./crates/apl-core/tests/yaml_end_to_end.rs
+// Location: ./crates/ppe-apl-core/tests/yaml_end_to_end.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -6,7 +6,7 @@
 // End-to-end integration: YAML config → compiled IR → evaluated against a
 // realistic AttributeBag and payload. This exercises the public crate API
 // only (`compile_config` + `evaluate_route` + traits) and serves as the
-// authoritative "if this passes, apl-core works as a unit" check.
+// authoritative "if this passes, praxis-policy-apl-core works as a unit" check.
 //
 // The fixture is a representative HR route, adapted to
 // the map-keyed `routes:` shape that the parser actually accepts (the
@@ -14,13 +14,13 @@
 
 use std::sync::Arc;
 
-use apl_core::{
+use async_trait::async_trait;
+use praxis_policy_apl_core::{
     compile_config, evaluate_route, AttributeBag, Decision, DelegationInvoker, ElicitationInvoker,
     FieldOutcome, NoopDelegationInvoker, NoopElicitationInvoker, PdpCall, PdpDecision, PdpDialect,
     PdpError, PdpResolver, PluginError, PluginInvocation, PluginInvoker, PluginOutcome,
     RoutePayload,
 };
-use async_trait::async_trait;
 use serde_json::json;
 
 // Test fixtures: every scenario passes the same no-op plugin invoker and
@@ -320,7 +320,7 @@ async fn inbound_only_evaluation_skips_result_phase() {
 
 #[test]
 fn compiled_route_phase_set_reflects_yaml_blocks() {
-    use apl_core::Phase;
+    use praxis_policy_apl_core::Phase;
     let routes = compile_config(HR_ROUTE_YAML).unwrap().routes;
     let route = routes.get("get_employee").unwrap();
     let phases = route.declared_phases();

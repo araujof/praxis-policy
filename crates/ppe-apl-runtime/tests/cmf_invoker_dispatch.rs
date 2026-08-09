@@ -1,14 +1,14 @@
-// Location: ./crates/apl-cpex/tests/cmf_invoker_dispatch.rs
+// Location: ./crates/ppe-apl-runtime/tests/cmf_invoker_dispatch.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
 // Integration tests for `CmfPluginInvoker` — exercises the typed
-// dispatch path end-to-end against a real `cpex-core::PluginManager`
+// dispatch path end-to-end against a real `praxis-policy-core::PluginManager`
 // with hand-rolled test plugins. v0 coverage:
 //   - `Step` invocation against an allow-plugin → `Decision::Allow`
 //   - `Step` invocation against a deny-plugin → `Decision::Deny` with
-//     reason + rule_source pulled from the CPEX `PluginViolation`
+//     reason + rule_source pulled from the PPE `PluginViolation`
 //   - `Field` invocation against a modify-plugin → `Decision::Allow`
 //     with `modified_value` populated from the rewritten text content
 //   - Payload mutation persists across invocations (one modifying
@@ -17,31 +17,31 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use cpex_core::cmf::enums::Role;
-use cpex_core::cmf::{CmfHook, ContentPart, Message, MessagePayload};
-use cpex_core::context::PluginContext;
-use cpex_core::error::{PluginError as CoreError, PluginViolation};
-use cpex_core::extensions::{SecurityExtension, SubjectExtension};
-use cpex_core::factory::{PluginFactory, PluginInstance};
-use cpex_core::hooks::adapter::TypedHandlerAdapter;
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::hooks::trait_def::{HookHandler, PluginResult};
-use cpex_core::manager::PluginManager;
-use cpex_core::plugin::{Plugin, PluginConfig};
-use cpex_core::registry::{HookEntry, PluginRef};
+use praxis_policy_core::cmf::enums::Role;
+use praxis_policy_core::cmf::{CmfHook, ContentPart, Message, MessagePayload};
+use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::error::{PluginError as CoreError, PluginViolation};
+use praxis_policy_core::extensions::{SecurityExtension, SubjectExtension};
+use praxis_policy_core::factory::{PluginFactory, PluginInstance};
+use praxis_policy_core::hooks::adapter::TypedHandlerAdapter;
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
+use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::plugin::{Plugin, PluginConfig};
+use praxis_policy_core::registry::{HookEntry, PluginRef};
 
-use apl_core::attributes::AttributeBag;
-use apl_core::evaluator::Decision;
-use apl_core::step::{PluginInvocation, PluginInvoker};
+use praxis_policy_apl_core::attributes::AttributeBag;
+use praxis_policy_apl_core::evaluator::Decision;
+use praxis_policy_apl_core::step::{PluginInvocation, PluginInvoker};
 
-use apl_cpex::{CmfPluginInvoker, MemorySessionStore, RouteDispatchPlan};
+use praxis_policy_apl_runtime::{CmfPluginInvoker, MemorySessionStore, RouteDispatchPlan};
 
-/// Build a single-plugin RouteDispatchPlan straight off the cpex-core
+/// Build a single-plugin RouteDispatchPlan straight off the praxis-policy-core
 /// registry — no APL CompiledRoute involved. Used by the invoker-primitive
 /// tests below to exercise the plan-based dispatch path without standing
 /// up a full route.
 fn plan_for(
-    manager: &cpex_core::manager::PluginManager,
+    manager: &praxis_policy_core::manager::PluginManager,
     plugin_name: &str,
 ) -> Arc<RouteDispatchPlan> {
     let entry = RouteDispatchPlan::resolve_plugin(manager, plugin_name)
@@ -282,7 +282,7 @@ fn payload_with_tool_result(text: &str, result: &str) -> MessagePayload {
                     text: text.to_string(),
                 },
                 ContentPart::ToolResult {
-                    content: cpex_core::cmf::ToolResult {
+                    content: praxis_policy_core::cmf::ToolResult {
                         tool_call_id: "tc_001".to_string(),
                         tool_name: "get_secret".to_string(),
                         content: serde_json::Value::String(result.to_string()),
@@ -313,7 +313,7 @@ async fn build_manager(factory_kind: &str, factory: Box<dyn PluginFactory>) -> A
     mgr.register_factory(factory_kind, factory);
 
     let yaml = format!("plugins:\n  - name: {0}\n    kind: {0}\n", factory_kind);
-    let cfg = cpex_core::config::parse_config(&yaml).expect("parse_config");
+    let cfg = praxis_policy_core::config::parse_config(&yaml).expect("parse_config");
     mgr.load_config(cfg).expect("load_config");
     mgr.initialize().await.expect("initialize");
     Arc::new(mgr)
@@ -342,7 +342,7 @@ async fn step_invocation_allow_returns_decision_allow() {
             "allow-plugin",
             &empty_bag(),
             PluginInvocation::Step {
-                phase: apl_core::step::DispatchPhase::Pre,
+                phase: praxis_policy_apl_core::step::DispatchPhase::Pre,
             },
         )
         .await
@@ -371,7 +371,7 @@ async fn step_invocation_deny_surfaces_violation_reason_and_code() {
             "deny-plugin",
             &empty_bag(),
             PluginInvocation::Step {
-                phase: apl_core::step::DispatchPhase::Pre,
+                phase: praxis_policy_apl_core::step::DispatchPhase::Pre,
             },
         )
         .await
@@ -412,7 +412,7 @@ async fn field_invocation_modify_surfaces_modified_value_and_persists_payload() 
             PluginInvocation::Field {
                 name: "content",
                 value: &value,
-                phase: apl_core::step::DispatchPhase::Pre,
+                phase: praxis_policy_apl_core::step::DispatchPhase::Pre,
             },
         )
         .await
@@ -433,7 +433,7 @@ async fn field_invocation_modify_surfaces_modified_value_and_persists_payload() 
             PluginInvocation::Field {
                 name: "content",
                 value: &value,
-                phase: apl_core::step::DispatchPhase::Pre,
+                phase: praxis_policy_apl_core::step::DispatchPhase::Pre,
             },
         )
         .await
@@ -469,7 +469,7 @@ async fn current_payload_reflects_accumulated_mutations() {
             PluginInvocation::Field {
                 name: "content",
                 value: &value,
-                phase: apl_core::step::DispatchPhase::Pre,
+                phase: praxis_policy_apl_core::step::DispatchPhase::Pre,
             },
         )
         .await
@@ -532,7 +532,7 @@ async fn plugin_that_allows_without_mutating_reports_no_mutation() {
             "allow-plugin",
             &bag,
             PluginInvocation::Step {
-                phase: apl_core::step::DispatchPhase::Pre,
+                phase: praxis_policy_apl_core::step::DispatchPhase::Pre,
             },
         )
         .await
@@ -568,7 +568,7 @@ async fn text_mutation_is_reported() {
             PluginInvocation::Field {
                 name: "content",
                 value: &value,
-                phase: apl_core::step::DispatchPhase::Pre,
+                phase: praxis_policy_apl_core::step::DispatchPhase::Pre,
             },
         )
         .await
@@ -602,7 +602,7 @@ async fn tool_result_only_mutation_is_reported() {
             "redact-plugin",
             &bag,
             PluginInvocation::Step {
-                phase: apl_core::step::DispatchPhase::Pre,
+                phase: praxis_policy_apl_core::step::DispatchPhase::Pre,
             },
         )
         .await
@@ -780,7 +780,7 @@ fn payload_with_tool_call(city: &str, note: &str) -> MessagePayload {
                     text: note.to_string(),
                 },
                 ContentPart::ToolCall {
-                    content: cpex_core::cmf::ToolCall {
+                    content: praxis_policy_core::cmf::ToolCall {
                         tool_call_id: "tc_001".to_string(),
                         name: "get_weather".to_string(),
                         arguments: [("city".to_string(), serde_json::json!(city))]
@@ -819,7 +819,7 @@ async fn field_dispatch_reports_the_field_the_plugin_rewrote() {
             PluginInvocation::Field {
                 name: "city",
                 value: &value,
-                phase: apl_core::step::DispatchPhase::Pre,
+                phase: praxis_policy_apl_core::step::DispatchPhase::Pre,
             },
         )
         .await
@@ -857,7 +857,7 @@ async fn field_dispatch_reports_no_change_when_another_field_was_rewritten() {
             PluginInvocation::Field {
                 name: "city",
                 value: &value,
-                phase: apl_core::step::DispatchPhase::Pre,
+                phase: praxis_policy_apl_core::step::DispatchPhase::Pre,
             },
         )
         .await
@@ -888,7 +888,7 @@ async fn post_phase_field_dispatch_reads_the_result_projection() {
         message: Message::with_content(
             Role::Tool,
             vec![ContentPart::ToolResult {
-                content: cpex_core::cmf::ToolResult {
+                content: praxis_policy_core::cmf::ToolResult {
                     tool_call_id: "tc_001".to_string(),
                     tool_name: "get_employee".to_string(),
                     content: serde_json::json!({"name": "Ada", "ssn": "123-45-6789"}),
@@ -916,7 +916,7 @@ async fn post_phase_field_dispatch_reads_the_result_projection() {
             PluginInvocation::Field {
                 name: "ssn",
                 value: &value,
-                phase: apl_core::step::DispatchPhase::Post,
+                phase: praxis_policy_apl_core::step::DispatchPhase::Post,
             },
         )
         .await
@@ -932,7 +932,7 @@ async fn post_phase_field_dispatch_reads_the_result_projection() {
 // ---------------------------------------------------------------------
 // Capability gating — APL route override of `capabilities:` materializes
 // a derived PluginRef wrapping the same plugin Arc with a merged
-// TrustedConfig. cpex-core's executor then enforces the narrower caps
+// TrustedConfig. praxis-policy-core's executor then enforces the narrower caps
 // in its single per-entry `filter_extensions` pass — no double filter,
 // no second clone of security. The base plugin's circuit breaker stays
 // isolated.
@@ -990,20 +990,20 @@ impl PluginFactory for CapturePluginFactory {
 async fn build_manager_with_caps(
     factory_kind: &str,
     factory: Box<dyn PluginFactory>,
-    cpex_caps: &[&str],
+    policy_caps: &[&str],
 ) -> Arc<PluginManager> {
     let mgr = PluginManager::default();
     mgr.register_factory(factory_kind, factory);
-    let caps_yaml = if cpex_caps.is_empty() {
+    let caps_yaml = if policy_caps.is_empty() {
         String::new()
     } else {
-        format!("    capabilities: [{}]\n", cpex_caps.join(", "))
+        format!("    capabilities: [{}]\n", policy_caps.join(", "))
     };
     let yaml = format!(
         "plugins:\n  - name: {0}\n    kind: {0}\n{1}",
         factory_kind, caps_yaml,
     );
-    let cfg = cpex_core::config::parse_config(&yaml).expect("parse_config");
+    let cfg = praxis_policy_core::config::parse_config(&yaml).expect("parse_config");
     mgr.load_config(cfg).expect("load_config");
     mgr.initialize().await.expect("initialize");
     Arc::new(mgr)
@@ -1031,7 +1031,7 @@ fn plan_with_narrowed_caps(
     manager: &PluginManager,
     plugin_name: &str,
     narrowed_caps: &[&str],
-) -> Arc<apl_cpex::RouteDispatchPlan> {
+) -> Arc<praxis_policy_apl_runtime::RouteDispatchPlan> {
     let base = manager
         .find_plugin_entries(plugin_name)
         .into_iter()
@@ -1053,12 +1053,12 @@ fn plan_with_narrowed_caps(
     entries_by_hook.insert("cmf.tool_pre_invoke".to_string(), entry);
     plugins.insert(
         plugin_name.to_string(),
-        apl_cpex::RoutePluginEntry {
+        praxis_policy_apl_runtime::RoutePluginEntry {
             plugin_name: plugin_name.to_string(),
             entries_by_hook,
         },
     );
-    Arc::new(apl_cpex::RouteDispatchPlan {
+    Arc::new(praxis_policy_apl_runtime::RouteDispatchPlan {
         plugins,
         delegation_entries: Default::default(),
         elicitation_entries: Default::default(),
@@ -1067,7 +1067,7 @@ fn plan_with_narrowed_caps(
 
 #[tokio::test]
 async fn route_override_caps_narrow_what_plugin_sees() {
-    // cpex-core registers the plugin with WIDE caps: read_subject AND
+    // praxis-policy-core registers the plugin with WIDE caps: read_subject AND
     // read_labels. Without an override, the plugin would see both.
     let captured = Arc::new(tokio::sync::Mutex::new(None));
     let factory = CapturePluginFactory {
@@ -1081,7 +1081,7 @@ async fn route_override_caps_narrow_what_plugin_sees() {
     .await;
 
     // APL route override narrows to ONLY read_subject — labels should
-    // be stripped despite cpex-core having registered them.
+    // be stripped despite praxis-policy-core having registered them.
     let plan = plan_with_narrowed_caps(&mgr, "capture-plugin", &["read_subject"]);
 
     let invoker = CmfPluginInvoker::for_request(
@@ -1099,7 +1099,7 @@ async fn route_override_caps_narrow_what_plugin_sees() {
             "capture-plugin",
             &empty_bag(),
             PluginInvocation::Step {
-                phase: apl_core::step::DispatchPhase::Pre,
+                phase: praxis_policy_apl_core::step::DispatchPhase::Pre,
             },
         )
         .await
@@ -1120,7 +1120,7 @@ async fn route_override_caps_narrow_what_plugin_sees() {
     );
 
     // read_labels is NOT in the narrowed set → labels stripped, even
-    // though cpex-core's registration would have allowed them through.
+    // though praxis-policy-core's registration would have allowed them through.
     assert!(
         security.labels.is_empty(),
         "route override dropped read_labels; labels should be empty (got {:?})",
@@ -1179,7 +1179,7 @@ impl HookHandler<CmfHook> for PostSideHandler {
         _extensions: &Extensions,
         _ctx: &mut PluginContext,
     ) -> PluginResult<MessagePayload> {
-        PluginResult::deny(cpex_core::error::PluginViolation::new(
+        PluginResult::deny(praxis_policy_core::error::PluginViolation::new(
             "test.multi_hook.post_fired",
             "post handler fired",
         ))
@@ -1253,7 +1253,7 @@ async fn multi_hook_plugin_dispatches_per_phase_via_routing_table() {
             "multi-hook-plugin",
             &empty_bag(),
             PluginInvocation::Step {
-                phase: apl_core::step::DispatchPhase::Pre,
+                phase: praxis_policy_apl_core::step::DispatchPhase::Pre,
             },
         )
         .await
@@ -1268,7 +1268,7 @@ async fn multi_hook_plugin_dispatches_per_phase_via_routing_table() {
             "multi-hook-plugin",
             &empty_bag(),
             PluginInvocation::Step {
-                phase: apl_core::step::DispatchPhase::Post,
+                phase: praxis_policy_apl_core::step::DispatchPhase::Post,
             },
         )
         .await

@@ -1,9 +1,9 @@
-// Location: ./crates/apl-cpex/tests/capability_gating.rs
+// Location: ./crates/ppe-apl-runtime/tests/capability_gating.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
-// Capability-gating end-to-end. cpex-core's executor calls
+// Capability-gating end-to-end. praxis-policy-core's executor calls
 // `filter_extensions(&ext, &caps)` before every handler invoke — so the
 // synthetic `AplRouteHandler` must declare a capability set wide enough
 // to cover every downstream plugin it dispatches, otherwise:
@@ -23,19 +23,19 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use cpex_core::cmf::enums::Role;
-use cpex_core::cmf::{CmfHook, Message, MessagePayload};
-use cpex_core::context::PluginContext;
-use cpex_core::error::PluginError as CoreError;
-use cpex_core::extensions::{MetaExtension, SecurityExtension};
-use cpex_core::factory::{PluginFactory, PluginInstance};
-use cpex_core::hooks::adapter::TypedHandlerAdapter;
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::hooks::trait_def::{HookHandler, PluginResult};
-use cpex_core::manager::PluginManager;
-use cpex_core::plugin::{Plugin, PluginConfig};
+use praxis_policy_core::cmf::enums::Role;
+use praxis_policy_core::cmf::{CmfHook, Message, MessagePayload};
+use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::error::PluginError as CoreError;
+use praxis_policy_core::extensions::{MetaExtension, SecurityExtension};
+use praxis_policy_core::factory::{PluginFactory, PluginInstance};
+use praxis_policy_core::hooks::adapter::TypedHandlerAdapter;
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
+use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::plugin::{Plugin, PluginConfig};
 
-use apl_cpex::{register_apl, AplOptions, DispatchCache, MemorySessionStore};
+use praxis_policy_apl_runtime::{register_apl, AplOptions, DispatchCache, MemorySessionStore};
 
 // =====================================================================
 // Fixtures
@@ -174,7 +174,7 @@ fn extensions_with_label(label: &str) -> Extensions {
 /// Plugin declares `read_labels`; route references it; pre-existing
 /// label `EXISTING` is set on the request extensions. The plugin must
 /// observe the label — proving the synthetic `AplRouteHandler` got
-/// `read_labels` from the per-route plugin union (cpex-core's filter
+/// `read_labels` from the per-route plugin union (praxis-policy-core's filter
 /// would otherwise strip security.labels at the handler boundary).
 #[tokio::test]
 async fn plugin_with_read_labels_sees_labels_through_apl_handler() {
@@ -372,9 +372,9 @@ routes:
     mgr.load_config_yaml(YAML).expect("load_config_yaml");
     mgr.initialize().await.expect("initialize");
 
-    // Set subject id so `authenticated` derives true via apl-cmf.
+    // Set subject id so `authenticated` derives true via praxis-policy-apl-cmf.
     let mut security = SecurityExtension::default();
-    security.subject = Some(cpex_core::extensions::SubjectExtension {
+    security.subject = Some(praxis_policy_core::extensions::SubjectExtension {
         id: Some("alice".to_string()),
         ..Default::default()
     });
@@ -428,7 +428,7 @@ routes:
     // synthetic handler can't read subject — predicate sees missing →
     // false → require denies.
     let mut security = SecurityExtension::default();
-    security.subject = Some(cpex_core::extensions::SubjectExtension {
+    security.subject = Some(praxis_policy_core::extensions::SubjectExtension {
         id: Some("alice".to_string()),
         ..Default::default()
     });

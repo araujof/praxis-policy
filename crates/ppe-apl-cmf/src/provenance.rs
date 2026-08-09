@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cmf/src/provenance.rs
+// Location: ./crates/ppe-apl-cmf/src/provenance.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -10,8 +10,8 @@
 //   provenance.message_id   : String
 //   provenance.parent_id    : String
 
-use apl_core::AttributeBag;
-use cpex_core::extensions::ProvenanceExtension;
+use praxis_policy_apl_core::AttributeBag;
+use praxis_policy_core::extensions::ProvenanceExtension;
 
 pub fn extract_provenance(p: &ProvenanceExtension, bag: &mut AttributeBag) {
     if let Some(v) = &p.source {

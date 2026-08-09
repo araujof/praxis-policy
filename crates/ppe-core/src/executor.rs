@@ -1,4 +1,4 @@
-// Location: ./crates/cpex-core/src/executor.rs
+// Location: ./crates/ppe-core/src/executor.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -528,7 +528,7 @@ impl Executor {
                                     // plugin's declared capabilities rather than
                                     // read off the returned value. A handler is
                                     // free to build its `OwnedExtensions` any
-                                    // way it likes — apl-cpex's synthetic route
+                                    // way it likes — praxis-policy-apl-runtime's synthetic route
                                     // handler returns `cow_copy()` of a freshly
                                     // accumulated `Extensions`, whose tokens
                                     // `Clone` deliberately drops — so tokens
@@ -766,9 +766,9 @@ impl Executor {
     /// Run the concurrent phase — plugins execute truly in parallel.
     /// Returns the first violation if any plugin denies.
     ///
-    /// Built on `cpex_orchestration::run_branches`, the workspace's
+    /// Built on `praxis_policy_orchestration::run_branches`, the workspace's
     /// shared "N async branches with abort-on-deny + per-branch timeout"
-    /// primitive (same crate apl-core's `Effect::Parallel` consumes).
+    /// primitive (same crate praxis-policy-apl-core's `Effect::Parallel` consumes).
     /// Each branch returns a small `BranchData` carrying the plugin's
     /// effective outcome (allow / deny / error). The orchestrator's
     /// `is_deny` predicate inspects that — including the per-plugin
@@ -786,7 +786,9 @@ impl Executor {
         ctx_table: &PluginContextTable,
         errors: &mut Vec<crate::error::PluginErrorRecord>,
     ) -> Option<crate::error::PluginViolation> {
-        use cpex_orchestration::{run_branches, BranchConfig, BranchOutcome, ErasedBranch};
+        use praxis_policy_orchestration::{
+            run_branches, BranchConfig, BranchOutcome, ErasedBranch,
+        };
 
         if entries.is_empty() {
             return None;

@@ -1,16 +1,16 @@
-// Location: ./crates/apl-cpex/src/candidate_constraint.rs
+// Location: ./crates/ppe-apl-runtime/src/candidate_constraint.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
-// Fold — combine the `restrict` constraints a request emitted (apl-core
-// authoring IR) into one typed `CandidateConstraintExtension` (cpex-core
+// Fold — combine the `restrict` constraints a request emitted (praxis-policy-apl-core
+// authoring IR) into one typed `CandidateConstraintExtension` (praxis-policy-core
 // wire type) the host router reads off the returned `Extensions`. This is
 // the bridge between the pure policy language and the framework's typed
 // extension slot, the same role `apply_session_taints` plays for taints.
 
-use apl_core::constraint::{CandidateConstraint, OnEmpty as AplOnEmpty};
-use cpex_core::extensions::{CandidateConstraintExtension, OnEmpty};
+use praxis_policy_apl_core::constraint::{CandidateConstraint, OnEmpty as AplOnEmpty};
+use praxis_policy_core::extensions::{CandidateConstraintExtension, OnEmpty};
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -42,7 +42,7 @@ impl std::fmt::Display for ConstraintConflict {
 ///
 /// Monotone semantics: allow-sets **intersect**,
 /// `deny_models` **union**, `max_cost_tier` ceilings **collect** into
-/// `max_cost_tiers` (CPEX can't order tier names — the host reduces to the
+/// `max_cost_tiers` (PPE can't order tier names — the host reduces to the
 /// min), `custom` **union**, `on_empty` takes the **strictest**
 /// (`Deny` beats `Fallback`). A `custom` key required to hold two
 /// different values is an unsatisfiable contradiction → `Err`.
@@ -113,7 +113,7 @@ fn strictest(a: OnEmpty, b: OnEmpty) -> OnEmpty {
     }
 }
 
-/// Map the apl-core authoring enum to the cpex-core wire enum. Kept
+/// Map the praxis-policy-apl-core authoring enum to the praxis-policy-core wire enum. Kept
 /// explicit (rather than a `From`) because the two live in crates that
 /// don't depend on each other.
 fn map_on_empty(v: AplOnEmpty) -> OnEmpty {
@@ -236,7 +236,7 @@ mod tests {
 
     #[test]
     fn cost_tiers_collect_all_distinct() {
-        // Option-1 fold: CPEX can't order tiers, so emit every ceiling.
+        // Option-1 fold: PPE can't order tiers, so emit every ceiling.
         let folded = fold(&[
             CandidateConstraint {
                 max_cost_tier: Some("cheap".into()),

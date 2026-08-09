@@ -1,4 +1,4 @@
-// Location: ./crates/apl-core/src/plugin_decl.rs
+// Location: ./crates/ppe-apl-core/src/plugin_decl.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -24,8 +24,8 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-/// One entry from the root `plugins:` block. The minimal shape apl-core
-/// needs to make routing + dispatch decisions; richer CPEX fields
+/// One entry from the root `plugins:` block. The minimal shape praxis-policy-apl-core
+/// needs to make routing + dispatch decisions; richer PPE fields
 /// (`source`, `priority`, `mode`, transport blocks, `description`,
 /// `version`) are captured opaquely under `extra` so the round-trip
 /// preserves them without us modeling every variant for v0.
@@ -38,10 +38,10 @@ pub struct PluginDeclaration {
     /// Implementation kind. Spec defines a closed set (`builtin`,
     /// `native`, `wasm`, FQN, `external`, `isolated_venv`, PDP kinds)
     /// but we parse as a free string so configs using future kinds
-    /// the runtime understands aren't rejected at the apl-core layer.
+    /// the runtime understands aren't rejected at the praxis-policy-apl-core layer.
     pub kind: String,
 
-    /// CPEX hook names this plugin implements. Invokers pick which
+    /// PPE hook names this plugin implements. Invokers pick which
     /// hook to dispatch based on this list; v0 uses the first entry,
     /// future versions will choose by invocation context (policy vs
     /// post_policy vs pipe-chain).
@@ -58,7 +58,7 @@ pub struct PluginDeclaration {
     pub capabilities: Vec<String>,
 
     /// Opaque per-plugin config. Passed to the plugin verbatim by the
-    /// CPEX runtime; apl-core doesn't interpret it.
+    /// PPE runtime; praxis-policy-apl-core doesn't interpret it.
     #[serde(default)]
     pub config: Option<serde_yaml::Value>,
 

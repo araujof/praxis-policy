@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cmf/src/request.rs
+// Location: ./crates/ppe-apl-cmf/src/request.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -13,8 +13,8 @@
 //   request.trace_id       : String
 //   request.span_id        : String
 
-use apl_core::AttributeBag;
-use cpex_core::extensions::RequestExtension;
+use praxis_policy_apl_core::AttributeBag;
+use praxis_policy_core::extensions::RequestExtension;
 
 pub fn extract_request(req: &RequestExtension, bag: &mut AttributeBag) {
     if let Some(v) = &req.environment {

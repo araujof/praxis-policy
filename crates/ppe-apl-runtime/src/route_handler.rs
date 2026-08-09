@@ -1,17 +1,17 @@
-// Location: ./crates/apl-cpex/src/route_handler.rs
+// Location: ./crates/ppe-apl-runtime/src/route_handler.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor, Fred Araujo
 //
 // `AplRouteHandler` — synthetic plugin that drives APL evaluation when
-// cpex-core's `filter_entries_by_route` matches an annotated route. Each
+// praxis-policy-core's `filter_entries_by_route` matches an annotated route. Each
 // instance is bound to ONE phase (Pre or Post) so the unified-config
 // `cmf.tool_pre_invoke` and `cmf.tool_post_invoke` hooks can carry
 // distinct handler logic without an in-handler hook-name discriminator.
 //
 // # Why a phase-bound handler
 //
-// The CPEX manager's annotation table is keyed on
+// The PPE manager's annotation table is keyed on
 // `(entity_type, entity_name, scope, hook_name)`. The visitor registers
 // one handler per route per phase; the manager picks the right one based
 // on the dispatching hook name. Inside `invoke`, no hook-name plumbing is
@@ -30,26 +30,26 @@ use std::sync::{Arc, Weak};
 use async_trait::async_trait;
 use serde_json::Value;
 
-use cpex_core::cmf::MessagePayload;
-use cpex_core::context::PluginContext;
-use cpex_core::error::{PluginError, PluginViolation};
-use cpex_core::executor::ErasedResultFields;
-use cpex_core::extensions::Extensions;
-use cpex_core::hooks::PluginPayload;
-use cpex_core::manager::PluginManager;
-use cpex_core::plugin::{Plugin, PluginConfig};
-use cpex_core::registry::AnyHookHandler;
+use praxis_policy_core::cmf::MessagePayload;
+use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::error::{PluginError, PluginViolation};
+use praxis_policy_core::executor::ErasedResultFields;
+use praxis_policy_core::extensions::Extensions;
+use praxis_policy_core::hooks::PluginPayload;
+use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::plugin::{Plugin, PluginConfig};
+use praxis_policy_core::registry::AnyHookHandler;
 
-use apl_cmf::constants::{DETAIL_HTTP_BODY, DETAIL_HTTP_HEADERS, DETAIL_HTTP_STATUS};
-use apl_cmf::{extract_args, extract_result, BagBuilder};
-use apl_core::evaluator::Decision;
-use apl_core::plugin_decl::PluginRegistry;
-use apl_core::AttributeTree;
+use praxis_policy_apl_cmf::constants::{DETAIL_HTTP_BODY, DETAIL_HTTP_HEADERS, DETAIL_HTTP_STATUS};
+use praxis_policy_apl_cmf::{extract_args, extract_result, BagBuilder};
+use praxis_policy_apl_core::evaluator::Decision;
+use praxis_policy_apl_core::plugin_decl::PluginRegistry;
+use praxis_policy_apl_core::AttributeTree;
 
 use crate::candidate_constraint::fold_candidate_constraints;
-use apl_core::route::{evaluate_post, evaluate_pre, RoutePayload};
-use apl_core::rules::{CompiledRoute, DenyResponse};
-use apl_core::step::PdpResolver;
+use praxis_policy_apl_core::route::{evaluate_post, evaluate_pre, RoutePayload};
+use praxis_policy_apl_core::rules::{CompiledRoute, DenyResponse};
+use praxis_policy_apl_core::step::PdpResolver;
 
 use crate::cmf_invoker::CmfPluginInvoker;
 use crate::delegation_invoker::DelegationPluginInvoker;
@@ -99,7 +99,7 @@ pub enum Phase {
 
 /// Synthetic plugin that drives APL evaluation for one route + one phase.
 ///
-/// Implements `Plugin` (so cpex-core treats it like any other plugin —
+/// Implements `Plugin` (so praxis-policy-core treats it like any other plugin —
 /// mode/capabilities/on_error come from the `PluginConfig` the visitor
 /// supplied at `annotate_route` time) and `AnyHookHandler` (so the
 /// executor dispatches into it through the normal type-erased path).
@@ -148,13 +148,13 @@ impl AplRouteHandler {
             session_store,
             manager,
             pdp: Arc::new(PdpRouter::new()),
-            attribute_tree: Arc::new(apl_core::AttributeTree::empty()),
+            attribute_tree: Arc::new(praxis_policy_apl_core::AttributeTree::empty()),
         }
     }
 
     /// Install the static `data.*` attribute tree flattened into every
     /// request's bag. Defaults to empty; the visitor sets it from the
-    /// configured [`AttributeSource`](apl_core::AttributeSource).
+    /// configured [`AttributeSource`](praxis_policy_apl_core::AttributeSource).
     pub fn with_attribute_tree(mut self, tree: Arc<AttributeTree>) -> Self {
         self.attribute_tree = tree;
         self
@@ -240,7 +240,7 @@ impl AnyHookHandler for AplRouteHandler {
         // mutations. Hydration + persistence are no-ops when there's no
         // session id (the common case for the first request in a session).
         // Wrapped in Arc so it can be erased to `Arc<dyn PluginInvoker>`
-        // for the apl-core entry points (which take `&Arc<dyn PluginInvoker>`
+        // for the praxis-policy-apl-core entry points (which take `&Arc<dyn PluginInvoker>`
         // so `dispatch_parallel` can clone an owned, 'static reference into
         // each spawned branch). Inherent-method calls on `CmfPluginInvoker`
         // (e.g. `extensions_arc`, `persist_session`) deref through the Arc.
@@ -283,7 +283,7 @@ impl AnyHookHandler for AplRouteHandler {
         };
 
         // Build the attribute bag. APL predicates read flat keys; the
-        // BagBuilder bridges typed CPEX extensions into that namespace.
+        // BagBuilder bridges typed PPE extensions into that namespace.
         // `route.key` lets default/policy-bundle predicates branch on
         // which route they're attached to.
         let post_extensions = invoker.current_extensions().await;
@@ -300,7 +300,10 @@ impl AnyHookHandler for AplRouteHandler {
         // of dispatching a fresh one. Without this, every retry would open a
         // new approval and the loop would never resolve.
         if let Some(elicitation_id) = elicitation_id_from_headers(&post_extensions) {
-            bag.set(apl_core::step::elicitation_bag_keys::ID, elicitation_id);
+            bag.set(
+                praxis_policy_apl_core::step::elicitation_bag_keys::ID,
+                elicitation_id,
+            );
         }
 
         // Build `RoutePayload.args` from the message. Per-content shape:
@@ -380,9 +383,11 @@ impl AnyHookHandler for AplRouteHandler {
             invoker.plan_arc(),
         ));
 
-        let invoker_dyn: Arc<dyn apl_core::step::PluginInvoker> = invoker.clone();
-        let delegations_dyn: Arc<dyn apl_core::step::DelegationInvoker> = delegations.clone();
-        let elicitations_dyn: Arc<dyn apl_core::step::ElicitationInvoker> = elicitations.clone();
+        let invoker_dyn: Arc<dyn praxis_policy_apl_core::step::PluginInvoker> = invoker.clone();
+        let delegations_dyn: Arc<dyn praxis_policy_apl_core::step::DelegationInvoker> =
+            delegations.clone();
+        let elicitations_dyn: Arc<dyn praxis_policy_apl_core::step::ElicitationInvoker> =
+            elicitations.clone();
 
         let decision = match self.phase {
             Phase::Pre => {
@@ -607,7 +612,8 @@ impl AnyHookHandler for AplRouteHandler {
         // to actually run the tool (the plugin replays the cached approval).
         if continue_processing
             && elicitation_peek_from_headers(&post_extensions)
-            && bag.get_string(apl_core::step::elicitation_bag_keys::OUTCOME) == Some("approved")
+            && bag.get_string(praxis_policy_apl_core::step::elicitation_bag_keys::OUTCOME)
+                == Some("approved")
         {
             continue_processing = false;
             violation = Some(approved_peek_violation(&bag));
@@ -764,8 +770,10 @@ fn elicitation_peek_from_headers(ext: &Extensions) -> bool {
 /// that resolved approved. Carries the elicitation id + approver in
 /// `details` so the agent can ask the requester and then re-send (without
 /// the peek header) to actually run the tool.
-fn approved_peek_violation(bag: &apl_core::attributes::AttributeBag) -> PluginViolation {
-    use apl_core::step::elicitation_bag_keys as bk;
+fn approved_peek_violation(
+    bag: &praxis_policy_apl_core::attributes::AttributeBag,
+) -> PluginViolation {
+    use praxis_policy_apl_core::step::elicitation_bag_keys as bk;
     let mut details: std::collections::HashMap<String, Value> = std::collections::HashMap::new();
     if let Some(id) = bag.get_string(bk::ID) {
         details.insert("elicitation_id".into(), Value::String(id.to_string()));
@@ -785,7 +793,7 @@ fn approved_peek_violation(bag: &apl_core::attributes::AttributeBag) -> PluginVi
 /// code, the protocol error code the host maps to the wire, and the
 /// elicitation bundle in `details` so the agent can show who's approving /
 /// when it expires and retry by re-sending the id.
-fn pending_violation(p: &apl_core::step::PendingElicitation) -> PluginViolation {
+fn pending_violation(p: &praxis_policy_apl_core::step::PendingElicitation) -> PluginViolation {
     let mut details: std::collections::HashMap<String, Value> = std::collections::HashMap::new();
     details.insert("elicitation_id".into(), Value::String(p.id.clone()));
     details.insert("plugin".into(), Value::String(p.plugin_name.clone()));
@@ -813,11 +821,11 @@ fn pending_violation(p: &apl_core::step::PendingElicitation) -> PluginViolation 
 #[cfg(test)]
 mod phase5_tests {
     use super::*;
-    use cpex_core::extensions::HttpExtension;
+    use praxis_policy_core::extensions::HttpExtension;
     use std::sync::Arc;
 
-    fn pending(id: &str) -> apl_core::step::PendingElicitation {
-        apl_core::step::PendingElicitation {
+    fn pending(id: &str) -> praxis_policy_apl_core::step::PendingElicitation {
+        praxis_policy_apl_core::step::PendingElicitation {
             id: id.to_string(),
             plugin_name: "manager-approver".to_string(),
             approver: Some("alice".to_string()),

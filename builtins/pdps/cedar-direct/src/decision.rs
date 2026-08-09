@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
-// Translation from `cedar_policy::Response` into `apl_core::PdpDecision`.
+// Translation from `cedar_policy::Response` into `praxis_policy_apl_core::PdpDecision`.
 //
 // What we preserve:
 //
@@ -34,9 +34,9 @@
 // decision is worse than a closed gate. The error messages flow into
 // the Deny reason so operators see why.
 
-use apl_core::evaluator::Decision;
-use apl_core::step::PdpDecision;
 use cedar_policy::{Decision as CedarDecision, PolicySet};
+use praxis_policy_apl_core::evaluator::Decision;
+use praxis_policy_apl_core::step::PdpDecision;
 
 /// Translate a `cedar_policy::Response` into the APL-side `PdpDecision`.
 /// Captures policy-ID attribution into `diagnostics` and, on Deny,

@@ -33,8 +33,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use cedar_policy::{Authorizer, PolicySet, Schema};
 
-use apl_core::attributes::AttributeBag;
-use apl_core::step::{PdpCall, PdpDecision, PdpDialect, PdpError, PdpResolver};
+use praxis_policy_apl_core::attributes::AttributeBag;
+use praxis_policy_apl_core::step::{PdpCall, PdpDecision, PdpDialect, PdpError, PdpResolver};
 
 use crate::decision::translate;
 use crate::entities::build as build_entities;

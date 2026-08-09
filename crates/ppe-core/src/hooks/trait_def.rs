@@ -1,11 +1,11 @@
-// Location: ./crates/cpex-core/src/hooks/trait_def.rs
+// Location: ./crates/ppe-core/src/hooks/trait_def.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
 // HookTypeDef trait and PluginResult type.
 //
-// Every hook in the CPEX framework is defined by a marker type that
+// Every hook in the PPE framework is defined by a marker type that
 // implements HookTypeDef. This associates a typed PluginPayload and
 // PluginResult with a string name used for registry lookup and config.
 //
@@ -179,13 +179,13 @@ pub trait HookHandler<H: HookTypeDef>: Plugin + Send + Sync {
 /// # Examples
 ///
 /// ```
-/// use cpex_core::hooks::{PluginPayload, PluginResult};
-/// use cpex_core::error::PluginViolation;
+/// use praxis_policy_core::hooks::{PluginPayload, PluginResult};
+/// use praxis_policy_core::error::PluginViolation;
 ///
 /// // Define a simple payload
 /// #[derive(Debug, Clone)]
 /// struct TestPayload { value: i32 }
-/// cpex_core::impl_plugin_payload!(TestPayload);
+/// praxis_policy_core::impl_plugin_payload!(TestPayload);
 ///
 /// // Allow — no changes
 /// let result: PluginResult<TestPayload> = PluginResult::allow();

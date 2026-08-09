@@ -1,8 +1,8 @@
-# CPEX Core Examples
+# PPE Core Examples
 
 ## plugin_demo
 
-A complete end-to-end example showing how to build plugins, load config, and invoke hooks with the CPEX runtime.
+A complete end-to-end example showing how to build plugins, load config, and invoke hooks with the PPE runtime.
 
 ### What it demonstrates
 

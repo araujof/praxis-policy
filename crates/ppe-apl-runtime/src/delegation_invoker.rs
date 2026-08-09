@@ -1,22 +1,22 @@
-// Location: ./crates/apl-cpex/src/delegation_invoker.rs
+// Location: ./crates/ppe-apl-runtime/src/delegation_invoker.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
-// `DelegationPluginInvoker` — `apl-core::DelegationInvoker` impl
+// `DelegationPluginInvoker` — `praxis-policy-apl-core::DelegationInvoker` impl
 // bound to the `TokenDelegateHook` family. Drives dispatch off a
 // pre-resolved [`RouteDispatchPlan::delegation_entries`] and forwards
 // to `PluginManager::invoke_entries::<TokenDelegateHook>(...)`.
 //
 // # When this runs
 //
-// The apl-core evaluator calls
+// The praxis-policy-apl-core evaluator calls
 // `DelegationInvoker::delegate(&DelegateStep)` once per `Step::Delegate`
 // it encounters in a `pre_invocation:` / `post_invocation:` block. The invoker:
 //
 //   1. Looks up the resolved `token.delegate` entry for the step's
 //      plugin name in the dispatch plan.
-//   2. Constructs a `cpex_core::delegation::DelegationPayload` from
+//   2. Constructs a `praxis_policy_core::delegation::DelegationPayload` from
 //      the inbound bearer token (from
 //      `Extensions.raw_credentials.inbound_tokens[User]`) plus the
 //      step's `config_override` (target / audience / permissions /
@@ -43,20 +43,22 @@ use async_trait::async_trait;
 use chrono::SecondsFormat;
 use tokio::sync::Mutex;
 
-use cpex_core::delegation::{
+use praxis_policy_core::delegation::{
     payload::{AuthEnforcedBy, TargetType},
     DelegationPayload, DelegationSubject, TokenDelegateHook,
 };
-use cpex_core::extensions::raw_credentials::TokenRole;
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::manager::PluginManager;
+use praxis_policy_core::extensions::raw_credentials::TokenRole;
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::manager::PluginManager;
 
-use apl_core::evaluator::Decision;
-use apl_core::step::{DelegateStep, DelegationError, DelegationInvoker, DelegationOutcome};
+use praxis_policy_apl_core::evaluator::Decision;
+use praxis_policy_apl_core::step::{
+    DelegateStep, DelegationError, DelegationInvoker, DelegationOutcome,
+};
 
 use crate::dispatch_plan::RouteDispatchPlan;
 
-/// Bridges APL `delegate(...)` step dispatch to CPEX
+/// Bridges APL `delegate(...)` step dispatch to PPE
 /// `TokenDelegateHook` plugins.
 ///
 /// Carries the request's shared `Extensions` so mutations from a

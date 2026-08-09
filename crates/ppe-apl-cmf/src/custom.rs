@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cmf/src/custom.rs
+// Location: ./crates/ppe-apl-cmf/src/custom.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -13,7 +13,7 @@
 // Namespace:
 //   custom.<dotted path>   : Bool | Int | Float | String | StringSet
 
-use apl_core::AttributeBag;
+use praxis_policy_apl_core::AttributeBag;
 use serde_json::Value;
 use std::collections::HashMap;
 

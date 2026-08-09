@@ -1,21 +1,21 @@
-// Location: ./crates/cpex-core/src/visitor.rs
+// Location: ./crates/ppe-core/src/visitor.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
 // `ConfigVisitor` — extension point for external orchestrators (APL,
 // future Rego/Cedar-direct/custom) to participate in unified-config
-// loading without cpex-core taking a dep on any specific orchestrator.
+// loading without praxis-policy-core taking a dep on any specific orchestrator.
 //
 // # How it fits
 //
-// The host calls `PluginManager::load_config_yaml(yaml)`. cpex-core
-// parses the YAML twice (once into a typed `CpexConfig`, once into a
+// The host calls `PluginManager::load_config_yaml(yaml)`. praxis-policy-core
+// parses the YAML twice (once into a typed `PolicyConfig`, once into a
 // raw `serde_yaml::Value`), runs its own plugin instantiation, then
 // walks each registered visitor in registration order:
 //
 //   1. `visit_plugins`       — once per visitor, immediately after
-//                              cpex-core's own plugin instantiation,
+//                              praxis-policy-core's own plugin instantiation,
 //                              receiving the parsed `&[PluginConfig]`
 //                              so the visitor doesn't have to re-parse
 //                              the root `plugins:` block from raw YAML.
@@ -25,7 +25,7 @@
 //   5. `visit_route`         — once per route
 //
 // Each visitor sees the **raw YAML** so it can find its own block
-// (e.g. `apl:`) under any section without cpex-core having to know
+// (e.g. `apl:`) under any section without praxis-policy-core having to know
 // about it. Parsed sibling data is passed alongside (`RouteEntry` for
 // routes) for convenience — e.g. APL needs to know whether a route
 // matches `tool:` or `resource:` to build the annotation key.
@@ -54,7 +54,7 @@ use crate::plugin::PluginConfig;
 
 /// Error type returned by a config visitor. Boxed `dyn Error` so each
 /// orchestrator can carry its own error variants (parse errors, missing
-/// plugin references, etc.) without cpex-core having to enumerate them.
+/// plugin references, etc.) without praxis-policy-core having to enumerate them.
 pub type VisitorError = Box<dyn std::error::Error + Send + Sync>;
 
 /// Extension point for external orchestrators to participate in unified
@@ -70,11 +70,11 @@ pub trait ConfigVisitor: Send + Sync {
     fn name(&self) -> &str;
 
     /// Visit the typed plugin declarations from the root `plugins:`
-    /// block. Called once per visitor, immediately after cpex-core's
+    /// block. Called once per visitor, immediately after praxis-policy-core's
     /// own plugin instantiation completes and before any hierarchy
     /// section is walked. Visitors that need a per-name registry of
     /// hook / capability / on_error metadata can populate it here
-    /// without re-parsing the YAML — cpex-core has already validated
+    /// without re-parsing the YAML — praxis-policy-core has already validated
     /// the block (no duplicate names, etc.) by this point.
     fn visit_plugins(
         &self,
@@ -120,7 +120,7 @@ pub trait ConfigVisitor: Send + Sync {
 
     /// Visit one route entry. `yaml` is the raw value at `routes[i]`
     /// (so orchestrator can find its own block like `apl:`); `parsed`
-    /// is the typed `RouteEntry` cpex-core deserialized (so the
+    /// is the typed `RouteEntry` praxis-policy-core deserialized (so the
     /// orchestrator can read `tool`/`resource`/`prompt`/`llm`,
     /// `meta.scope`, `meta.tags`, etc. without re-parsing).
     fn visit_route(

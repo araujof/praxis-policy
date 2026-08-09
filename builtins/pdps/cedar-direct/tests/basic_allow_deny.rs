@@ -8,11 +8,11 @@
 // the principal entity), and the policy-id attribution that operators
 // rely on for audit logs.
 
-use apl_core::attributes::AttributeBag;
-use apl_core::evaluator::Decision;
-use apl_core::step::{PdpCall, PdpDialect, PdpResolver};
+use praxis_policy_apl_core::attributes::AttributeBag;
+use praxis_policy_apl_core::evaluator::Decision;
+use praxis_policy_apl_core::step::{PdpCall, PdpDialect, PdpResolver};
 
-use cpex_pdp_cedar_direct::CedarDirectResolver;
+use praxis_policy_pdp_cedar_direct::CedarDirectResolver;
 
 /// Build a `PdpCall` against `Action::"read"` on a `Document::"doc-1"`.
 /// Used across the test cases so the request side stays constant and
@@ -86,7 +86,7 @@ async fn empty_policy_set_denies_by_default() {
 /// A policy that requires `principal.roles.contains("hr")`. Bag has
 /// `role.hr=true` → reaches principal.roles → Allow. Proves the
 /// bag-attribute-to-entity-attribute translation works end-to-end:
-/// apl-cmf would normally populate `role.hr` from
+/// praxis-policy-apl-cmf would normally populate `role.hr` from
 /// `SecurityExtension.subject.roles`, but the bag works the same way
 /// however it got there.
 #[tokio::test]

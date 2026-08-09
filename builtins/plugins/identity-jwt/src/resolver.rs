@@ -52,15 +52,15 @@ use base64::Engine;
 use jsonwebtoken::{decode, Validation};
 use serde_json::Value;
 
-use cpex_core::context::PluginContext;
-use cpex_core::error::{PluginError, PluginViolation};
-use cpex_core::extensions::raw_credentials::{
+use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::error::{PluginError, PluginViolation};
+use praxis_policy_core::extensions::raw_credentials::{
     RawCredentialsExtension, RawInboundToken, TokenKind, TokenRole,
 };
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::hooks::trait_def::{HookHandler, PluginResult};
-use cpex_core::identity::{IdentityHook, IdentityPayload};
-use cpex_core::plugin::{Plugin, PluginConfig};
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
+use praxis_policy_core::identity::{IdentityHook, IdentityPayload};
+use praxis_policy_core::plugin::{Plugin, PluginConfig};
 
 use super::claim_map::{ClaimMap, ClaimMapper, StandardClaimMap};
 use super::config::{JwtIdentityResolverConfig, TrustedIssuerConfig};
@@ -131,7 +131,7 @@ impl JwtIdentityResolver {
         let raw_config = cfg.config.as_ref().ok_or_else(|| {
             Box::new(PluginError::Config {
                 message: format!(
-                    "plugin '{}' (cpex-plugin-identity-jwt) requires a `config:` block — \
+                    "plugin '{}' (praxis-policy-plugin-identity-jwt) requires a `config:` block — \
                      missing trusted_issuers etc.",
                     cfg.name
                 ),
@@ -142,7 +142,7 @@ impl JwtIdentityResolver {
             serde_json::from_value(raw_config.clone()).map_err(|e| {
                 Box::new(PluginError::Config {
                     message: format!(
-                        "plugin '{}' (cpex-plugin-identity-jwt) config parse failed: {e}",
+                        "plugin '{}' (praxis-policy-plugin-identity-jwt) config parse failed: {e}",
                         cfg.name
                     ),
                 })
@@ -151,7 +151,7 @@ impl JwtIdentityResolver {
         if typed.trusted_issuers.is_empty() {
             return Err(Box::new(PluginError::Config {
                 message: format!(
-                    "plugin '{}' (cpex-plugin-identity-jwt) requires at least one \
+                    "plugin '{}' (praxis-policy-plugin-identity-jwt) requires at least one \
                      entry in `trusted_issuers`",
                     cfg.name
                 ),
@@ -171,7 +171,10 @@ impl JwtIdentityResolver {
             // rather than at the async initialize() boundary.
             raw.validate().map_err(|e| {
                 Box::new(PluginError::Config {
-                    message: format!("plugin '{}' (cpex-plugin-identity-jwt): {e}", cfg.name),
+                    message: format!(
+                        "plugin '{}' (praxis-policy-plugin-identity-jwt): {e}",
+                        cfg.name
+                    ),
                 })
             })?;
             if raw.decoding_key.needs_async() {
@@ -179,7 +182,10 @@ impl JwtIdentityResolver {
             } else {
                 let built = raw.build().map_err(|e| {
                     Box::new(PluginError::Config {
-                        message: format!("plugin '{}' (cpex-plugin-identity-jwt): {e}", cfg.name),
+                        message: format!(
+                            "plugin '{}' (praxis-policy-plugin-identity-jwt): {e}",
+                            cfg.name
+                        ),
                     })
                 })?;
                 trusted_issuers.push(built);
@@ -194,7 +200,7 @@ impl JwtIdentityResolver {
             Some(other) => {
                 return Err(Box::new(PluginError::Config {
                     message: format!(
-                        "plugin '{}' (cpex-plugin-identity-jwt): unknown claim_mapper \
+                        "plugin '{}' (praxis-policy-plugin-identity-jwt): unknown claim_mapper \
                          '{other}'; valid: [standard]",
                         cfg.name
                     ),
@@ -211,7 +217,7 @@ impl JwtIdentityResolver {
         if matches!(typed.role, TokenRole::Custom(_)) {
             return Err(Box::new(PluginError::Config {
                 message: format!(
-                    "plugin '{}' (cpex-plugin-identity-jwt): role: Custom(...) is not \
+                    "plugin '{}' (praxis-policy-plugin-identity-jwt): role: Custom(...) is not \
                      yet supported — pick one of `user`, `client`, `workload`",
                     cfg.name
                 ),
@@ -220,7 +226,7 @@ impl JwtIdentityResolver {
         if typed.header.trim().is_empty() {
             return Err(Box::new(PluginError::Config {
                 message: format!(
-                    "plugin '{}' (cpex-plugin-identity-jwt): `header:` must be a \
+                    "plugin '{}' (praxis-policy-plugin-identity-jwt): `header:` must be a \
                      non-empty HTTP header name",
                     cfg.name
                 ),

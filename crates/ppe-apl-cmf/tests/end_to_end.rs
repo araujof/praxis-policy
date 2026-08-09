@@ -1,30 +1,30 @@
-// Location: ./crates/apl-cmf/tests/end_to_end.rs
+// Location: ./crates/ppe-apl-cmf/tests/end_to_end.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
-// Full vertical slice: cpex-core extensions → apl-cmf bridge → apl-core
+// Full vertical slice: praxis-policy-core extensions → praxis-policy-apl-cmf bridge → praxis-policy-apl-core
 // evaluator on a YAML-compiled route. If this test breaks, the whole
 // stack is misaligned (extension shape, bag vocabulary, or compiler).
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use apl_cmf::BagBuilder;
-use apl_core::{
+use async_trait::async_trait;
+use praxis_policy_apl_cmf::BagBuilder;
+use praxis_policy_apl_core::{
     compile_config, evaluate_route, AttributeBag, Decision, DelegationInvoker, ElicitationInvoker,
     NoopDelegationInvoker, NoopElicitationInvoker, PdpCall, PdpDecision, PdpDialect, PdpError,
     PdpResolver, PluginError, PluginInvocation, PluginInvoker, PluginOutcome, RoutePayload,
 };
-use async_trait::async_trait;
-use cpex_core::extensions::{
+use praxis_policy_core::extensions::{
     DelegationExtension, DelegationHop, SecurityExtension, SubjectExtension, SubjectType,
     WorkloadIdentity,
 };
 use serde_json::json;
 
 // `evaluate_route` takes `&Arc<dyn PluginInvoker>` / `&Arc<dyn DelegationInvoker>`
-// so the call paths inside apl-core can `Arc::clone` an owned, 'static reference
+// so the call paths inside praxis-policy-apl-core can `Arc::clone` an owned, 'static reference
 // into each spawned branch. All tests pass the same no-op stubs; wrap once.
 fn pdp() -> Arc<dyn PdpResolver> {
     Arc::new(AllowPdp)

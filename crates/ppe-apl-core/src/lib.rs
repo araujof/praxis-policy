@@ -1,13 +1,13 @@
-// Location: ./crates/apl-core/src/lib.rs
+// Location: ./crates/ppe-apl-core/src/lib.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
 // APL core — Authorization Policy Language compiler + evaluator.
 //
-// This crate is the language nucleus. It does not depend on CPEX directly;
-// the bridge from cpex-core extensions into the AttributeBag lives in
-// `apl-cmf`, and the `PolicyEvaluator` implementation lives in `apl-cpex`.
+// This crate is the language nucleus. It does not depend on PPE directly;
+// the bridge from praxis-policy-core extensions into the AttributeBag lives in
+// `praxis-policy-apl-cmf`, and the `PolicyEvaluator` implementation lives in `praxis-policy-apl-runtime`.
 
 #![doc = "APL — Authorization Policy Language."]
 

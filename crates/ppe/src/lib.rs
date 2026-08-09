@@ -1,9 +1,9 @@
-// Location: ./crates/cpex/src/lib.rs
+// Location: ./crates/ppe/src/lib.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Fred Araujo
 
-//! **CPEX is a policy enforcement runtime for AI agents.**
+//! **PPE is a policy enforcement runtime for AI agents.**
 //!
 //! It is a deterministic reference monitor between an agent and every
 //! capability it invokes: tools, prompts, resources, inference providers, and
@@ -12,20 +12,19 @@
 //! like Cedar or CEL), exchange and reduce credentials before a downstream
 //! call, redact inputs and outputs, track information flow across calls, and
 //! audit. You write that policy declaratively in APL, the configuration that
-//! defines each operation's pipeline; CPEX evaluates and enforces it at the
+//! defines each operation's pipeline; PPE evaluates and enforces it at the
 //! boundary, against state the model cannot observe or forge.
 //!
-//! - Guide and concepts: <https://contextforge-org.github.io/cpex/>
-//! - Source and issues: <https://github.com/contextforge-org/cpex>
+//! - Source and issues: <https://github.com/praxis-proxy/policy>
 //!
 //! # This crate
 //!
-//! `cpex` is the **host facade**: one dependency that re-exports the CPEX
-//! runtime (`cpex-core`, `apl-core`, `apl-cmf`, `apl-cpex`), so a host depends
+//! `praxis-policy` is the **host facade**: one dependency that re-exports the PPE
+//! runtime (`praxis-policy-core`, `praxis-policy-apl-core`, `praxis-policy-apl-cmf`, `praxis-policy-apl-runtime`), so a host depends
 //! on this crate instead of pinning each of them separately.
 //!
 //! By default it is the **engine only**: no builtin plugins are compiled in.
-//! The bundled extension set lives in [`cpex-builtins`](cpex_builtins) and is
+//! The bundled extension set lives in [`praxis-policy-builtins`](praxis_policy_builtins) and is
 //! pulled in only when a builtins feature is enabled.
 //!
 //! # Usage
@@ -34,73 +33,75 @@
 //!
 //! ```no_run
 //! use std::sync::Arc;
-//! use cpex::PluginManager;
+//! use praxis_policy::PluginManager;
 //!
 //! let mgr = Arc::new(PluginManager::default());
-//! // ... register host factories, then `apl_cpex::register_apl(&mgr, opts)`.
+//! // ... register host factories, then `praxis_policy_apl_runtime::register_apl(&mgr, opts)`.
 //! ```
 //!
 //! With the bundled builtins (enable the `builtins` or `full` feature):
 //!
 //! ```ignore
 //! use std::sync::Arc;
-//! use cpex::PluginManager;
+//! use praxis_policy::PluginManager;
 //!
 //! let mgr = Arc::new(PluginManager::default());
 //! // Register every enabled builtin factory and install the APL config
 //! // visitor (in-process defaults) in one call:
-//! cpex::install_builtins(&mgr);
+//! praxis_policy::install_builtins(&mgr);
 //! // ... then load a config that references the enabled `kind`s.
 //! ```
 //!
 //! # Features
 //!
-//! No plugins are on by default (`cpex = "0.2"` is the engine alone).
+//! No plugins are on by default (`praxis-policy` alone is the engine).
 //! `builtins` enables the common in-process set; `full` adds the Valkey
 //! session store; or pick a granular subset (`jwt`, `oauth`, `pii`,
 //! `audit`, `cedar`, `cel`, `valkey`). When any builtins feature is on, the
 //! registration helpers and the concrete factory types are re-exported here
-//! from [`cpex-builtins`](cpex_builtins).
+//! from [`praxis-policy-builtins`](praxis_policy_builtins).
 
 // Whole-crate re-exports for advanced use (types not surfaced below).
-pub use {apl_cmf, apl_core, apl_cpex, cpex_core};
+pub use {
+    praxis_policy_apl_cmf, praxis_policy_apl_core, praxis_policy_apl_runtime, praxis_policy_core,
+};
 
-pub use apl_core::step::PdpFactory;
-pub use apl_cpex::{
+pub use praxis_policy_apl_core::step::PdpFactory;
+pub use praxis_policy_apl_runtime::{
     register_apl, AplOptions, DispatchCache, MemorySessionStore, SessionStore, SessionStoreFactory,
 };
-pub use cpex_core::manager::PluginManager;
+pub use praxis_policy_core::manager::PluginManager;
 
 // The whole aggregator, for advanced use.
-#[cfg(feature = "cpex-builtins")]
-pub use cpex_builtins;
+#[cfg(feature = "praxis-policy-builtins")]
+pub use praxis_policy_builtins;
 
-// Registration helpers — delegated to cpex-builtins, keeping the facade's
+// Registration helpers — delegated to praxis-policy-builtins, keeping the facade's
 // historical names (`register_builtin_plugins`, `builtin_pdp_factories`).
-#[cfg(feature = "cpex-builtins")]
-pub use cpex_builtins::{
+#[cfg(feature = "praxis-policy-builtins")]
+pub use praxis_policy_builtins::{
     builtin_pdps as builtin_pdp_factories, builtin_session_store_factories, install_builtins,
     register_builtins as register_builtin_plugins,
 };
 
 // Concrete factory types + KIND consts, each behind its facade feature
-// (which forwards to the matching cpex-builtins feature).
+// (which forwards to the matching praxis-policy-builtins feature).
 #[cfg(feature = "cedar")]
-pub use cpex_builtins::CedarDirectPdpFactory;
+pub use praxis_policy_builtins::CedarDirectPdpFactory;
 #[cfg(feature = "cel")]
-pub use cpex_builtins::CelPdpFactory;
+pub use praxis_policy_builtins::CelPdpFactory;
 #[cfg(feature = "audit")]
-pub use cpex_builtins::{AuditLoggerFactory, AUDIT_KIND};
+pub use praxis_policy_builtins::{AuditLoggerFactory, AUDIT_KIND};
 #[cfg(feature = "jwt")]
-pub use cpex_builtins::{JwtIdentityFactory, JWT_KIND};
+pub use praxis_policy_builtins::{JwtIdentityFactory, JWT_KIND};
 #[cfg(feature = "oauth")]
-pub use cpex_builtins::{OAuthDelegatorFactory, OAUTH_KIND};
+pub use praxis_policy_builtins::{OAuthDelegatorFactory, OAUTH_KIND};
 #[cfg(feature = "pii")]
-pub use cpex_builtins::{PiiScannerFactory, PII_KIND};
+pub use praxis_policy_builtins::{PiiScannerFactory, PII_KIND};
 #[cfg(feature = "valkey")]
-pub use cpex_builtins::{ValkeyConfig, ValkeySessionStoreFactory, VALKEY_KIND};
+pub use praxis_policy_builtins::{ValkeyConfig, ValkeySessionStoreFactory, VALKEY_KIND};
 
-#[cfg(all(test, feature = "cpex-builtins"))]
+#[cfg(all(test, feature = "praxis-policy-builtins"))]
 mod tests {
     use super::*;
     use std::sync::Arc;

@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cmf/src/security.rs
+// Location: ./crates/ppe-apl-cmf/src/security.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -44,8 +44,8 @@
 //   sec.labels                       → security.labels      : StringSet
 //   sec.classification               → security.classification : String
 
-use apl_core::AttributeBag;
-use cpex_core::extensions::{
+use praxis_policy_apl_core::AttributeBag;
+use praxis_policy_core::extensions::{
     ClientExtension, ClientTrustLevel, SecurityExtension, SubjectType, WorkloadIdentity,
 };
 use std::collections::HashSet;
@@ -213,7 +213,7 @@ fn subject_type_str(t: SubjectType) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cpex_core::extensions::{SubjectExtension, WorkloadIdentity};
+    use praxis_policy_core::extensions::{SubjectExtension, WorkloadIdentity};
     use std::collections::HashMap;
 
     fn alice() -> SecurityExtension {

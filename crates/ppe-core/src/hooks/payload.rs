@@ -1,4 +1,4 @@
-// Location: ./crates/cpex-core/src/hooks/payload.rs
+// Location: ./crates/ppe-core/src/hooks/payload.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -55,7 +55,7 @@ pub use crate::extensions::{Extensions, Guarded, MetaExtension, OwnedExtensions,
 /// # Examples
 ///
 /// ```
-/// use cpex_core::hooks::payload::PluginPayload;
+/// use praxis_policy_core::hooks::payload::PluginPayload;
 ///
 /// #[derive(Debug, Clone)]
 /// struct RateLimitPayload {
@@ -100,7 +100,7 @@ impl fmt::Debug for dyn PluginPayload {
 /// just invoke this macro:
 ///
 /// ```
-/// use cpex_core::impl_plugin_payload;
+/// use praxis_policy_core::impl_plugin_payload;
 ///
 /// #[derive(Debug, Clone)]
 /// struct MyPayload { value: i32 }

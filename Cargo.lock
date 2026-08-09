@@ -50,50 +50,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
-name = "apl-cmf"
-version = "0.1.0"
-dependencies = [
- "apl-core",
- "async-trait",
- "cpex-core",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "apl-core"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "cpex-orchestration",
- "futures",
- "regex",
- "serde",
- "serde_json",
- "serde_yaml",
- "thiserror 2.0.20",
- "tokio",
-]
-
-[[package]]
-name = "apl-cpex"
-version = "0.1.0"
-dependencies = [
- "apl-cmf",
- "apl-core",
- "async-trait",
- "chrono",
- "cpex-core",
- "serde",
- "serde_json",
- "serde_yaml",
- "sha2",
- "thiserror 2.0.20",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "ar_archive_writer"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -640,202 +596,6 @@ name = "core-foundation-sys"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
-
-[[package]]
-name = "cpex"
-version = "0.1.0"
-dependencies = [
- "apl-cmf",
- "apl-core",
- "apl-cpex",
- "cpex-builtins",
- "cpex-core",
-]
-
-[[package]]
-name = "cpex-builtins"
-version = "0.1.0"
-dependencies = [
- "apl-core",
- "apl-cpex",
- "cpex-core",
- "cpex-pdp-cedar-direct",
- "cpex-pdp-cel",
- "cpex-plugin-audit-logger",
- "cpex-plugin-delegator-oauth",
- "cpex-plugin-elicitation-ciba",
- "cpex-plugin-identity-jwt",
- "cpex-plugin-pii-scanner",
- "cpex-session-valkey",
- "tokio",
-]
-
-[[package]]
-name = "cpex-core"
-version = "0.1.0"
-dependencies = [
- "arc-swap",
- "async-trait",
- "chrono",
- "cpex-orchestration",
- "hashbrown 0.17.1",
- "serde",
- "serde_json",
- "serde_yaml",
- "thiserror 2.0.20",
- "tokio",
- "tokio-util",
- "tracing",
- "uuid",
- "wildmatch",
- "zeroize",
-]
-
-[[package]]
-name = "cpex-orchestration"
-version = "0.1.0"
-dependencies = [
- "futures",
- "tokio",
-]
-
-[[package]]
-name = "cpex-pdp-cedar-direct"
-version = "0.1.0"
-dependencies = [
- "apl-cmf",
- "apl-core",
- "apl-cpex",
- "async-trait",
- "cedar-policy",
- "cpex-core",
- "futures",
- "serde_json",
- "serde_yaml",
- "stacker",
- "thiserror 2.0.20",
- "tokio",
-]
-
-[[package]]
-name = "cpex-pdp-cel"
-version = "0.1.0"
-dependencies = [
- "apl-cmf",
- "apl-core",
- "apl-cpex",
- "async-trait",
- "cel",
- "cpex-core",
- "serde_yaml",
- "thiserror 2.0.20",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "cpex-plugin-audit-logger"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "chrono",
- "cpex-core",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "cpex-plugin-delegator-oauth"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "base64 0.22.1",
- "chrono",
- "cpex-core",
- "mockito",
- "reqwest",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
- "zeroize",
-]
-
-[[package]]
-name = "cpex-plugin-elicitation-ciba"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "base64 0.22.1",
- "chrono",
- "cpex-core",
- "mockito",
- "reqwest",
- "serde",
- "serde_json",
- "tokio",
- "zeroize",
-]
-
-[[package]]
-name = "cpex-plugin-identity-jwt"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "base64 0.22.1",
- "chrono",
- "cpex-core",
- "futures",
- "jsonwebtoken",
- "mockito",
- "rand 0.8.7",
- "reqwest",
- "rsa",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "cpex-plugin-pii-scanner"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "cpex-core",
- "regex",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "cpex-sdk"
-version = "0.1.0"
-dependencies = [
- "cpex-core",
-]
-
-[[package]]
-name = "cpex-session-valkey"
-version = "0.1.0"
-dependencies = [
- "apl-cpex",
- "async-trait",
- "deadpool-redis",
- "redis",
- "serde",
- "serde_yaml",
- "sha2",
- "testcontainers",
- "testcontainers-modules",
- "thiserror 2.0.20",
- "tokio",
- "tracing",
- "url",
-]
 
 [[package]]
 name = "cpufeatures"
@@ -2299,6 +2059,246 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85eae3c4ed2f50dcfe72643da4befc30deadb458a9b590d720cde2f2b1e97da9"
 dependencies = [
  "zerocopy",
+]
+
+[[package]]
+name = "praxis-policy"
+version = "0.1.0"
+dependencies = [
+ "praxis-policy-apl-cmf",
+ "praxis-policy-apl-core",
+ "praxis-policy-apl-runtime",
+ "praxis-policy-builtins",
+ "praxis-policy-core",
+]
+
+[[package]]
+name = "praxis-policy-apl-cmf"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "praxis-policy-apl-core",
+ "praxis-policy-core",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "praxis-policy-apl-core"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "praxis-policy-orchestration",
+ "regex",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "thiserror 2.0.20",
+ "tokio",
+]
+
+[[package]]
+name = "praxis-policy-apl-runtime"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "praxis-policy-apl-cmf",
+ "praxis-policy-apl-core",
+ "praxis-policy-core",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sha2",
+ "thiserror 2.0.20",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "praxis-policy-builtins"
+version = "0.1.0"
+dependencies = [
+ "praxis-policy-apl-core",
+ "praxis-policy-apl-runtime",
+ "praxis-policy-core",
+ "praxis-policy-pdp-cedar-direct",
+ "praxis-policy-pdp-cel",
+ "praxis-policy-plugin-audit-logger",
+ "praxis-policy-plugin-delegator-oauth",
+ "praxis-policy-plugin-elicitation-ciba",
+ "praxis-policy-plugin-identity-jwt",
+ "praxis-policy-plugin-pii-scanner",
+ "praxis-policy-session-valkey",
+ "tokio",
+]
+
+[[package]]
+name = "praxis-policy-core"
+version = "0.1.0"
+dependencies = [
+ "arc-swap",
+ "async-trait",
+ "chrono",
+ "hashbrown 0.17.1",
+ "praxis-policy-orchestration",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "thiserror 2.0.20",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "uuid",
+ "wildmatch",
+ "zeroize",
+]
+
+[[package]]
+name = "praxis-policy-orchestration"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "tokio",
+]
+
+[[package]]
+name = "praxis-policy-pdp-cedar-direct"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "cedar-policy",
+ "futures",
+ "praxis-policy-apl-cmf",
+ "praxis-policy-apl-core",
+ "praxis-policy-apl-runtime",
+ "praxis-policy-core",
+ "serde_json",
+ "serde_yaml",
+ "stacker",
+ "thiserror 2.0.20",
+ "tokio",
+]
+
+[[package]]
+name = "praxis-policy-pdp-cel"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "cel",
+ "praxis-policy-apl-cmf",
+ "praxis-policy-apl-core",
+ "praxis-policy-apl-runtime",
+ "praxis-policy-core",
+ "serde_yaml",
+ "thiserror 2.0.20",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "praxis-policy-plugin-audit-logger"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "praxis-policy-core",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "praxis-policy-plugin-delegator-oauth"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "chrono",
+ "mockito",
+ "praxis-policy-core",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "zeroize",
+]
+
+[[package]]
+name = "praxis-policy-plugin-elicitation-ciba"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "chrono",
+ "mockito",
+ "praxis-policy-core",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "zeroize",
+]
+
+[[package]]
+name = "praxis-policy-plugin-identity-jwt"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "chrono",
+ "futures",
+ "jsonwebtoken",
+ "mockito",
+ "praxis-policy-core",
+ "rand 0.8.7",
+ "reqwest",
+ "rsa",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "praxis-policy-plugin-pii-scanner"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "praxis-policy-core",
+ "regex",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "praxis-policy-sdk"
+version = "0.1.0"
+dependencies = [
+ "praxis-policy-core",
+]
+
+[[package]]
+name = "praxis-policy-session-valkey"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "deadpool-redis",
+ "praxis-policy-apl-runtime",
+ "redis",
+ "serde",
+ "serde_yaml",
+ "sha2",
+ "testcontainers",
+ "testcontainers-modules",
+ "thiserror 2.0.20",
+ "tokio",
+ "tracing",
+ "url",
 ]
 
 [[package]]

@@ -3,20 +3,20 @@
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Fred Araujo
 //
-// cpex-session-valkey — a Valkey-backed `apl_cpex::SessionStore` for
+// praxis-policy-session-valkey — a Valkey-backed `praxis_policy_apl_runtime::SessionStore` for
 // distributed, cross-restart persistence of session security labels.
 //
 // # Where this sits
 //
-//   apl-cpex (SessionStore trait, SessionStoreFactory)
+//   praxis-policy-apl-runtime (SessionStore trait, SessionStoreFactory)
 //        ▲
 //        │ implements
-//   cpex-session-valkey  ──uses──▶  redis-rs + deadpool-redis (rustls)
+//   praxis-policy-session-valkey  ──uses──▶  redis-rs + deadpool-redis (rustls)
 //
 // The host registers `ValkeySessionStoreFactory` via
 // `AplOptions.session_store_factories`; a `global.apl.session_store:
 // { kind: valkey, ... }` block then selects it during config load. When
-// no such block is present, apl-cpex keeps its default in-process
+// no such block is present, praxis-policy-apl-runtime keeps its default in-process
 // `MemorySessionStore`, so this crate is entirely opt-in.
 //
 // # Design invariants (carried from the requirements/plan)

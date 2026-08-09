@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cpex/src/attribute_source.rs
+// Location: ./crates/ppe-apl-runtime/src/attribute_source.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value};
 
-use apl_core::attribute_source::{AttributeError, AttributeSource, AttributeTree};
+use praxis_policy_apl_core::attribute_source::{AttributeError, AttributeSource, AttributeTree};
 
 /// Built-in file-backed [`AttributeSource`]. Construct from the paths in
 /// `settings.attribute_files`; each is read and deep-merged, in order,

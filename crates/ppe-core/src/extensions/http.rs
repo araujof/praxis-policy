@@ -1,4 +1,4 @@
-// Location: ./crates/cpex-core/src/extensions/http.rs
+// Location: ./crates/ppe-core/src/extensions/http.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor

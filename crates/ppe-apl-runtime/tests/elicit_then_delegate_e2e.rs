@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cpex/tests/elicit_then_delegate_e2e.rs
+// Location: ./crates/ppe-apl-runtime/tests/elicit_then_delegate_e2e.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -8,8 +8,8 @@
 // must pass before a delegation (`delegate` → DelegationPluginInvoker)
 // runs. This is the manager-approval-then-apply pattern.
 //
-// The apl-core evaluator already unit-tests elicit sequencing and
-// delegate dispatch in isolation. What this proves is the CPEX
+// The praxis-policy-apl-core evaluator already unit-tests elicit sequencing and
+// delegate dispatch in isolation. What this proves is the PPE
 // integration level: both real bridge invokers plugged into one
 // `evaluate_route`, dispatching to real (fake-backed) plugins, in a
 // single route.
@@ -25,25 +25,25 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use chrono::{Duration, Utc};
 
-use cpex_core::context::PluginContext;
-use cpex_core::delegation::{DelegationPayload, TokenDelegateHook, HOOK_TOKEN_DELEGATE};
-use cpex_core::elicitation::{
+use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::delegation::{DelegationPayload, TokenDelegateHook, HOOK_TOKEN_DELEGATE};
+use praxis_policy_core::elicitation::{
     ElicitationHook, ElicitationOp, ElicitationOutcomeKind, ElicitationPayload,
     ElicitationStatusKind, HOOK_ELICIT,
 };
-use cpex_core::extensions::raw_credentials::{
+use praxis_policy_core::extensions::raw_credentials::{
     RawCredentialsExtension, RawDelegatedToken, RawInboundToken, TokenKind, TokenRole,
 };
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::hooks::trait_def::{HookHandler, PluginResult};
-use cpex_core::manager::PluginManager;
-use cpex_core::plugin::{OnError, Plugin, PluginConfig, PluginMode};
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
+use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::plugin::{OnError, Plugin, PluginConfig, PluginMode};
 
-use apl_core::{
+use praxis_policy_apl_core::{
     compile_config, evaluate_route, AttributeBag, Decision, PdpCall, PdpDecision, PdpDialect,
     PdpError, PdpResolver, RoutePayload,
 };
-use apl_cpex::{
+use praxis_policy_apl_runtime::{
     CmfPluginInvoker, DelegationPluginInvoker, DispatchCache, ElicitationPluginInvoker,
     MemorySessionStore, SessionStore,
 };
@@ -259,9 +259,9 @@ async fn run_route(outcome: ElicitationOutcomeKind) -> (Decision, usize) {
         CmfPluginInvoker::for_request(
             Arc::clone(&mgr),
             extensions,
-            cpex_core::cmf::MessagePayload {
-                message: cpex_core::cmf::Message::text(
-                    cpex_core::cmf::enums::Role::User,
+            praxis_policy_core::cmf::MessagePayload {
+                message: praxis_policy_core::cmf::Message::text(
+                    praxis_policy_core::cmf::enums::Role::User,
                     "adjust payroll",
                 ),
             },
@@ -284,7 +284,7 @@ async fn run_route(outcome: ElicitationOutcomeKind) -> (Decision, usize) {
         invoker.plan_arc(),
     ));
 
-    let mut bag = apl_cmf::BagBuilder::new()
+    let mut bag = praxis_policy_apl_cmf::BagBuilder::new()
         .with_extensions(&invoker.current_extensions().await)
         .with_route_key(&route.route_key)
         .build();
@@ -299,10 +299,10 @@ async fn run_route(outcome: ElicitationOutcomeKind) -> (Decision, usize) {
         route,
         &mut bag,
         &mut payload,
-        &(Arc::new(AllowPdp) as Arc<dyn apl_core::PdpResolver>),
-        &(invoker.clone() as Arc<dyn apl_core::PluginInvoker>),
-        &(delegations.clone() as Arc<dyn apl_core::DelegationInvoker>),
-        &(elicitations.clone() as Arc<dyn apl_core::ElicitationInvoker>),
+        &(Arc::new(AllowPdp) as Arc<dyn praxis_policy_apl_core::PdpResolver>),
+        &(invoker.clone() as Arc<dyn praxis_policy_apl_core::PluginInvoker>),
+        &(delegations.clone() as Arc<dyn praxis_policy_apl_core::DelegationInvoker>),
+        &(elicitations.clone() as Arc<dyn praxis_policy_apl_core::ElicitationInvoker>),
     )
     .await;
 

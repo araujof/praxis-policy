@@ -15,8 +15,8 @@
 
 use std::path::PathBuf;
 
-use cpex_core::extensions::raw_credentials::TokenRole;
 use jsonwebtoken::{Algorithm, DecodingKey};
+use praxis_policy_core::extensions::raw_credentials::TokenRole;
 use serde::{Deserialize, Serialize};
 
 use super::trusted_issuer::{KeyStore, TrustedIssuer};

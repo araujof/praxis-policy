@@ -25,9 +25,9 @@ use std::sync::{Arc, RwLock};
 use async_trait::async_trait;
 use cel::{Context, Program, Value};
 
-use apl_core::attributes::AttributeBag;
-use apl_core::evaluator::Decision;
-use apl_core::step::{PdpCall, PdpDecision, PdpDialect, PdpError, PdpResolver};
+use praxis_policy_apl_core::attributes::AttributeBag;
+use praxis_policy_apl_core::evaluator::Decision;
+use praxis_policy_apl_core::step::{PdpCall, PdpDecision, PdpDialect, PdpError, PdpResolver};
 
 use crate::activation::bag_to_context;
 use crate::error::BuildError;
@@ -151,7 +151,7 @@ impl CelResolver {
     ///
     /// ```rust,ignore
     /// use std::sync::Arc;
-    /// use cpex_pdp_cel::CelResolver;
+    /// use praxis_policy_pdp_cel::CelResolver;
     ///
     /// let resolver = CelResolver::new().with_functions(|ctx| {
     ///     // Regex helper — authors can write `args.path.matches_prefix("/api/")`.

@@ -1,4 +1,4 @@
-// Location: ./crates/apl-core/src/evaluator.rs
+// Location: ./crates/ppe-apl-core/src/evaluator.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -8,7 +8,7 @@
 // The evaluator is sync and infallible by design. Missing attributes resolve
 // to `false`; operator type mismatches resolve to `false`.
 // The host drives the four phases separately by calling `evaluate_rules` once
-// per declared phase — phase orchestration lives in `apl-cpex`.
+// per declared phase — phase orchestration lives in `praxis-policy-apl-runtime`.
 //
 // Semantics:
 //   - operators, actions, require
@@ -338,7 +338,7 @@ pub struct StepsEvaluation {
     /// Backend candidate constraints emitted by any `restrict` effects
     /// that ran. Accumulated even when the phase ultimately denies (same
     /// discipline as `taints`). Empty in the common case — most phases
-    /// have no `restrict`. A higher layer (apl-cpex) folds these into a
+    /// have no `restrict`. A higher layer (praxis-policy-apl-runtime) folds these into a
     /// single `CandidateConstraintExtension` for the host's router.
     pub constraints: Vec<crate::constraint::CandidateConstraint>,
     pub args_modified: bool,
@@ -545,7 +545,7 @@ async fn dispatch_effect(
             // result is dropped (the parser rejects a literal empty
             // `restrict:`, but a reference resolving to nothing could still
             // leave every field unset). Folding / intersection of the
-            // accumulated constraints happens at the bridge (apl-cpex →
+            // accumulated constraints happens at the bridge (praxis-policy-apl-runtime →
             // `CandidateConstraintExtension`).
             match spec.resolve(bag) {
                 Ok(constraint) => {
@@ -929,7 +929,7 @@ async fn dispatch_elicitation(
 /// branch are merged into the outer `taints` vec (taints are
 /// append-only event logs, safe to concatenate). First Halt by
 /// branch index wins; the remaining branches are aborted via
-/// `cpex_orchestration::run_branches`'s `short_circuit_on_deny`.
+/// `praxis_policy_orchestration::run_branches`'s `short_circuit_on_deny`.
 ///
 /// Config-load already rejected `FieldOp` / `Delegate` here via
 /// [`Effect::validate_parallel_purity`], so at runtime we trust the
@@ -937,8 +937,8 @@ async fn dispatch_elicitation(
 ///
 /// # Concurrency model
 ///
-/// Built on [`cpex_orchestration::run_branches`] — the same JoinSet
-/// + abort-on-deny primitive `cpex-core`'s executor uses for its
+/// Built on [`praxis_policy_orchestration::run_branches`] — the same JoinSet
+/// + abort-on-deny primitive `praxis-policy-core`'s executor uses for its
 /// concurrent phase. Each branch is `tokio::spawn`ed onto the
 /// runtime, so branches get true OS-thread parallelism (vs. the v1
 /// implementation's `join_all`, which only interleaved on one
@@ -947,7 +947,7 @@ async fn dispatch_elicitation(
 /// owned reference into each branch closure.
 ///
 /// Note: no per-branch timeout. The DSL doesn't expose one, and
-/// plugin-level timeouts upstream of this call (in cpex-core's
+/// plugin-level timeouts upstream of this call (in praxis-policy-core's
 /// executor) bound individual plugin invocations. If a route ever
 /// needs a per-branch budget the orchestration crate already
 /// supports `BranchConfig::timeout_per_branch` — wire it through a
@@ -974,7 +974,9 @@ fn dispatch_parallel<'a>(
     payload: &'a crate::route::RoutePayload,
 ) -> futures::future::BoxFuture<'a, EffectOutcome> {
     Box::pin(async move {
-        use cpex_orchestration::{run_branches, BranchConfig, BranchOutcome, ErasedBranch};
+        use praxis_policy_orchestration::{
+            run_branches, BranchConfig, BranchOutcome, ErasedBranch,
+        };
 
         if effects.is_empty() {
             return EffectOutcome::Continue;
@@ -1078,9 +1080,9 @@ fn dispatch_parallel<'a>(
                     // A panicking branch is a misbehaving plugin/effect;
                     // dropping its output (no Halt, no taints) keeps the
                     // parallel block's other branches intact rather than
-                    // taking the whole block down. apl-core has no
+                    // taking the whole block down. praxis-policy-apl-core has no
                     // tracing dep — host integrations that care can
-                    // surface the panic via cpex-core's plugin error
+                    // surface the panic via praxis-policy-core's plugin error
                     // path. `idx`/`msg` are eaten here.
                     let _ = (idx, msg);
                 },
@@ -1215,7 +1217,7 @@ pub enum FieldOutcome {
 ///
 /// `taint(...)` stages, plugin invocations, and `scan(...)` stages can all
 /// emit taints; the evaluator collects them here and hands them to the host
-/// (apl-cpex) for SessionStore writes. Taints accumulate even on `Replace`
+/// (praxis-policy-apl-runtime) for SessionStore writes. Taints accumulate even on `Replace`
 /// and `Omit` outcomes; they do not accumulate past a `Deny` (the pipeline
 /// halts at the failing stage).
 #[derive(Debug, Clone, PartialEq)]

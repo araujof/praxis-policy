@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cpex/tests/elicit_step_e2e.rs
+// Location: ./crates/ppe-apl-runtime/tests/elicit_step_e2e.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -6,12 +6,12 @@
 // End-to-end test for the elicitation bridge (Phase 2).
 //
 // Verifies the full flow:
-//   * apl-cpex's `RouteDispatchPlan::build` resolves an elicitation
+//   * praxis-policy-apl-runtime's `RouteDispatchPlan::build` resolves an elicitation
 //     plugin's `elicit` entry into `plan.elicitation_entries` by name.
 //   * `ElicitationPluginInvoker` builds an `ElicitationPayload` for each
 //     of dispatch / check / validate (setting `ElicitationOp`),
 //     dispatches via `invoke_entries::<ElicitationHook>(...)`, and maps
-//     the returned payload back to apl-core's `ElicitationDispatch` /
+//     the returned payload back to praxis-policy-apl-core's `ElicitationDispatch` /
 //     `ElicitationStatus` / `ElicitationValidation`.
 //   * A handler deny surfaces as `ElicitationError`.
 
@@ -19,22 +19,22 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 
-use cpex_core::context::PluginContext;
-use cpex_core::elicitation::{
+use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::elicitation::{
     ElicitationHook, ElicitationOp, ElicitationOutcomeKind, ElicitationPayload,
     ElicitationStatusKind, HOOK_ELICIT,
 };
-use cpex_core::error::PluginViolation;
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::hooks::trait_def::{HookHandler, PluginResult};
-use cpex_core::manager::PluginManager;
-use cpex_core::plugin::{OnError, Plugin, PluginConfig, PluginMode};
+use praxis_policy_core::error::PluginViolation;
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
+use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::plugin::{OnError, Plugin, PluginConfig, PluginMode};
 
-use apl_core::{
+use praxis_policy_apl_core::{
     compile_config, ElicitKind, ElicitStep, ElicitationInvoker, ElicitationOutcome,
     ElicitationStatus,
 };
-use apl_cpex::{ElicitationPluginInvoker, RouteDispatchPlan};
+use praxis_policy_apl_runtime::{ElicitationPluginInvoker, RouteDispatchPlan};
 
 use tokio::sync::Mutex as AsyncMutex;
 
@@ -348,6 +348,6 @@ async fn unregistered_plugin_is_not_found() {
         .expect_err("unregistered");
     assert!(matches!(
         err,
-        apl_core::ElicitationError::NotFound(p) if p == "nonexistent"
+        praxis_policy_apl_core::ElicitationError::NotFound(p) if p == "nonexistent"
     ));
 }

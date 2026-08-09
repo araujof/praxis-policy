@@ -1,9 +1,9 @@
-// Location: ./crates/apl-cpex/src/cmf_invoker.rs
+// Location: ./crates/ppe-apl-runtime/src/cmf_invoker.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
-// `CmfPluginInvoker` — `apl-core::PluginInvoker` impl bound to the CMF
+// `CmfPluginInvoker` — `praxis-policy-apl-core::PluginInvoker` impl bound to the CMF
 // hook family. Drives dispatch off a pre-resolved [`RouteDispatchPlan`]
 // (from [`DispatchCache`]) and forwards entries to
 // `PluginManager::invoke_entries::<CmfHook>(...)`, which runs the full
@@ -62,20 +62,22 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tokio::sync::Mutex;
 
-use cpex_core::cmf::{CmfHook, MessagePayload};
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::hooks::HookPhase;
-use cpex_core::manager::PluginManager;
+use praxis_policy_core::cmf::{CmfHook, MessagePayload};
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::hooks::HookPhase;
+use praxis_policy_core::manager::PluginManager;
 
-use apl_core::attributes::AttributeBag;
-use apl_core::evaluator::Decision;
-use apl_core::pipeline::{TaintEvent, TaintScope};
-use apl_core::step::{DispatchPhase, PluginError, PluginInvocation, PluginInvoker, PluginOutcome};
+use praxis_policy_apl_core::attributes::AttributeBag;
+use praxis_policy_apl_core::evaluator::Decision;
+use praxis_policy_apl_core::pipeline::{TaintEvent, TaintScope};
+use praxis_policy_apl_core::step::{
+    DispatchPhase, PluginError, PluginInvocation, PluginInvoker, PluginOutcome,
+};
 
 use crate::dispatch_plan::RouteDispatchPlan;
 use crate::session_store::{SessionStore, SessionStoreError};
 
-/// Bridges APL plugin dispatch to CMF-family CPEX hooks.
+/// Bridges APL plugin dispatch to CMF-family PPE hooks.
 ///
 /// Carries the request's `MessagePayload` and `Extensions` for its
 /// entire lifetime so plugin mutations accumulate (one plugin's
@@ -231,9 +233,12 @@ impl CmfPluginInvoker {
     /// `evaluate_pre` / `evaluate_post` returns, with the
     /// `RouteDecision.taints` slice. No-op when the slice has no
     /// Session-scoped entries — common for routes that don't taint.
-    pub async fn apply_session_taints(&self, taints: &[apl_core::pipeline::TaintEvent]) {
-        use apl_core::pipeline::TaintScope;
-        use cpex_core::extensions::SecurityExtension;
+    pub async fn apply_session_taints(
+        &self,
+        taints: &[praxis_policy_apl_core::pipeline::TaintEvent],
+    ) {
+        use praxis_policy_apl_core::pipeline::TaintScope;
+        use praxis_policy_core::extensions::SecurityExtension;
 
         let session_labels: Vec<&str> = taints
             .iter()
@@ -311,7 +316,7 @@ impl PluginInvoker for CmfPluginInvoker {
         };
 
         // Pick the entry whose registered hook matches the current
-        // dispatch context via cpex-core's hook metadata table.
+        // dispatch context via praxis-policy-core's hook metadata table.
         // Replaces the prior naming heuristic.
         let dispatch_phase = match invocation.phase() {
             DispatchPhase::Pre => HookPhase::Pre,
@@ -486,7 +491,7 @@ impl PluginInvoker for CmfPluginInvoker {
 /// this field". The plugin's payload mutation is recorded separately, so
 /// reporting no field change never drops it.
 fn field_value_from_message(
-    message: &cpex_core::cmf::Message,
+    message: &praxis_policy_core::cmf::Message,
     field: &str,
     phase: DispatchPhase,
 ) -> Option<serde_json::Value> {
@@ -495,7 +500,7 @@ fn field_value_from_message(
         DispatchPhase::Post => crate::message_projection::extract_result_from_message(message),
     };
     if projection.is_object() {
-        apl_core::get_dotted(&projection, field).cloned()
+        praxis_policy_apl_core::get_dotted(&projection, field).cloned()
     } else {
         Some(projection)
     }

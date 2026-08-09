@@ -1,4 +1,4 @@
-// Location: ./crates/apl-cmf/src/completion.rs
+// Location: ./crates/ppe-apl-cmf/src/completion.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
@@ -15,8 +15,8 @@
 //   completion.tokens.output   : Int
 //   completion.tokens.total    : Int
 
-use apl_core::AttributeBag;
-use cpex_core::extensions::{CompletionExtension, StopReason};
+use praxis_policy_apl_core::AttributeBag;
+use praxis_policy_core::extensions::{CompletionExtension, StopReason};
 
 pub fn extract_completion(c: &CompletionExtension, bag: &mut AttributeBag) {
     if let Some(sr) = c.stop_reason {
@@ -54,7 +54,7 @@ fn stop_reason_str(sr: StopReason) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cpex_core::extensions::completion::TokenUsage;
+    use praxis_policy_core::extensions::completion::TokenUsage;
 
     #[test]
     fn stop_reason_serializes_as_snake_case_string() {

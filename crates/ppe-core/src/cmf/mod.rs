@@ -1,4 +1,4 @@
-// Location: ./crates/cpex-core/src/cmf/mod.rs
+// Location: ./crates/ppe-core/src/cmf/mod.rs
 // Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor

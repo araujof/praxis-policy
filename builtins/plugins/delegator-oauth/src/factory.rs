@@ -8,7 +8,7 @@
 // Praxis filter, Envoy bridge, CLI runner, test harness — wires it
 // up the same way.
 //
-// Operators declare it in CPEX YAML as:
+// Operators declare it in PPE YAML as:
 //
 //     plugins:
 //       - name: workday-oauth
@@ -26,7 +26,7 @@
 
 use std::sync::Arc;
 
-use cpex_core::{
+use praxis_policy_core::{
     delegation::{TokenDelegateHook, HOOK_TOKEN_DELEGATE},
     error::PluginError,
     factory::{PluginFactory, PluginInstance},
@@ -36,7 +36,7 @@ use cpex_core::{
 
 use crate::OAuthDelegator;
 
-/// The plugin `kind:` string operators write in CPEX YAML to declare
+/// The plugin `kind:` string operators write in PPE YAML to declare
 /// an OAuth RFC 8693 token-exchange delegator.
 pub const KIND: &str = "delegator/oauth";
 

@@ -25,10 +25,10 @@
 // pre-`maybe_grow` footprint small so the 128 KiB proves the grow path, not the
 // runtime.
 
-use apl_core::attributes::AttributeBag;
-use apl_core::evaluator::Decision;
-use apl_core::step::{PdpCall, PdpDialect, PdpResolver};
-use cpex_pdp_cedar_direct::CedarDirectResolver;
+use praxis_policy_apl_core::attributes::AttributeBag;
+use praxis_policy_apl_core::evaluator::Decision;
+use praxis_policy_apl_core::step::{PdpCall, PdpDialect, PdpResolver};
+use praxis_policy_pdp_cedar_direct::CedarDirectResolver;
 
 /// musl's default thread stack size — below cedar's 100 KiB remaining-stack
 /// floor once evaluation is underway.
