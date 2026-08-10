@@ -140,17 +140,35 @@ strip = true
 # Adopted from Praxis so this project holds the same bar. Member crates opt in
 # with `[lints] workspace = true`.
 #
-# Entries marked `seed:` are parked. They are the delta between Praxis's gate
-# and the source tree's: lints Praxis denies that the source parks, plus lints
-# Praxis denies that the source never configured at all and so has never been
-# compiled against. Five of them are rustc lints, where deny is a hard compile
-# error rather than a warning, so shipping the gate without this seed would make
-# the imported tree impossible to build and leave the import, rename, and
-# edition commits with no way to verify themselves.
+# Every entry that is not enforced carries one of two tags. The tag answers a
+# single question: does this block publish, and if not, why is that defensible?
 #
-# The seed is computed from the two config files, not from a build, because
-# nothing compiles yet. The import commit replaces it with the set measured from
-# actual violations, and the parked entries are closed from there.
+#   gate:   Must reach deny before the crates are published. Carries a measured
+#           production site count and is tracked in docs/ratchet.md.
+#   parked: Not scheduled. The reason must say why the lint cannot silently
+#           change an enforcement decision, which is the only ground for
+#           parking one indefinitely. Counts are production sites unless noted.
+#
+# Counts come from clippy, not from reading the source:
+#
+#   cargo clippy --workspace --all-targets --all-features -- -W <lint>
+#
+# A site inside a `#[cfg(test)]` region or a tests/ examples/ target is not a
+# production site. Test code is scope-allowed at the module or crate level, so
+# the numbers here describe the library's own surface. Measure lints one at a
+# time where it matters: some clippy lints suppress each other, and measuring a
+# group can report zero for a lint that fires on its own.
+#
+# Two classes of parked entry are correctness-relevant rather than cosmetic and
+# are the strongest candidates for the next gate: `parked: numeric-cast`, where
+# a truncation or sign change can alter a comparison, and `parked: unsafe`.
+#
+# This tree carries Praxis's lint list but not yet all of its enforcement. Of
+# Praxis's 171 rules, 94 are enforced identically here, 75 are weaker, and 2 are
+# stricter. It also adds `unexpected_cfgs`, which Praxis does not configure.
+# Parking the remainder was necessary to import 192 files under a gate none of
+# them had been compiled against; it is not a claim that the bar is equal.
+# docs/ratchet.md carries the current numbers and how to reproduce them.
 
 [workspace.lints.rust]
 # --- Enforced ---
@@ -172,27 +190,27 @@ unexpected_cfgs = "deny"
 # --workspace --all-targets --all-features, so enforcing costs no code change.
 unused_extern_crates = "deny"
 
-# --- Seed: parked, narrowed at import ---
-missing_docs = "allow"                   # seed: rustc deny in Praxis, parked in source
-dead_code = "allow"                      # seed: rustc deny in Praxis, parked in source
-unreachable_pub = "allow"                # seed: rustc deny in Praxis, parked in source
-unused_qualifications = "allow"          # seed: rustc deny in Praxis, parked in source
-elided_lifetimes_in_paths = "allow"                  # seed: measured
-private_interfaces = "allow"                  # seed: measured
-unused_mut = "allow"                  # seed: measured
-missing_debug_implementations = "allow"  # many types wrap Box<dyn Trait> without Debug bounds
+# --- Parked and gated ---
+missing_docs = "allow"                      # parked: docs, 664
+dead_code = "allow"                         # parked: hygiene, 2
+unreachable_pub = "allow"                   # parked: hygiene, 2
+unused_qualifications = "allow"             # parked: hygiene, 45
+elided_lifetimes_in_paths = "allow"         # parked: style, 1
+private_interfaces = "allow"                # parked: api, 1
+unused_mut = "allow"                        # parked: hygiene, 0 production (33 in tests)
+missing_debug_implementations = "allow"     # parked: api, 39
 # seed: measured. Three upcasts of a concrete Arc/Box to a trait object in the
 # plugin registry and payload plumbing.
-trivial_casts = "allow"                  # seed
+trivial_casts = "allow"                     # parked: numeric-cast, 12
 # seed: measured. Two single-use lifetime parameters in the policy parser.
-single_use_lifetimes = "allow"           # seed
+single_use_lifetimes = "allow"              # parked: style, 2
 # seed: measured. One non-binding let on a value with a destructor.
-let_underscore_drop = "allow"            # seed
+let_underscore_drop = "allow"               # parked: hygiene, 1
 # seed: Praxis denies this. Two sites in the source tree assert Send and Sync by
 # hand for a write-capability token. Closing this means documenting both with a
 # scoped expect attribute or restructuring the token so the assertion is not
 # needed. The FFI boundary that was the other reason to park it is not ported.
-unsafe_code = "allow"                    # seed
+unsafe_code = "allow"                       # parked: unsafe, 2 hand-written Send/Sync impls
 
 [workspace.lints.clippy]
 # --- Enforced: async and concurrency safety ---
@@ -291,92 +309,95 @@ set_contains_or_insert = "deny"
 rest_pat_in_fully_bound_structs = "deny"
 empty_line_after_outer_attr = "deny"
 
-# --- Seed: parked, narrowed at import ---
-# Praxis denies each of these. The source tree either parks them or never
-# configured them, so none has been compiled against.
-doc_markdown = "allow"                   # seed
-missing_docs_in_private_items = "allow"  # seed
-missing_errors_doc = "allow"             # seed
-missing_panics_doc = "allow"             # seed
-uninlined_format_args = "allow"          # seed
-redundant_closure_for_method_calls = "allow"  # seed
-manual_let_else = "allow"                # seed
-return_self_not_must_use = "allow"       # seed
-items_after_statements = "allow"         # seed
-map_unwrap_or = "allow"                  # seed
-match_same_arms = "allow"                # seed
-explicit_iter_loop = "allow"             # seed
-unnested_or_patterns = "allow"           # seed
-needless_continue = "allow"              # seed
-assigning_clones = "allow"               # seed
-wildcard_imports = "allow"               # seed
-manual_string_new = "allow"              # seed
-manual_assert = "allow"                  # seed
-unused_self = "allow"                    # seed
-unreadable_literal = "allow"             # seed
-clone_on_ref_ptr = "allow"               # seed
-default_trait_access = "allow"           # seed
-match_wildcard_for_single_variants = "allow" # seed
-single_match_else = "allow"              # seed
-too_many_arguments = "allow"             # seed
-too_many_lines = "allow"                 # seed
-cognitive_complexity = "allow"           # seed
-type_complexity = "allow"                # seed
-struct_excessive_bools = "allow"         # seed
-needless_pass_by_value = "allow"         # seed
-trivially_copy_pass_by_ref = "allow"     # seed
-large_stack_frames = "allow"             # seed
-large_futures = "allow"                  # seed
-str_to_string = "allow"                  # seed
-string_slice = "allow"                   # seed
-format_push_string = "allow"             # seed
-deref_by_slicing = "allow"               # seed
-if_then_some_else_none = "allow"         # seed
-unused_trait_names = "allow"             # seed
-tests_outside_test_module = "allow"      # seed
-unnecessary_safety_comment = "allow"     # seed
-renamed_function_params = "allow"        # seed
-needless_raw_strings = "allow"           # seed
-needless_raw_string_hashes = "allow"     # seed
-unused_result_ok = "allow"               # seed
-unused_async = "allow"                   # seed
-unnecessary_wraps = "allow"              # seed
-needless_pass_by_ref_mut = "allow"       # seed
-ref_patterns = "allow"                   # seed
-multiple_inherent_impl = "allow"         # seed
-map_err_ignore = "allow"                 # seed
-allow_attributes = "allow"               # seed
-allow_attributes_without_reason = "allow"    # seed
-cast_lossless = "allow"                  # seed
-cast_possible_truncation = "allow"       # seed
-cast_possible_wrap = "allow"             # seed
-cast_sign_loss = "allow"                 # seed
-cast_precision_loss = "allow"            # seed
-undocumented_unsafe_blocks = "allow"     # seed
-# Diagnostic hygiene. A library must not panic on operator input, but the source
-# tree uses these pervasively in tests, which is where the volume is.
-expect_used = "allow"                    # ratchet: 20 production sites remain, see docs/ratchet.md
-indexing_slicing = "allow"                    # ratchet: 36 production sites remain, see docs/ratchet.md
-print_stderr = "allow"                    # ratchet: 2 production sites remain, see docs/ratchet.md
+# --- Parked and gated ---
+doc_markdown = "allow"                      # parked: docs, 237
+missing_docs_in_private_items = "allow"     # parked: docs, 239
+missing_errors_doc = "allow"                # parked: docs, 60
+missing_panics_doc = "allow"                # parked: docs, 1
+uninlined_format_args = "allow"             # parked: style, 133
+redundant_closure_for_method_calls = "allow"# parked: style, 52
+manual_let_else = "allow"                   # parked: style, 22
+return_self_not_must_use = "allow"          # parked: api, 40
+items_after_statements = "allow"            # parked: style, 6
+map_unwrap_or = "allow"                     # parked: style, 16
+match_same_arms = "allow"                   # parked: style, 37
+explicit_iter_loop = "allow"                # parked: style, 8
+unnested_or_patterns = "allow"              # parked: style, 5
+needless_continue = "allow"                 # parked: style, 5
+assigning_clones = "allow"                  # parked: perf, 5
+wildcard_imports = "allow"                  # parked: style, 4
+manual_string_new = "allow"                 # parked: style, 0 production (4 in tests)
+manual_assert = "allow"                     # parked: style, 0 production (1 in tests)
+unused_self = "allow"                       # parked: hygiene, 1
+unreadable_literal = "allow"                # parked: style, 0 production (2 in tests)
+clone_on_ref_ptr = "allow"                  # parked: perf, 7
+default_trait_access = "allow"              # parked: style, 3
+match_wildcard_for_single_variants = "allow"# parked: style, 2
+single_match_else = "allow"                 # parked: style, 11
+too_many_arguments = "allow"                # parked: complexity, 11
+too_many_lines = "allow"                    # parked: complexity, 100
+cognitive_complexity = "allow"              # parked: complexity, 3
+type_complexity = "allow"                   # parked: complexity, 3
+struct_excessive_bools = "allow"            # parked: complexity, 1
+needless_pass_by_value = "allow"            # parked: perf, 3
+trivially_copy_pass_by_ref = "allow"        # parked: perf, 15
+large_stack_frames = "allow"                # parked: perf, 11
+large_futures = "allow"                     # parked: perf, 3
+str_to_string = "allow"                     # parked: perf, 359
+string_slice = "allow"                      # gate: 37 production sites, docs/ratchet.md
+format_push_string = "allow"                # parked: perf, 1
+deref_by_slicing = "allow"                  # parked: style, 0 production (4 in tests)
+if_then_some_else_none = "allow"            # parked: style, 6
+unused_trait_names = "allow"                # parked: hygiene, 10
+tests_outside_test_module = "allow"         # parked: test-hygiene, 1 production (217 in tests)
+unnecessary_safety_comment = "allow"        # parked: unsafe, 1
+renamed_function_params = "allow"           # parked: api, 2
+needless_raw_strings = "allow"              # parked: style, 0 production (107 in tests)
+needless_raw_string_hashes = "allow"        # parked: style, 0 production (12 in tests); suppressed by needless_raw_strings when both are on
+unused_result_ok = "allow"                  # parked: hygiene, 0 production (4 in tests)
+unused_async = "allow"                      # parked: hygiene, 1
+unnecessary_wraps = "allow"                 # parked: api, 0 production (1 in tests)
+needless_pass_by_ref_mut = "allow"          # parked: api, 1
+ref_patterns = "allow"                      # parked: style, 24
+multiple_inherent_impl = "allow"            # parked: hygiene, 1
+map_err_ignore = "allow"                    # parked: diagnostics, 6
+allow_attributes = "allow"                  # parked: attributes, 13
+allow_attributes_without_reason = "allow"   # parked: attributes, 13
+cast_lossless = "allow"                     # parked: numeric-cast, 5
+cast_possible_truncation = "allow"          # parked: numeric-cast, 7
+cast_possible_wrap = "allow"                # parked: numeric-cast, 4
+cast_sign_loss = "allow"                    # parked: numeric-cast, 1
+cast_precision_loss = "allow"               # parked: numeric-cast, 6
+undocumented_unsafe_blocks = "allow"        # parked: unsafe, 2
+# Panic sources. A library must not abort on operator input. The volume lives in
+# tests, which are scope-allowed; the counts below are the library's own surface.
+# `string_slice` above belongs to this group and is the largest of them.
+expect_used = "allow"                       # gate: 10 production sites, docs/ratchet.md
+indexing_slicing = "allow"                  # gate: 17 production sites, docs/ratchet.md
+print_stderr = "allow"                      # gate: 1 production site, an operator-selected audit destination
+# Absent from Praxis's table. Added here because both abort on reachable input
+# and the gate is meant to cover panic sources, not a fixed list of lint names.
+unreachable = "allow"                       # gate: 3 production sites, docs/ratchet.md
+get_unwrap = "allow"                        # gate: 0 production (30 in tests), needs scoped allows in 8 files
 # Style, parked to keep the import free of mechanical churn.
-derivable_impls = "allow"                  # seed: measured
-doc_lazy_continuation = "allow"                  # seed: measured
-doc_overindented_list_items = "allow"                  # seed: measured
-extra_unused_type_parameters = "allow"                  # seed: measured
-field_reassign_with_default = "allow"                  # seed: measured
-large_enum_variant = "allow"                  # seed: measured
-let_underscore_must_use = "allow"                  # seed: measured
-manual_repeat_n = "allow"                  # seed: measured
-rc_buffer = "allow"                  # seed: measured
-significant_drop_tightening = "allow"                  # seed: measured
-unnecessary_map_or = "allow"                  # seed: measured
-unwrap_or_default = "allow"                  # seed: measured
-useless_vec = "allow"                  # seed: measured
-bool_comparison = "allow"                  # seed: measured
-collapsible_match = "allow"                  # seed: measured
-iter_kv_map = "allow"                  # seed: measured
-empty_line_after_doc_comments = "allow"                  # seed: measured
-collapsible_if = "allow"                  # seed: measured, edition 2024
+derivable_impls = "allow"                   # parked: style, 3
+doc_lazy_continuation = "allow"             # parked: docs, 6
+doc_overindented_list_items = "allow"       # parked: docs, 5
+extra_unused_type_parameters = "allow"      # parked: hygiene, 1
+field_reassign_with_default = "allow"       # parked: style, 0 production (36 in tests)
+large_enum_variant = "allow"                # parked: perf, 1
+let_underscore_must_use = "allow"           # parked: hygiene, 1
+manual_repeat_n = "allow"                   # parked: perf, 1
+rc_buffer = "allow"                         # parked: perf, 1
+significant_drop_tightening = "allow"       # parked: concurrency, 12
+unnecessary_map_or = "allow"                # parked: style, 6
+unwrap_or_default = "allow"                 # parked: style, 2
+useless_vec = "allow"                       # parked: perf, 0 production (6 in tests)
+bool_comparison = "allow"                   # parked: style, 0 production (1 in tests)
+collapsible_match = "allow"                 # parked: style, 1
+iter_kv_map = "allow"                       # parked: style, 1
+empty_line_after_doc_comments = "allow"     # parked: docs, 0 production (1 in tests)
+collapsible_if = "allow"                    # parked: style, 35, edition 2024
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "deny"
