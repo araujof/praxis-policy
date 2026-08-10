@@ -890,10 +890,33 @@ impl Executor {
         // policy. First halting outcome wins.
         let mut first_violation: Option<crate::error::PluginViolation> = None;
 
-        for (idx, outcome) in outcomes.into_iter().enumerate() {
-            let entry = &entries[idx];
+        // `entries`, `on_error_by_idx`, and `outcomes` are built one-to-one
+        // above and `run_branches` returns exactly one outcome per branch, so
+        // this cannot trip today. It is checked rather than assumed because the
+        // failure is silent and favours the caller: pairing an outcome with the
+        // wrong entry applies the wrong plugin's `on_error`, which turns a
+        // configured Fail into an Ignore, and pairing off the end drops the
+        // outcome entirely. Adding a `continue` to the branch-building loop is
+        // all it would take. Deny instead of guessing which plugin denied.
+        if outcomes.len() != entries.len() || on_error_by_idx.len() != entries.len() {
+            let mut v = crate::error::PluginViolation::new(
+                "executor_invariant",
+                format!(
+                    "concurrent dispatch produced {} outcomes and {} on_error entries for {} \
+                     plugins; cannot attribute results",
+                    outcomes.len(),
+                    on_error_by_idx.len(),
+                    entries.len()
+                ),
+            );
+            v.plugin_name = None;
+            return Some(v);
+        }
+
+        for ((entry, &on_error), outcome) in
+            entries.iter().zip(on_error_by_idx.iter()).zip(outcomes)
+        {
             let plugin_name = entry.plugin_ref.name();
-            let on_error = on_error_by_idx[idx];
 
             match outcome {
                 BranchOutcome::Completed(BranchData::Allow) => {},
