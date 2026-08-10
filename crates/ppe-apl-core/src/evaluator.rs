@@ -138,10 +138,28 @@ fn eval_comparison(key: &str, op: CompareOp, lit: &Literal, bag: &AttributeBag) 
         },
         CompareOp::Eq => values_eq(attr, lit),
         CompareOp::NotEq => !values_eq(attr, lit),
-        CompareOp::Gt | CompareOp::GtEq | CompareOp::Lt | CompareOp::LtEq => {
-            numeric_compare(attr, lit, op)
-        },
+        CompareOp::Gt => numeric_compare(attr, lit, OrderOp::Gt),
+        CompareOp::GtEq => numeric_compare(attr, lit, OrderOp::GtEq),
+        CompareOp::Lt => numeric_compare(attr, lit, OrderOp::Lt),
+        CompareOp::LtEq => numeric_compare(attr, lit, OrderOp::LtEq),
     }
+}
+
+/// The four ordering operators, split out of [`CompareOp`] so the numeric
+/// comparison cannot be handed an operator it has no meaning for.
+///
+/// The alternative is a catch-all arm in `numeric_compare`, and there is no
+/// safe value for it to return: `false` reads as "the comparison did not hold",
+/// which under a negation or inside a deny rule resolves toward permit. Naming
+/// the four in the type makes the match exhaustive, so the compiler proves what
+/// a panicking catch-all could only assert. `eval_comparison` above is the only
+/// construction site, and its match already discriminates on exactly these.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum OrderOp {
+    Gt,
+    GtEq,
+    Lt,
+    LtEq,
 }
 
 fn values_eq(attr: &AttributeValue, lit: &Literal) -> bool {
@@ -157,7 +175,7 @@ fn values_eq(attr: &AttributeValue, lit: &Literal) -> bool {
     }
 }
 
-fn numeric_compare(attr: &AttributeValue, lit: &Literal, op: CompareOp) -> bool {
+fn numeric_compare(attr: &AttributeValue, lit: &Literal, op: OrderOp) -> bool {
     // Coerce both operands to f64 for the order comparison. Numeric-looking
     // strings are coerced — LLM tool arguments routinely arrive as strings
     // (e.g. `"amount": "25000"`), and a policy author writing
@@ -173,11 +191,10 @@ fn numeric_compare(attr: &AttributeValue, lit: &Literal, op: CompareOp) -> bool 
         None => return false,
     };
     match op {
-        CompareOp::Gt => a > b,
-        CompareOp::GtEq => a >= b,
-        CompareOp::Lt => a < b,
-        CompareOp::LtEq => a <= b,
-        _ => unreachable!("numeric_compare called with non-numeric op"),
+        OrderOp::Gt => a > b,
+        OrderOp::GtEq => a >= b,
+        OrderOp::Lt => a < b,
+        OrderOp::LtEq => a <= b,
     }
 }
 
