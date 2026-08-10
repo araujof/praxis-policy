@@ -24,7 +24,7 @@
 //! on this crate instead of pinning each of them separately.
 //!
 //! By default it is the **engine only**: no builtin plugins are compiled in.
-//! The bundled extension set lives in [`praxis-policy-builtins`](praxis_policy_builtins) and is
+//! The bundled extension set lives in `praxis-policy-builtins` and is
 //! pulled in only when a builtins feature is enabled.
 //!
 //! # Usage
@@ -59,7 +59,7 @@
 //! session store; or pick a granular subset (`jwt`, `oauth`, `pii`,
 //! `audit`, `cedar`, `cel`, `valkey`). When any builtins feature is on, the
 //! registration helpers and the concrete factory types are re-exported here
-//! from [`praxis-policy-builtins`](praxis_policy_builtins).
+//! from `praxis-policy-builtins`.
 
 // Whole-crate re-exports for advanced use (types not surfaced below).
 pub use {

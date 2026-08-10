@@ -105,7 +105,7 @@ impl DeclassifierToken {
     }
 }
 
-/// Case-insensitive label lookup on MonotonicSet<String>.
+/// Case-insensitive label lookup on `MonotonicSet<String>`.
 impl MonotonicSet<String> {
     /// Check if a label exists (case-insensitive).
     pub fn has_label(&self, label: &str) -> bool {

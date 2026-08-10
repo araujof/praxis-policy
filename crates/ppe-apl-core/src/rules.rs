@@ -135,7 +135,7 @@ pub enum Expression {
 /// Content effects (`redact`, `mask`, `omit`, `hash`) and orchestration
 /// (`Sequential`, `Parallel`) land in later work.
 ///
-/// PDP calls (`cedar:(…)`, `opa(…)`, …) remain top-level [`Step`]
+/// PDP calls (`cedar:(…)`, `opa(…)`, …) remain top-level `Step`
 /// variants for now; folding them into `Effect` is a cleanup.
 ///
 /// # Inside a `Vec<Effect>` (a rule's `effects` body)
@@ -149,7 +149,6 @@ pub enum Expression {
 ///     `Step` counterparts (same invoker traits).
 ///   * `Taint` accumulates into the phase's taint events.
 ///
-/// [`Step`]: crate::step::Step
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Effect {

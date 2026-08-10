@@ -44,7 +44,7 @@ pub enum Decision {
 ///
 /// Sync fast path — only handles control effects (`Allow` / `Deny`).
 /// Rules containing `Plugin` / `Delegate` / `Taint` effects must go
-/// through [`evaluate_steps`] instead, which has the async invoker
+/// through `evaluate_steps` instead, which has the async invoker
 /// traits wired up. This function silently skips non-control effects
 /// so a rule list mixed with `Plugin` still terminates cleanly on a
 /// later `Deny` — but the side effects don't fire. Caller's job to

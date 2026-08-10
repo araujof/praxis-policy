@@ -195,7 +195,7 @@ impl AplConfigVisitor {
     /// Install the static `data.*` attribute tree. Call after
     /// `register_apl` and **before** `load_config_yaml` (handlers capture
     /// the tree during the config walk). Load it from any
-    /// [`AttributeSource`](praxis_policy_apl_core::AttributeSource) — e.g.
+    /// [`praxis_policy_apl_core::AttributeSource`] — e.g.
     /// `FileAttributeSource::new(paths).load()?` — or hand-build one.
     /// Replacing a previously-set tree is allowed (last set wins).
     pub fn set_attribute_tree(&self, tree: AttributeTree) {

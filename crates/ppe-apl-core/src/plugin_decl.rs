@@ -108,7 +108,7 @@ pub struct EffectivePlugin<'a> {
     pub hooks: &'a [String],
     /// Capabilities: route override wins if present, else global.
     /// Borrowed when no override applies; owned (cloned) when override
-    /// present. Use [`capabilities`] to read regardless.
+    /// present. Use `capabilities` to read regardless.
     pub capabilities: CapsView<'a>,
     /// Config: route override wins if present, else global. Borrowed
     /// directly; callers that need to own it call `.cloned()`.

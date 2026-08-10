@@ -183,7 +183,7 @@ impl CmfPluginInvoker {
     ///
     /// `true` from the moment a `modified_payload` is accepted into the
     /// request's payload, and never resets. The host uses this to decide
-    /// whether to forward [`current_payload`] downstream. Reported
+    /// whether to forward `current_payload` downstream. Reported
     /// independently of *what* changed: a plugin that rewrites a tool
     /// result, a tool call's arguments, or a thinking block is as
     /// visible here as one that rewrites text.
@@ -224,7 +224,7 @@ impl CmfPluginInvoker {
 
     /// Drain APL-emitted session-scoped taints into the request's
     /// `security.labels` so the existing label-monotonic flow
-    /// ([`persist_session`] below) picks them up. Filters by
+    /// (`persist_session` below) picks them up. Filters by
     /// `TaintScope::Session` — Message-scoped taints (and any future
     /// scope) are deliberately ignored here; they have their own
     /// destination (TBD: a labels slot on `MessagePayload`).

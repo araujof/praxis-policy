@@ -151,7 +151,7 @@ pub struct DelegateStep {
 
 /// The kind of elicitation — selects which validation contract the
 /// runtime applies to the human's response. A single AST node
-/// ([`Step::Elicit`]) covers every kind; the DSL exposes each via a
+/// (`Step::Elicit`) covers every kind; the DSL exposes each via a
 /// sugar verb (`require_approval` → `Approval`, `confirm` → `Confirm`,
 /// …) that all parse to the same node.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

@@ -44,7 +44,7 @@ use crate::plugin::Plugin;
 ///
 /// # Defining a Hook
 ///
-/// Use the [`define_hook!`] macro instead of implementing this trait
+/// Use the `define_hook!` macro instead of implementing this trait
 /// manually — the macro generates the marker struct, the trait impl,
 /// and the handler trait in one declaration.
 pub trait HookTypeDef: Send + Sync + 'static {

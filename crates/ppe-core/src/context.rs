@@ -141,7 +141,7 @@ impl PluginContextTable {
     /// Build a `PluginContext` for the given plugin, *removing* its stored
     /// local_state from the table and seeding it with a fresh clone of the
     /// canonical global_state. Use in serial phases where the plugin will
-    /// commit its local_state changes back via [`store_context`].
+    /// commit its local_state changes back via `store_context`.
     ///
     /// If the plugin has no stored local_state yet, its context starts
     /// empty (first invocation in the request lifecycle).

@@ -323,7 +323,7 @@ pub struct RouteEntry {
     /// `meta: { tags: [hr-tools] }` resolve identically. Tags remain the
     /// substrate — they can also be injected by the host at runtime and carry
     /// metadata beyond membership; `groups:` just names the common "join this
-    /// bundle" case up front. See [`route_static_tags`].
+    /// bundle" case up front. See `route_static_tags`.
     #[serde(default)]
     pub groups: Option<StringOrList>,
 

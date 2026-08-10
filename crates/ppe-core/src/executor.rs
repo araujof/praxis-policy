@@ -287,7 +287,7 @@ impl Executor {
     /// # Arguments
     ///
     /// * `entries` — HookEntries for this hook, sorted by priority.
-    /// * `payload` — The typed payload (type-erased as Box<dyn PluginPayload>).
+    /// * `payload` — The typed payload (type-erased as `Box<dyn PluginPayload>`).
     /// * `extensions` — The full extensions (filtered per plugin before dispatch).
     /// * `context_table` — Optional context table from a previous hook invocation.
     ///   If `None`, fresh contexts are created for each plugin.
