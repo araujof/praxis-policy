@@ -473,7 +473,7 @@ async fn jwks_fetch_times_out_when_endpoint_stalls() {
                 // Drain a bit of request data, then send a partial
                 // status line and stop. Reqwest will sit waiting
                 // for body bytes that never arrive.
-                let mut buf = [0u8; 512];
+                let mut buf = [0_u8; 512];
                 let _ = tokio::io::AsyncReadExt::read(&mut sock, &mut buf).await;
                 let _ = sock
                     .write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n")

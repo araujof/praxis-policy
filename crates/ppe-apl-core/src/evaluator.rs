@@ -1764,7 +1764,7 @@ mod tests {
     #[test]
     fn numeric_request_value_coerces_into_path() {
         let mut bag = AttributeBag::new();
-        bag.set("subject.tier", 2i64);
+        bag.set("subject.tier", 2_i64);
         bag.set("data.limits.2.max_cost", "cheap");
         assert!(eval_pred(
             "data.limits[subject.tier].max_cost == 'cheap'",
@@ -3610,7 +3610,7 @@ mod tests {
         // vanishing into an empty deny-list.
         let mut bag = AttributeBag::new();
         bag.set("subject.id", "support-bot");
-        bag.set("data.agents.support-bot.banned_models", 7i64);
+        bag.set("data.agents.support-bot.banned_models", 7_i64);
         let effects = vec![restrict_deny_models_ref(
             "data.agents[subject.id].banned_models",
         )];

@@ -168,12 +168,14 @@ redundant_lifetimes = "deny"
 # is how a rename can silently disable a gated export. Denying it turns that
 # into a build error at the moment the rename happens.
 unexpected_cfgs = "deny"
+# Closed from the import backlog: measured at zero violations across
+# --workspace --all-targets --all-features, so enforcing costs no code change.
+unused_extern_crates = "deny"
 
 # --- Seed: parked, narrowed at import ---
 missing_docs = "allow"                   # seed: rustc deny in Praxis, parked in source
 dead_code = "allow"                      # seed: rustc deny in Praxis, parked in source
 unreachable_pub = "allow"                # seed: rustc deny in Praxis, parked in source
-unused_extern_crates = "allow"           # seed: rustc deny in Praxis, parked in source
 unused_qualifications = "allow"          # seed: rustc deny in Praxis, parked in source
 elided_lifetimes_in_paths = "allow"                  # seed: measured
 private_interfaces = "allow"                  # seed: measured
@@ -241,6 +243,54 @@ dbg_macro = "deny"
 todo = "deny"
 unimplemented = "deny"
 
+# --- Enforced: closed from the import backlog ---
+# Each measured at zero violations across --workspace --all-targets
+# --all-features before being enforced, so none of these required a code change.
+# Panic and abort sources first: these are the reason the gate exists.
+unwrap_used = "deny"
+panic = "deny"
+exit = "deny"
+mem_forget = "deny"
+# Concurrency and lifetime hazards.
+future_not_send = "deny"
+significant_drop_in_scrutinee = "deny"
+debug_assert_with_mut_call = "deny"
+infinite_loop = "deny"
+zombie_processes = "deny"
+empty_drop = "deny"
+# Numeric and pointer conversions.
+lossy_float_literal = "deny"
+ptr_as_ptr = "deny"
+verbose_bit_mask = "deny"
+unseparated_literal_suffix = "deny"
+# Diagnostics and test rigor.
+print_stdout = "deny"
+missing_assert_message = "deny"
+missing_safety_doc = "deny"
+# API and type shape.
+error_impl_error = "deny"
+option_option = "deny"
+ref_option_ref = "deny"
+large_types_passed_by_value = "deny"
+empty_structs_with_brackets = "deny"
+expl_impl_clone_on_copy = "deny"
+same_name_method = "deny"
+try_err = "deny"
+# Dead state.
+collection_is_never_read = "deny"
+no_effect_underscore_binding = "deny"
+used_underscore_binding = "deny"
+# Style and idiom.
+if_not_else = "deny"
+inconsistent_struct_constructor = "deny"
+string_add_assign = "deny"
+semicolon_inside_block = "deny"
+redundant_type_annotations = "deny"
+manual_clamp = "deny"
+set_contains_or_insert = "deny"
+rest_pat_in_fully_bound_structs = "deny"
+empty_line_after_outer_attr = "deny"
+
 # --- Seed: parked, narrowed at import ---
 # Praxis denies each of these. The source tree either parks them or never
 # configured them, so none has been compiled against.
@@ -248,7 +298,6 @@ doc_markdown = "allow"                   # seed
 missing_docs_in_private_items = "allow"  # seed
 missing_errors_doc = "allow"             # seed
 missing_panics_doc = "allow"             # seed
-missing_safety_doc = "allow"             # seed
 uninlined_format_args = "allow"          # seed
 redundant_closure_for_method_calls = "allow"  # seed
 manual_let_else = "allow"                # seed
@@ -263,13 +312,10 @@ assigning_clones = "allow"               # seed
 wildcard_imports = "allow"               # seed
 manual_string_new = "allow"              # seed
 manual_assert = "allow"                  # seed
-if_not_else = "allow"                    # seed
 unused_self = "allow"                    # seed
 unreadable_literal = "allow"             # seed
 clone_on_ref_ptr = "allow"               # seed
 default_trait_access = "allow"           # seed
-expl_impl_clone_on_copy = "allow"        # seed
-inconsistent_struct_constructor = "allow"    # seed
 match_wildcard_for_single_variants = "allow" # seed
 single_match_else = "allow"              # seed
 too_many_arguments = "allow"             # seed
@@ -279,53 +325,26 @@ type_complexity = "allow"                # seed
 struct_excessive_bools = "allow"         # seed
 needless_pass_by_value = "allow"         # seed
 trivially_copy_pass_by_ref = "allow"     # seed
-large_types_passed_by_value = "allow"    # seed
 large_stack_frames = "allow"             # seed
 large_futures = "allow"                  # seed
-future_not_send = "allow"                # seed
 str_to_string = "allow"                  # seed
-string_add_assign = "allow"              # seed
 string_slice = "allow"                   # seed
 format_push_string = "allow"             # seed
 deref_by_slicing = "allow"               # seed
-semicolon_inside_block = "allow"         # seed
 if_then_some_else_none = "allow"         # seed
 unused_trait_names = "allow"             # seed
-error_impl_error = "allow"               # seed
-empty_structs_with_brackets = "allow"    # seed
 tests_outside_test_module = "allow"      # seed
 unnecessary_safety_comment = "allow"     # seed
 renamed_function_params = "allow"        # seed
-redundant_type_annotations = "allow"     # seed
 needless_raw_strings = "allow"           # seed
 needless_raw_string_hashes = "allow"     # seed
-manual_clamp = "allow"                   # seed
-empty_drop = "allow"                     # seed
-lossy_float_literal = "allow"            # seed
-mem_forget = "allow"                     # seed
-exit = "allow"                           # seed
 unused_result_ok = "allow"               # seed
 unused_async = "allow"                   # seed
 unnecessary_wraps = "allow"              # seed
 needless_pass_by_ref_mut = "allow"       # seed
-no_effect_underscore_binding = "allow"   # seed
-used_underscore_binding = "allow"        # seed
-option_option = "allow"                  # seed
-ref_option_ref = "allow"                 # seed
 ref_patterns = "allow"                   # seed
-set_contains_or_insert = "allow"          # seed
-try_err = "allow"                        # seed
 multiple_inherent_impl = "allow"         # seed
-same_name_method = "allow"               # seed
-rest_pat_in_fully_bound_structs = "allow"    # seed
-verbose_bit_mask = "allow"               # seed
-debug_assert_with_mut_call = "allow"     # seed
-collection_is_never_read = "allow"       # seed
-significant_drop_in_scrutinee = "allow"  # seed
-zombie_processes = "allow"               # seed
 map_err_ignore = "allow"                 # seed
-missing_assert_message = "allow"         # seed
-infinite_loop = "allow"                  # seed
 allow_attributes = "allow"               # seed
 allow_attributes_without_reason = "allow"    # seed
 cast_lossless = "allow"                  # seed
@@ -333,15 +352,11 @@ cast_possible_truncation = "allow"       # seed
 cast_possible_wrap = "allow"             # seed
 cast_sign_loss = "allow"                 # seed
 cast_precision_loss = "allow"            # seed
-ptr_as_ptr = "allow"                     # seed
 undocumented_unsafe_blocks = "allow"     # seed
 # Diagnostic hygiene. A library must not panic on operator input, but the source
 # tree uses these pervasively in tests, which is where the volume is.
-unwrap_used = "allow"                    # ratchet: 0 production sites remain; test and example code is scoped-allowed
 expect_used = "allow"                    # ratchet: 20 production sites remain, see docs/ratchet.md
-panic = "allow"                    # ratchet: 0 production sites remain; test and example code is scoped-allowed
 indexing_slicing = "allow"                    # ratchet: 36 production sites remain, see docs/ratchet.md
-print_stdout = "allow"                    # ratchet: 0 production sites remain; examples print intentionally
 print_stderr = "allow"                    # ratchet: 2 production sites remain, see docs/ratchet.md
 # Style, parked to keep the import free of mechanical churn.
 derivable_impls = "allow"                  # seed: measured
@@ -362,7 +377,6 @@ collapsible_match = "allow"                  # seed: measured
 iter_kv_map = "allow"                  # seed: measured
 empty_line_after_doc_comments = "allow"                  # seed: measured
 collapsible_if = "allow"                  # seed: measured, edition 2024
-empty_line_after_outer_attr = "allow"
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "deny"

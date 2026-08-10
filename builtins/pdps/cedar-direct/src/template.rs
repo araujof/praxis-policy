@@ -253,7 +253,7 @@ email: ${claim.email}
     fn substitutes_typed_values() {
         let mut bag = AttributeBag::new();
         bag.set("args.flag", true);
-        bag.set("args.count", 42i64);
+        bag.set("args.count", 42_i64);
         let yaml: serde_yaml::Value = serde_yaml::from_str(
             r#"
 flag: ${args.flag}

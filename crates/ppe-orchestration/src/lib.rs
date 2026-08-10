@@ -256,7 +256,7 @@ mod tests {
         // Branches finish in REVERSE wall-clock order — sleep more
         // for earlier indices. The output Vec must still be in input
         // order: branch[0] → first slot, branch[2] → last slot.
-        let branches: Vec<_> = (0usize..3)
+        let branches: Vec<_> = (0_usize..3)
             .map(|idx| {
                 Box::pin(async move {
                     let delay = Duration::from_millis(30 - 10 * idx as u64);

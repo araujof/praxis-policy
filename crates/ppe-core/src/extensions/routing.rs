@@ -242,10 +242,10 @@ impl BackendLabels for HashMap<String, String> {
 fn glob_match(pattern: &str, text: &str) -> bool {
     let p = pattern.as_bytes();
     let t = text.as_bytes();
-    let (mut pi, mut ti) = (0usize, 0usize);
+    let (mut pi, mut ti) = (0_usize, 0_usize);
     // Backtrack point: the last `*` seen and the text index to resume from.
     let mut star: Option<usize> = None;
-    let mut resume = 0usize;
+    let mut resume = 0_usize;
     while ti < t.len() {
         if pi < p.len() && p[pi] == t[ti] {
             pi += 1;

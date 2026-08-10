@@ -234,9 +234,9 @@ mod tests {
     fn basic_bag() {
         let mut bag = AttributeBag::new();
         bag.set("authenticated", true);
-        bag.set("delegation.depth", 2i64);
+        bag.set("delegation.depth", 2_i64);
         bag.set("subject.id", "alice@corp.com");
-        bag.set("intent.confidence", 0.92f64);
+        bag.set("intent.confidence", 0.92_f64);
 
         assert_eq!(bag.get_bool("authenticated"), Some(true));
         assert_eq!(bag.get_int("delegation.depth"), Some(2));
@@ -247,7 +247,7 @@ mod tests {
     #[test]
     fn int_to_float_promotion() {
         let mut bag = AttributeBag::new();
-        bag.set("delegation.depth", 2i64);
+        bag.set("delegation.depth", 2_i64);
         assert_eq!(bag.get_float("delegation.depth"), Some(2.0));
     }
 
