@@ -31,7 +31,9 @@ pub enum PluginError {
     /// A plugin raised an execution error.
     #[error("plugin '{plugin_name}' failed: {message}")]
     Execution {
+        /// The plugin that failed.
         plugin_name: String,
+        /// What went wrong.
         message: String,
         /// Business-logic error code (e.g., `"invalid_token"`).
         #[source]
@@ -49,7 +51,9 @@ pub enum PluginError {
     /// A plugin exceeded its execution timeout.
     #[error("plugin '{plugin_name}' timed out after {timeout_ms}ms")]
     Timeout {
+        /// The plugin that timed out.
         plugin_name: String,
+        /// The budget it exceeded.
         timeout_ms: u64,
         /// Protocol-level error code for the host.
         proto_error_code: Option<i64>,
@@ -58,17 +62,25 @@ pub enum PluginError {
     /// A plugin returned a policy violation (deny).
     #[error("plugin '{plugin_name}' denied: {}", violation.reason)]
     Violation {
+        /// The plugin that denied.
         plugin_name: String,
+        /// The violation it reported.
         violation: PluginViolation,
     },
 
     /// Configuration parsing or validation failed.
     #[error("configuration error: {message}")]
-    Config { message: String },
+    Config {
+        /// What is wrong with the configuration.
+        message: String,
+    },
 
     /// A hook type was not found in the registry.
     #[error("unknown hook type: {hook_type}")]
-    UnknownHook { hook_type: String },
+    UnknownHook {
+        /// The hook name that is not registered.
+        hook_type: String,
+    },
 }
 
 impl PluginError {
@@ -105,13 +117,18 @@ impl PluginError {
 /// `From<&PluginError>` impl handles the variant-to-fields mapping.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginErrorRecord {
+    /// The plugin that reported it, when known.
     pub plugin_name: String,
+    /// Operator-facing explanation.
     pub message: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Stable violation code, for callers that dispatch on category.
     pub code: Option<String>,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    /// Extra structured context for diagnostics.
     pub details: HashMap<String, serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Protocol-level error code the host should surface, when one applies.
     pub proto_error_code: Option<i64>,
 }
 

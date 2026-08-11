@@ -117,10 +117,13 @@ pub struct Extensions {
     /// Write tokens — set by the executor per plugin, NOT serialized.
     /// Used by `cow_copy()` to propagate write access to `OwnedExtensions`.
     #[serde(skip)]
+    /// Permits writing HTTP headers.
     pub http_write_token: Option<WriteToken>,
     #[serde(skip)]
+    /// Permits appending session labels.
     pub labels_write_token: Option<WriteToken>,
     #[serde(skip)]
+    /// Permits appending to the delegation chain.
     pub delegation_write_token: Option<WriteToken>,
 }
 
@@ -459,13 +462,21 @@ pub fn chain_extends(
 #[derive(Debug)]
 pub struct OwnedExtensions {
     // Immutable — same Arc pointers as original
+    /// Request environment and tracing identifiers.
     pub request: Option<Arc<RequestExtension>>,
+    /// Agent session and lineage.
     pub agent: Option<Arc<AgentExtension>>,
+    /// Tool, resource, and prompt metadata.
     pub mcp: Option<Arc<MCPExtension>>,
+    /// Completion metadata.
     pub completion: Option<Arc<CompletionExtension>>,
+    /// Message origin and threading.
     pub provenance: Option<Arc<ProvenanceExtension>>,
+    /// Model identity and capabilities.
     pub llm: Option<Arc<LLMExtension>>,
+    /// Agentic framework context.
     pub framework: Option<Arc<FrameworkExtension>>,
+    /// Host-provided operational metadata.
     pub meta: Option<Arc<MetaExtension>>,
     /// Raw credentials are shared by Arc here too — write tokens for
     /// `inbound_tokens` and `delegated_tokens` mutation paths land with
@@ -474,14 +485,22 @@ pub struct OwnedExtensions {
     pub raw_credentials: Option<Arc<RawCredentialsExtension>>,
 
     // Mutable/monotonic/guarded — owned, modifiable
+    /// HTTP headers, writable only with the matching token.
     pub http: Option<Guarded<HttpExtension>>,
+    /// Identity, labels, and data policy.
     pub security: Option<SecurityExtension>,
+    /// Backend candidate constraints accumulated by `restrict` effects.
     pub candidate_constraint: Option<CandidateConstraintExtension>,
+    /// The delegation chain.
     pub delegation: Option<DelegationExtension>,
+    /// Host-supplied custom values.
     pub custom: Option<HashMap<String, serde_json::Value>>,
 
+    /// Permits writing HTTP headers.
     pub http_write_token: Option<WriteToken>,
+    /// Permits appending session labels.
     pub labels_write_token: Option<WriteToken>,
+    /// Permits appending to the delegation chain.
     pub delegation_write_token: Option<WriteToken>,
 }
 #[cfg(test)]

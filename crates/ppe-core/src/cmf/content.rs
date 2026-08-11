@@ -227,51 +227,99 @@ pub struct DocumentSource {
 pub enum ContentPart {
     /// Plain text content.
     #[serde(rename = "text")]
-    Text { text: String },
+    /// Plain text.
+    Text {
+        /// The content body.
+        text: String,
+    },
 
     /// Chain-of-thought reasoning.
     #[serde(rename = "thinking")]
-    Thinking { text: String },
+    /// Model reasoning, not addressed to the user.
+    Thinking {
+        /// The content body.
+        text: String,
+    },
 
     /// Tool/function invocation request.
     #[serde(rename = "tool_call")]
-    ToolCall { content: ToolCall },
+    /// A request to invoke a tool.
+    ToolCall {
+        /// The content body.
+        content: ToolCall,
+    },
 
     /// Result from tool execution.
     #[serde(rename = "tool_result")]
-    ToolResult { content: ToolResult },
+    /// What a tool returned.
+    ToolResult {
+        /// The content body.
+        content: ToolResult,
+    },
 
     /// Embedded resource with content.
     #[serde(rename = "resource")]
-    Resource { content: Resource },
+    /// Inline resource content.
+    Resource {
+        /// The content body.
+        content: Resource,
+    },
 
     /// Lightweight resource reference.
     #[serde(rename = "resource_ref")]
-    ResourceRef { content: ResourceReference },
+    /// A reference to a resource, without its content.
+    ResourceRef {
+        /// The content body.
+        content: ResourceReference,
+    },
 
     /// Prompt template invocation request.
     #[serde(rename = "prompt_request")]
-    PromptRequest { content: PromptRequest },
+    /// A request to render a prompt.
+    PromptRequest {
+        /// The content body.
+        content: PromptRequest,
+    },
 
     /// Rendered prompt template result.
     #[serde(rename = "prompt_result")]
-    PromptResult { content: PromptResult },
+    /// A rendered prompt.
+    PromptResult {
+        /// The content body.
+        content: PromptResult,
+    },
 
     /// Image content.
     #[serde(rename = "image")]
-    Image { content: ImageSource },
+    /// An image.
+    Image {
+        /// The content body.
+        content: ImageSource,
+    },
 
     /// Video content.
     #[serde(rename = "video")]
-    Video { content: VideoSource },
+    /// A video.
+    Video {
+        /// The content body.
+        content: VideoSource,
+    },
 
     /// Audio content.
     #[serde(rename = "audio")]
-    Audio { content: AudioSource },
+    /// Audio.
+    Audio {
+        /// The content body.
+        content: AudioSource,
+    },
 
     /// Document content.
     #[serde(rename = "document")]
-    Document { content: DocumentSource },
+    /// A document.
+    Document {
+        /// The content body.
+        content: DocumentSource,
+    },
 }
 
 #[cfg(test)]

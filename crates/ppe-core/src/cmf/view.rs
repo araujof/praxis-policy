@@ -28,17 +28,29 @@ use crate::hooks::payload::Extensions;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ViewKind {
+    /// Plain text.
     Text,
+    /// Model reasoning, not addressed to the user.
     Thinking,
+    /// A request to invoke a tool.
     ToolCall,
+    /// What a tool returned.
     ToolResult,
+    /// Inline resource content.
     Resource,
+    /// A reference to a resource, without its content.
     ResourceRef,
+    /// A request to render a prompt.
     PromptRequest,
+    /// A rendered prompt.
     PromptResult,
+    /// An image.
     Image,
+    /// A video.
     Video,
+    /// Audio.
     Audio,
+    /// A document.
     Document,
 }
 
@@ -46,12 +58,19 @@ pub enum ViewKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ViewAction {
+    /// Reading existing data.
     Read,
+    /// Writing data.
     Write,
+    /// Running code.
     Execute,
+    /// Calling a tool.
     Invoke,
+    /// Sending data outward.
     Send,
+    /// Receiving data inward.
     Receive,
+    /// Producing new content.
     Generate,
 }
 
@@ -298,18 +317,23 @@ impl<'a> MessageView<'a> {
 
     // -- Type helpers --
 
+    /// Whether this view is a tool call or its result.
     pub fn is_tool(&self) -> bool {
         self.kind.is_tool()
     }
+    /// Whether this view is resource content or a reference to it.
     pub fn is_resource(&self) -> bool {
         self.kind.is_resource()
     }
+    /// Whether this view is a prompt request or its result.
     pub fn is_prompt(&self) -> bool {
         self.kind.is_prompt()
     }
+    /// Whether this view carries an image, video, audio, or document.
     pub fn is_media(&self) -> bool {
         self.kind.is_media()
     }
+    /// Whether this view carries text or model reasoning.
     pub fn is_text(&self) -> bool {
         self.kind.is_text()
     }
