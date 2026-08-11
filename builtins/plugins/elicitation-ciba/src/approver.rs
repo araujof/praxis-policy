@@ -494,14 +494,18 @@ fn sanitize_binding_message(purpose: &str) -> String {
 /// unparseable so the caller can fall back to a default.
 fn parse_duration_secs(s: &str) -> Option<u64> {
     let s = s.trim();
-    let last = s.chars().last()?;
-    let (num, mult) = match last {
-        's' => (&s[..s.len() - 1], 1),
-        'm' => (&s[..s.len() - 1], 60),
-        'h' => (&s[..s.len() - 1], 3600),
-        'd' => (&s[..s.len() - 1], 86_400),
-        c if c.is_ascii_digit() => (s, 1),
-        _ => return None,
+    let (num, mult) = if let Some(rest) = s.strip_suffix('s') {
+        (rest, 1)
+    } else if let Some(rest) = s.strip_suffix('m') {
+        (rest, 60)
+    } else if let Some(rest) = s.strip_suffix('h') {
+        (rest, 3600)
+    } else if let Some(rest) = s.strip_suffix('d') {
+        (rest, 86_400)
+    } else if s.chars().last().is_some_and(|c| c.is_ascii_digit()) {
+        (s, 1)
+    } else {
+        return None;
     };
     num.trim().parse::<u64>().ok().map(|n| n * mult)
 }

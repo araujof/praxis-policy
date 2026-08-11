@@ -218,16 +218,15 @@ impl ValkeyConfig {
 /// Strip any `userinfo` (`user:pass@`) from an endpoint before it appears
 /// in an error message or log line, so credentials are never disclosed.
 fn redact_endpoint(endpoint: &str) -> String {
-    if let Some(scheme_end) = endpoint.find("://") {
-        let (scheme, after) = (&endpoint[..scheme_end], &endpoint[scheme_end + 3..]);
-        if let Some(at) = after.rfind('@') {
-            return format!("{scheme}://***@{}", &after[at + 1..]);
+    if let Some((scheme, after)) = endpoint.split_once("://") {
+        if let Some((_userinfo, host)) = after.rsplit_once('@') {
+            return format!("{scheme}://***@{host}");
         }
         return endpoint.to_string();
     }
     // Bare host:port may still carry userinfo if misconfigured.
-    if let Some(at) = endpoint.rfind('@') {
-        return format!("***@{}", &endpoint[at + 1..]);
+    if let Some((_userinfo, host)) = endpoint.rsplit_once('@') {
+        return format!("***@{host}");
     }
     endpoint.to_string()
 }

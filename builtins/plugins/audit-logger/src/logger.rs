@@ -148,6 +148,11 @@ impl AuditLogger {
         Value::Object(record)
     }
 
+    #[allow(
+        clippy::print_stderr,
+        reason = "writing the audit record to stderr is what AuditDestination::Stderr \
+                  selects; the operator asked for this stream by name"
+    )]
     fn emit(&self, record: &Value) {
         match self.typed.destination {
             AuditDestination::Stderr => {

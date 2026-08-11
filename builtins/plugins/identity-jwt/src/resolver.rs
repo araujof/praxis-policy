@@ -620,12 +620,18 @@ impl HookHandler<IdentityHook> for JwtIdentityResolver {
 /// select the right `DecodingKey`; validation re-enforces `iss`
 /// against the matched config.
 fn peek_issuer(token: &str) -> Option<String> {
-    let parts: Vec<&str> = token.split('.').collect();
-    if parts.len() != 3 {
+    // Exactly three dot-separated segments, matching the previous length check.
+    let mut segments = token.split('.');
+    let (Some(_header), Some(payload_b64), Some(_signature), None) = (
+        segments.next(),
+        segments.next(),
+        segments.next(),
+        segments.next(),
+    ) else {
         return None;
-    }
+    };
     let payload_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(parts[1])
+        .decode(payload_b64)
         .ok()?;
     let value: Value = serde_json::from_slice(&payload_bytes).ok()?;
     value.get("iss")?.as_str().map(String::from)

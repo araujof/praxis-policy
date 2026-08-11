@@ -164,14 +164,18 @@ impl AttributeBag {
         let mut out = String::with_capacity(key.len());
         let mut rest = key;
         while let Some(open) = rest.find('[') {
-            out.push_str(&rest[..open]);
-            let after = &rest[open + 1..];
-            // The lexer guarantees a matching `]`; `?` is defensive.
+            // `open` and `close` come from `find` on ASCII delimiters, so these
+            // splits land on char boundaries. The lexer guarantees a matching
+            // `]`; a missing one joins the absent-attribute path above, which
+            // fails to match rather than half-substituting the key.
+            let (before, after_open) = rest.split_at_checked(open)?;
+            out.push_str(before);
+            let after = after_open.get(1..)?;
             let close = after.find(']')?;
-            let inner = after[..close].trim();
+            let inner = after.get(..close)?.trim();
             out.push('.');
             out.push_str(&self.scalar_as_string(inner)?);
-            rest = &after[close + 1..];
+            rest = after.get(close + 1..)?;
         }
         out.push_str(rest);
         Some(std::borrow::Cow::Owned(out))

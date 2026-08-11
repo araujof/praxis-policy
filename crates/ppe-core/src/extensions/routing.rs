@@ -247,24 +247,32 @@ fn glob_match(pattern: &str, text: &str) -> bool {
     let mut star: Option<usize> = None;
     let mut resume = 0_usize;
     while ti < t.len() {
-        if pi < p.len() && p[pi] == t[ti] {
-            pi += 1;
-            ti += 1;
-        } else if pi < p.len() && p[pi] == b'*' {
-            star = Some(pi);
-            resume = ti;
-            pi += 1; // try matching `*` against zero chars first
-        } else if let Some(s) = star {
-            // Mismatch after a `*` — let the `*` swallow one more char.
-            pi = s + 1;
-            resume += 1;
-            ti = resume;
-        } else {
-            return false;
+        match (p.get(pi), t.get(ti)) {
+            // Literal match. Ordered first so a `*` in the text matches a `*`
+            // in the pattern here rather than falling into the wildcard arm.
+            (Some(pb), Some(tb)) if pb == tb => {
+                pi += 1;
+                ti += 1;
+            },
+            (Some(&b'*'), _) => {
+                star = Some(pi);
+                resume = ti;
+                pi += 1; // try matching `*` against zero chars first
+            },
+            // Mismatch, or pattern exhausted with text remaining.
+            _ => match star {
+                // Let the last `*` swallow one more char.
+                Some(s) => {
+                    pi = s + 1;
+                    resume += 1;
+                    ti = resume;
+                },
+                None => return false,
+            },
         }
     }
     // Trailing `*`s match the empty remainder.
-    while pi < p.len() && p[pi] == b'*' {
+    while p.get(pi) == Some(&b'*') {
         pi += 1;
     }
     pi == p.len()

@@ -1534,7 +1534,10 @@ impl PluginManager {
         // Pull the base trusted_config off any of the base entries —
         // all of them share the same `Arc<PluginRef>` for a given
         // plugin name, so picking the first is fine.
-        let base_ref = Arc::clone(&base_entries[0].1.plugin_ref);
+        let Some(base_ref) = base_entries.first().map(|(_, e)| Arc::clone(&e.plugin_ref)) else {
+            // Unreachable: the is_empty() check above already returned.
+            return Vec::new();
+        };
         let mut merged_config = base_ref.trusted_config().clone();
 
         // Capabilities: override replaces base when present.
@@ -1574,7 +1577,10 @@ impl PluginManager {
         // carries (YAML is a superset of JSON so serde re-serialization
         // is safe). Per spec, override `config` replaces the base
         // `config` wholesale.
-        let cfg_yaml = config_override.expect("checked above");
+        let Some(cfg_yaml) = config_override else {
+            // Unreachable: the branch above returns when this is None.
+            return base_entries;
+        };
         let cfg_json = match serde_json::to_value(cfg_yaml) {
             Ok(v) => v,
             Err(e) => {

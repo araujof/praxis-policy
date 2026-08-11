@@ -344,7 +344,7 @@ trivially_copy_pass_by_ref = "allow"        # parked: perf, 15
 large_stack_frames = "allow"                # parked: perf, 11
 large_futures = "allow"                     # parked: perf, 3
 str_to_string = "allow"                     # parked: perf, 359
-string_slice = "allow"                      # gate: 37 production sites, docs/ratchet.md
+string_slice = "allow"                      # gate: 26 production sites, all in the policy parser
 format_push_string = "allow"                # parked: perf, 1
 deref_by_slicing = "allow"                  # parked: style, 0 production (4 in tests)
 if_then_some_else_none = "allow"            # parked: style, 6
@@ -372,12 +372,12 @@ undocumented_unsafe_blocks = "allow"        # parked: unsafe, 2
 # Panic sources. A library must not abort on operator input. The volume lives in
 # tests, which are scope-allowed; the counts below are the library's own surface.
 # `string_slice` above belongs to this group and is the largest of them.
-expect_used = "allow"                       # gate: 10 production sites, docs/ratchet.md
-indexing_slicing = "allow"                  # gate: 17 production sites, docs/ratchet.md
-print_stderr = "allow"                      # gate: 1 production site, an operator-selected audit destination
+expect_used = "allow"                       # gate: 9 production sites, all in the policy parser
+indexing_slicing = "allow"                  # gate: 7 production sites, all in the policy parser
+print_stderr = "deny"
 # Absent from Praxis's table. Added here because both abort on reachable input
 # and the gate is meant to cover panic sources, not a fixed list of lint names.
-unreachable = "allow"                       # gate: 3 production sites, docs/ratchet.md
+unreachable = "allow"                       # gate: 2 production sites, all in the policy parser
 get_unwrap = "allow"                        # gate: 0 production (30 in tests), needs scoped allows in 8 files
 # Style, parked to keep the import free of mechanical churn.
 derivable_impls = "allow"                   # parked: style, 3
