@@ -90,7 +90,7 @@ pub struct PluginInstance {
 /// let manager = PluginManager::from_config(path, &factories)?;
 /// ```
 pub struct PluginFactoryRegistry {
-    factories: HashMap<String, Box<dyn PluginFactory>>,
+    factories: HashMap<String, Arc<dyn PluginFactory>>,
 }
 
 impl PluginFactoryRegistry {
@@ -107,16 +107,30 @@ impl PluginFactoryRegistry {
     /// overrides it (this is intentional — a host can swap a builtin's impl).
     /// Because silent override is a footgun, a warning is logged when an
     /// existing registration is replaced.
+    /// Takes a `Box` and stores an `Arc`. Callers keep the `Box::new(...)`
+    /// spelling; the shared handle exists so a lookup can hand back an owned
+    /// factory and let the registry lock go before the factory is invoked.
     pub fn register(&mut self, kind: impl Into<String>, factory: Box<dyn PluginFactory>) {
         let kind = kind.into();
-        if self.factories.insert(kind.clone(), factory).is_some() {
+        if self
+            .factories
+            .insert(kind.clone(), Arc::from(factory))
+            .is_some()
+        {
             tracing::warn!(kind = %kind, "plugin factory overrides an existing registration");
         }
     }
 
-    /// Look up a factory by `kind` name.
-    pub fn get(&self, kind: &str) -> Option<&dyn PluginFactory> {
-        self.factories.get(kind).map(|f| f.as_ref())
+    /// Look up a factory by `kind` name, returning an owned handle.
+    ///
+    /// Owned rather than borrowed on purpose: the manager holds this registry
+    /// behind an `RwLock`, and a borrow would keep the read guard alive across
+    /// the `create` call. `create` runs host-supplied factory code that may
+    /// re-enter the manager, and taking the write side while a read guard is
+    /// still held on the same thread deadlocks. Cloning the `Arc` lets the
+    /// caller drop the guard first.
+    pub fn get(&self, kind: &str) -> Option<Arc<dyn PluginFactory>> {
+        self.factories.get(kind).map(Arc::clone)
     }
 
     /// Whether a factory exists for the given `kind`.

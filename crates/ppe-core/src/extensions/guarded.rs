@@ -80,11 +80,21 @@ impl WriteToken {
     }
 }
 
-// WriteToken is not Clone, not Copy — each plugin gets its own from the executor.
-// It's also not Send/Sync by default (no auto-traits on zero-sized private fields).
-// We explicitly mark it safe since it's just a capability proof with no data.
-unsafe impl Send for WriteToken {}
-unsafe impl Sync for WriteToken {}
+// Not Clone and not Copy: each plugin gets its own from the executor.
+//
+// `Send` and `Sync` are not implemented by hand. The only field is `()`, which
+// is both, so the auto traits already apply structurally. Two `unsafe impl`s
+// used to stand here with a comment claiming a zero-sized private field
+// suppresses auto traits, which is not how auto traits work. They were the
+// crate's only unsafe code and they bought nothing.
+//
+// A compile-time assertion in place of the impls, so a future field that is not
+// `Send`/`Sync` fails here with a clear message rather than silently at a
+// distant use site.
+const _: fn() = || {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<WriteToken>();
+};
 
 impl std::fmt::Debug for WriteToken {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

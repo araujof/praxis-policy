@@ -247,11 +247,11 @@ impl<'a> Lexer<'a> {
         if is_float {
             text.parse::<f64>()
                 .map(Tok::FloatLit)
-                .map_err(|_| self.err(&format!("bad float `{}`", text)))
+                .map_err(|e| self.err(&format!("bad float `{}`: {}", text, e)))
         } else {
             text.parse::<i64>()
                 .map(Tok::IntLit)
-                .map_err(|_| self.err(&format!("bad int `{}`", text)))
+                .map_err(|e| self.err(&format!("bad int `{}`: {}", text, e)))
         }
     }
 
@@ -2393,10 +2393,12 @@ fn parse_stage(src: &str) -> Result<Stage, ParseError> {
 }
 
 fn parse_stage_mask(a: &str, bad: &impl Fn(&str) -> ParseError) -> Result<Stage, ParseError> {
-    let n: usize = a
-        .trim()
-        .parse()
-        .map_err(|_| bad(&format!("mask(N) expects integer, got `{}`", a)))?;
+    let n: usize = a.trim().parse().map_err(|e| {
+        bad(&format!(
+            "mask(N) expects a non-negative integer, got `{}`: {}",
+            a, e
+        ))
+    })?;
     Ok(Stage::Mask { keep_last: n })
 }
 
@@ -2418,7 +2420,8 @@ fn parse_stage_len(a: &str, bad: &impl Fn(&str) -> ParseError) -> Result<Stage, 
     // negatives are rejected, and the conversion is exact on every target width
     // rather than only on 64-bit.
     let to_usize = |v: i64| -> Result<usize, ParseError> {
-        usize::try_from(v).map_err(|_| bad("len bounds must be non-negative and fit a usize"))
+        usize::try_from(v)
+            .map_err(|e| bad(&format!("len bound `{}` is not a valid length: {}", v, e)))
     };
     Ok(Stage::Length {
         min: min.map(to_usize).transpose()?,

@@ -221,9 +221,11 @@ impl ValkeyConfig {
             // set_username/set_password percent-encode and reject hosts
             // that cannot carry userinfo (e.g. cannot-be-a-base URLs).
             url.set_username(self.username.as_deref().unwrap_or(""))
-                .map_err(|_| BuildError::Config("endpoint cannot carry credentials".to_string()))?;
+                .map_err(|()| {
+                    BuildError::Config("endpoint cannot carry credentials".to_string())
+                })?;
             if let Some(password) = &self.password {
-                url.set_password(Some(password)).map_err(|_| {
+                url.set_password(Some(password)).map_err(|()| {
                     BuildError::Config("endpoint cannot carry credentials".to_string())
                 })?;
             }

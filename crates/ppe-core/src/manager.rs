@@ -1592,9 +1592,12 @@ impl PluginManager {
         merged_config.config = Some(cfg_json);
 
         let kind = merged_config.kind.clone();
-        let instance = {
+        // The registry lock is released before `create` runs. `create` is
+        // host-supplied code and may re-enter the manager; taking the write side
+        // while this thread still held a read guard would deadlock.
+        let factory = {
             let factories = self.factories.read().unwrap_or_else(|p| p.into_inner());
-            let factory = match factories.get(&kind) {
+            match factories.get(&kind) {
                 Some(f) => f,
                 None => {
                     error!(
@@ -1604,7 +1607,9 @@ impl PluginManager {
                     );
                     return Vec::new();
                 },
-            };
+            }
+        };
+        let instance = {
             match factory.create(&merged_config) {
                 Ok(i) => i,
                 Err(e) => {
@@ -1704,12 +1709,15 @@ impl PluginManager {
         // read lock just long enough to construct the instance, then drop
         // it before any `.await` so we never hold a sync lock across awaits.
         let target_hook = base_entry.handler.hook_type_name();
-        let instance = {
+        // Lock released before `create`, which runs host-supplied factory code.
+        let factory = {
             let factories = self.factories.read().unwrap_or_else(|p| p.into_inner());
-            let factory = match factories.get(kind) {
+            match factories.get(kind) {
                 Some(f) => f,
                 None => return None,
-            };
+            }
+        };
+        let instance = {
             match factory.create(&merged_config) {
                 Ok(i) => i,
                 Err(e) => {
@@ -1768,11 +1776,15 @@ impl PluginManager {
     /// plugins are registered/unregistered. Also resets the
     /// "cache full" warn-once latch so the next fill cycle can warn again.
     pub fn clear_routing_cache(&self) {
-        let mut cache = self
-            .route_cache
-            .write()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        cache.clear();
+        {
+            let mut cache = self
+                .route_cache
+                .write()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            cache.clear();
+        }
+        // Outside the guard: the latch is an independent atomic and there is no
+        // reason to hold the cache lock while storing it.
         self.route_cache_full_warned.store(false, Ordering::Release);
     }
 
@@ -1845,6 +1857,7 @@ impl Default for PluginManager {
 
 #[cfg(test)]
 #[allow(
+    clippy::significant_drop_tightening,
     trivial_casts,
     clippy::expect_used,
     clippy::indexing_slicing,

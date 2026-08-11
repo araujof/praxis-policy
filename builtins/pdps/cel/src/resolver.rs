@@ -276,8 +276,20 @@ impl CelResolver {
         let program = Arc::new(
             Program::compile(expr).map_err(|e| GetOrCompileError::Compile(e.to_string()))?,
         );
-        let mut cache = self.cache.write().unwrap_or_else(|p| p.into_inner());
-        if cache.len() >= self.max_cache_entries && !cache.contains_key(expr) {
+        // The capacity check and the insert stay under one guard: splitting them
+        // would let two threads both observe room and push the cache past its
+        // cap. Only the logging moves out, since emitting a warning is not part
+        // of the invariant.
+        let rejected = {
+            let mut cache = self.cache.write().unwrap_or_else(|p| p.into_inner());
+            if cache.len() >= self.max_cache_entries && !cache.contains_key(expr) {
+                true
+            } else {
+                cache.insert(expr.to_string(), Arc::clone(&program));
+                false
+            }
+        };
+        if rejected {
             tracing::warn!(
                 cap = self.max_cache_entries,
                 "CEL compile cache full; rejecting new expression. Existing entries are not \
@@ -288,7 +300,6 @@ impl CelResolver {
                 cap: self.max_cache_entries,
             });
         }
-        cache.insert(expr.to_string(), Arc::clone(&program));
         Ok(program)
     }
 

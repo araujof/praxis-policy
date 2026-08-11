@@ -723,15 +723,20 @@ impl ConfigVisitor for AplConfigVisitor {
             // Plugin-mode validation for `parallel:` blocks.
             // `praxis-policy-apl-core::Effect::validate_parallel_purity` already rejected
             // FieldOp / Delegate at parse time; this pass checks that every
-            // `plugin(X)` inside a `parallel:` references a plugin whose
-            // mode is safe for concurrent execution (Audit / Concurrent /
+            // `plugin(X)` inside a `parallel:` must reference a plugin whose
+            // mode admits concurrent execution (Audit / Concurrent /
             // FireAndForget). Sequential / Transform plugins would silently
-            // lose their mutations inside cloned branches.
+            // lose their mutations inside cloned branches. This is about
+            // scheduling correctness only.
             //
-            // Looks up modes through the praxis-policy-core PluginManager (it has
-            // the authoritative registration state). The lookup trait
-            // is `parallel_safety::PluginModeLookup`, which
-            // `PluginManager` implements.
+            // Modes are looked up through the praxis-policy-core PluginManager,
+            // which holds the authoritative registration state, via the
+            // `PluginModeLookup` trait it implements. That trait and the check
+            // called below both live in the sibling parallel-safety module.
+            //
+            // Module paths are spelled in prose here on purpose: clippy reads a
+            // comment containing that module's name followed by a colon as a
+            // memory-safety justification and rejects it on safe code.
             if let Err(msg) =
                 crate::parallel_safety::validate_parallel_plugin_modes(&effective, mgr.as_ref())
             {

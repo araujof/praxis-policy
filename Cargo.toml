@@ -210,7 +210,7 @@ let_underscore_drop = "allow"               # parked: hygiene, 1
 # hand for a write-capability token. Closing this means documenting both with a
 # scoped expect attribute or restructuring the token so the assertion is not
 # needed. The FFI boundary that was the other reason to park it is not ported.
-unsafe_code = "allow"                       # parked: unsafe, 2 hand-written Send/Sync impls
+unsafe_code = "deny"
 
 [workspace.lints.clippy]
 # --- Enforced: async and concurrency safety ---
@@ -350,7 +350,7 @@ deref_by_slicing = "allow"                  # parked: style, 0 production (4 in 
 if_then_some_else_none = "allow"            # parked: style, 6
 unused_trait_names = "allow"                # parked: hygiene, 10
 tests_outside_test_module = "allow"         # parked: test-hygiene, 1 production (217 in tests)
-unnecessary_safety_comment = "allow"        # parked: unsafe, 1
+unnecessary_safety_comment = "deny"
 renamed_function_params = "allow"           # parked: api, 2
 needless_raw_strings = "allow"              # parked: style, 0 production (107 in tests)
 needless_raw_string_hashes = "allow"        # parked: style, 0 production (12 in tests); suppressed by needless_raw_strings when both are on
@@ -360,7 +360,7 @@ unnecessary_wraps = "allow"                 # parked: api, 0 production (1 in te
 needless_pass_by_ref_mut = "allow"          # parked: api, 1
 ref_patterns = "allow"                      # parked: style, 24
 multiple_inherent_impl = "allow"            # parked: hygiene, 1
-map_err_ignore = "allow"                    # parked: diagnostics, 6
+map_err_ignore = "deny"
 allow_attributes = "allow"                  # parked: attributes, 13
 allow_attributes_without_reason = "allow"   # parked: attributes, 13
 cast_lossless = "deny"
@@ -368,7 +368,7 @@ cast_possible_truncation = "deny"
 cast_possible_wrap = "deny"
 cast_sign_loss = "deny"
 cast_precision_loss = "deny"
-undocumented_unsafe_blocks = "allow"        # parked: unsafe, 2
+undocumented_unsafe_blocks = "deny"
 # Panic sources. A library must not abort on operator input. The volume lives in
 # tests, which are scope-allowed; the counts below are the library's own surface.
 # `string_slice` above belongs to this group and is the largest of them.
@@ -389,7 +389,13 @@ large_enum_variant = "allow"                # parked: perf, 1
 let_underscore_must_use = "allow"           # parked: hygiene, 1
 manual_repeat_n = "allow"                   # parked: perf, 1
 rc_buffer = "allow"                         # parked: perf, 1
-significant_drop_tightening = "allow"       # parked: concurrency, 12
+# Style rather than correctness, and it needs a judgment call per site. The
+# scopes where tightening removed a real hazard are closed: the plugin factory
+# lookup no longer holds the registry lock across host-supplied `create` code,
+# which could re-enter and deadlock. Several remaining sites hold a guard across
+# a synchronous call on purpose and say so, and `await_holding_lock` above
+# already denies the case that actually deadlocks.
+significant_drop_tightening = "allow"       # parked: concurrency, 9
 unnecessary_map_or = "allow"                # parked: style, 6
 unwrap_or_default = "allow"                 # parked: style, 2
 useless_vec = "allow"                       # parked: perf, 0 production (6 in tests)
