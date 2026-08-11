@@ -267,7 +267,7 @@ fn deserialize_plugin_refs<'de, D>(deserializer: D) -> Result<Vec<PluginRouteRef
 where
     D: serde::Deserializer<'de>,
 {
-    use serde::de::Error;
+    use serde::de::Error as _;
 
     match serde_yaml::Value::deserialize(deserializer)? {
         // Structural activation list.
@@ -383,7 +383,7 @@ where
     D: serde::Deserializer<'de>,
 {
     use crate::identity::RouteIdentityConfig;
-    use serde::de::Error;
+    use serde::de::Error as _;
 
     // Two-stage: deserialize as opaque YAML so we can discriminate
     // list vs object shape with operator-friendly errors.

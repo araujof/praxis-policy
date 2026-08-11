@@ -28,11 +28,11 @@
     clippy::unwrap_used,
     reason = "test and example code"
 )]
-use praxis_policy_apl_runtime::{SessionStore, SessionStoreError};
+use praxis_policy_apl_runtime::{SessionStore as _, SessionStoreError};
 use praxis_policy_session_valkey::{ValkeyConfig, ValkeySessionStore};
-use sha2::{Digest, Sha256};
+use sha2::{Digest as _, Sha256};
 use testcontainers_modules::testcontainers::ContainerAsync;
-use testcontainers_modules::testcontainers::runners::AsyncRunner;
+use testcontainers_modules::testcontainers::runners::AsyncRunner as _;
 use testcontainers_modules::valkey::{VALKEY_PORT, Valkey};
 
 /// A Valkey endpoint to test against, plus the container handle when one

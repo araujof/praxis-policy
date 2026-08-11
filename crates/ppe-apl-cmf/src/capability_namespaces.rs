@@ -31,6 +31,11 @@
 
 use std::collections::HashSet;
 
+#[allow(
+    clippy::wildcard_imports,
+    reason = "sibling module in one logical unit split across files; naming each \
+              item would be a hand-maintained list with no reader benefit"
+)]
 use crate::constants::*;
 
 /// Prefix mapping entry. `prefixes` lists the bag-attribute

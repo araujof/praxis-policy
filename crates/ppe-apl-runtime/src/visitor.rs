@@ -61,7 +61,7 @@ use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::PluginConfig;
 use praxis_policy_core::visitor::{ConfigVisitor, VisitorError};
 
-use praxis_policy_apl_core::attribute_source::{AttributeSource, AttributeTree};
+use praxis_policy_apl_core::attribute_source::{AttributeSource as _, AttributeTree};
 use praxis_policy_apl_core::parser::compile_policy_block_value;
 use praxis_policy_apl_core::plugin_decl::{PluginDeclaration, PluginRegistry};
 use praxis_policy_apl_core::rules::{CompiledRoute, DenyResponse};

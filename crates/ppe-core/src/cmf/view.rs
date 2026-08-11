@@ -14,6 +14,11 @@
 
 use serde::{Deserialize, Serialize};
 
+#[allow(
+    clippy::wildcard_imports,
+    reason = "sibling module in one logical unit split across files; naming each \
+              item would be a hand-maintained list with no reader benefit"
+)]
 use super::content::*;
 use super::enums::{ContentType, Role};
 use super::message::Message;
@@ -342,6 +347,11 @@ impl<'a> MessageView<'a> {
     /// text content and extension context. Sensitive headers
     /// (Authorization, Cookie, X-API-Key) are stripped.
     pub fn to_dict(&self, include_content: bool, include_context: bool) -> serde_json::Value {
+        #[allow(
+            clippy::wildcard_imports,
+            reason = "sibling module in one logical unit split across files; naming each \
+              item would be a hand-maintained list with no reader benefit"
+        )]
         use super::constants::*;
 
         let mut result = serde_json::Map::new();

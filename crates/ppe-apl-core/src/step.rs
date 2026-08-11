@@ -889,12 +889,12 @@ pub enum PluginError {
 
 impl Step {
     /// Wrap a `Rule` as a `Step`. Saves typing in tests and parser code.
-    pub fn rule(r: Rule) -> Self {
+    pub(crate) fn rule(r: Rule) -> Self {
         Step::Rule(r)
     }
 
     /// Returns true if this step is a plain rule (no async dispatch needed).
-    pub fn is_rule(&self) -> bool {
+    pub(crate) fn is_rule(&self) -> bool {
         matches!(self, Step::Rule(_))
     }
 }

@@ -282,6 +282,12 @@ impl PluginRegistry {
     /// - `config` — authoritative config from the config loader.
     /// - `handler` — type-erased handler.
     /// - `names` — hook names to register under.
+    #[allow(
+        clippy::extra_unused_type_parameters,
+        reason = "H is a marker rather than an operand: it forces the caller to name \
+                  a hook type, which is what separates this from \
+                  register_for_names_with_handler below"
+    )]
     pub fn register_for_names<H: HookTypeDef>(
         &mut self,
         plugin: Arc<dyn Plugin>,

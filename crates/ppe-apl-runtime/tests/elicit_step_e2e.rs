@@ -40,7 +40,7 @@ use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{OnError, Plugin, PluginConfig, PluginMode};
 
 use praxis_policy_apl_core::{
-    ElicitKind, ElicitStep, ElicitationInvoker, ElicitationOutcome, ElicitationStatus,
+    ElicitKind, ElicitStep, ElicitationInvoker as _, ElicitationOutcome, ElicitationStatus,
     compile_config,
 };
 use praxis_policy_apl_runtime::{ElicitationPluginInvoker, RouteDispatchPlan};

@@ -1371,7 +1371,7 @@ impl PluginManager {
 
         // Fast path: zero-allocation cache lookup with raw_entry
         let hash = {
-            use std::hash::BuildHasher;
+            use std::hash::BuildHasher as _;
             let mut hasher = self.cache_hasher.build_hasher();
             entity_type.hash(&mut hasher);
             entity_name.hash(&mut hasher);

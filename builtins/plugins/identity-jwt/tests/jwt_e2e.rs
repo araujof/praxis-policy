@@ -41,7 +41,7 @@ use praxis_policy_core::plugin::{OnError, PluginConfig, PluginMode};
 
 use praxis_policy_plugin_identity_jwt::JwtIdentityResolver;
 
-use rsa::pkcs8::{EncodePrivateKey, EncodePublicKey, LineEnding};
+use rsa::pkcs8::{EncodePrivateKey as _, EncodePublicKey as _, LineEnding};
 use rsa::{RsaPrivateKey, RsaPublicKey};
 
 use serde_json::{Value, json};

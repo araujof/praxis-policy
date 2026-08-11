@@ -30,7 +30,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use base64::Engine;
+use base64::Engine as _;
 use chrono::Utc;
 use serde::Deserialize;
 use zeroize::Zeroizing;

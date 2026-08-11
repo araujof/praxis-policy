@@ -53,7 +53,7 @@
 // parsing logic.
 
 use praxis_policy_core::extensions::Extensions;
-use sha2::{Digest, Sha256};
+use sha2::{Digest as _, Sha256};
 
 /// Which tier produced the session id. Useful for diagnostics / audit
 /// and to let downstream code branch on binding strength (e.g., only

@@ -18,6 +18,11 @@
 
 use serde::{Deserialize, Serialize};
 
+#[allow(
+    clippy::wildcard_imports,
+    reason = "sibling module in one logical unit split across files; naming each \
+              item would be a hand-maintained list with no reader benefit"
+)]
 use super::content::*;
 use super::enums::{Channel, Role};
 use crate::hooks::trait_def::PluginResult;
@@ -251,7 +256,7 @@ crate::define_hook! {
 mod tests {
     use super::*;
     use crate::hooks::payload::PluginPayload;
-    use crate::hooks::trait_def::HookTypeDef;
+    use crate::hooks::trait_def::HookTypeDef as _;
 
     #[test]
     fn test_message_text_helper() {

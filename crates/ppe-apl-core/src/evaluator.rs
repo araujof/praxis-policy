@@ -1473,7 +1473,7 @@ pub async fn evaluate_pipeline(
             Stage::Hash => {
                 // Simple deterministic digest — DefaultHasher is fine for
                 // de-identification (not for cryptographic use).
-                use std::hash::{Hash, Hasher};
+                use std::hash::{Hash as _, Hasher as _};
                 let mut h = std::collections::hash_map::DefaultHasher::new();
                 value_for_hash(&current).hash(&mut h);
                 current = serde_json::Value::String(format!("hash:{:016x}", h.finish()));

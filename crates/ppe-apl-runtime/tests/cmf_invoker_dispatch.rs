@@ -42,7 +42,7 @@ use praxis_policy_core::registry::{HookEntry, PluginRef};
 
 use praxis_policy_apl_core::attributes::AttributeBag;
 use praxis_policy_apl_core::evaluator::Decision;
-use praxis_policy_apl_core::step::{PluginInvocation, PluginInvoker};
+use praxis_policy_apl_core::step::{PluginInvocation, PluginInvoker as _};
 
 use praxis_policy_apl_runtime::{CmfPluginInvoker, MemorySessionStore, RouteDispatchPlan};
 

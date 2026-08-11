@@ -193,8 +193,10 @@ unused_extern_crates = "deny"
 # --- Parked and gated ---
 missing_docs = "allow"                      # parked: docs, 664
 dead_code = "allow"                         # parked: hygiene, 2
-unreachable_pub = "allow"                   # parked: hygiene, 2
-unused_qualifications = "allow"             # parked: hygiene, 45
+unreachable_pub = "deny"
+unused_qualifications = "allow"                # parked: hygiene, 130; rustfix reports these
+# machine-applicable but cannot apply them: the suggestions overlap within a
+# statement, and applying them by hand at this volume is churn for no reader gain.
 elided_lifetimes_in_paths = "allow"         # parked: style, 1
 private_interfaces = "allow"                # parked: api, 1
 unused_mut = "allow"                        # parked: hygiene, 0 production (33 in tests)
@@ -203,9 +205,11 @@ missing_debug_implementations = "allow"     # parked: api, 39
 # plugin registry and payload plumbing.
 trivial_casts = "deny"
 # seed: measured. Two single-use lifetime parameters in the policy parser.
-single_use_lifetimes = "allow"              # parked: style, 2
+single_use_lifetimes = "allow"                # parked: style, 2 in a Debug impl
 # seed: measured. One non-binding let on a value with a destructor.
-let_underscore_drop = "allow"               # parked: hygiene, 1
+let_underscore_drop = "allow"                 # parked: hygiene, 12; `let _ =` on a
+# droppable value is often the deliberate spelling, and the suggested rewrite
+# spans multiple edits that rustfix mis-assembles.
 # seed: Praxis denies this. Two sites in the source tree assert Send and Sync by
 # hand for a write-capability token. Closing this means documenting both with a
 # scoped expect attribute or restructuring the token so the assertion is not
@@ -325,7 +329,7 @@ explicit_iter_loop = "deny"
 unnested_or_patterns = "deny"
 needless_continue = "allow"                 # parked: style, 5
 assigning_clones = "allow"                  # parked: perf, 5
-wildcard_imports = "allow"                  # parked: style, 4
+wildcard_imports = "deny"
 manual_string_new = "allow"                 # parked: style, 0 production (4 in tests)
 manual_assert = "allow"                     # parked: style, 0 production (1 in tests)
 unused_self = "allow"                       # parked: hygiene, 1
@@ -348,7 +352,7 @@ string_slice = "deny"
 format_push_string = "allow"                # parked: perf, 1
 deref_by_slicing = "allow"                  # parked: style, 0 production (4 in tests)
 if_then_some_else_none = "deny"
-unused_trait_names = "allow"                # parked: hygiene, 10
+unused_trait_names = "deny"
 tests_outside_test_module = "allow"         # parked: test-hygiene, 1 production (217 in tests)
 unnecessary_safety_comment = "deny"
 renamed_function_params = "allow"           # parked: api, 2
@@ -383,7 +387,7 @@ get_unwrap = "deny"
 derivable_impls = "deny"
 doc_lazy_continuation = "allow"             # parked: docs, 6
 doc_overindented_list_items = "allow"       # parked: docs, 5
-extra_unused_type_parameters = "allow"      # parked: hygiene, 1
+extra_unused_type_parameters = "deny"
 field_reassign_with_default = "allow"       # parked: style, 0 production (36 in tests)
 large_enum_variant = "allow"                # parked: perf, 1
 let_underscore_must_use = "allow"           # parked: hygiene, 1

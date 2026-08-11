@@ -27,8 +27,8 @@ use std::time::Duration;
 use async_trait::async_trait;
 use deadpool_redis::{Connection, Pool};
 use praxis_policy_apl_runtime::{SessionStore, SessionStoreError};
-use redis::AsyncCommands;
-use sha2::{Digest, Sha256};
+use redis::AsyncCommands as _;
+use sha2::{Digest as _, Sha256};
 
 use crate::config::ValkeyConfig;
 use crate::connection::build_pool;

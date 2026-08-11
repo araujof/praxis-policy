@@ -37,7 +37,7 @@ use serde_json::json;
 use praxis_policy_core::context::PluginContext;
 use praxis_policy_core::elicitation::{ElicitationOp, ElicitationPayload, ElicitationStatusKind};
 use praxis_policy_core::hooks::payload::Extensions;
-use praxis_policy_core::hooks::trait_def::HookHandler;
+use praxis_policy_core::hooks::trait_def::HookHandler as _;
 use praxis_policy_core::plugin::{OnError, PluginConfig, PluginMode};
 
 use praxis_policy_plugin_elicitation_ciba::CibaApprover;

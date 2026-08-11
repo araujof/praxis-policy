@@ -44,9 +44,9 @@ use praxis_policy_plugin_identity_jwt::{DecodingKeySource, JwtIdentityResolver};
 
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use mockito::Server;
-use rsa::pkcs1::EncodeRsaPublicKey;
-use rsa::pkcs8::{EncodePrivateKey, LineEnding};
-use rsa::traits::PublicKeyParts;
+use rsa::pkcs1::EncodeRsaPublicKey as _;
+use rsa::pkcs8::{EncodePrivateKey as _, LineEnding};
+use rsa::traits::PublicKeyParts as _;
 use rsa::{RsaPrivateKey, RsaPublicKey};
 use serde_json::{Value, json};
 
@@ -57,7 +57,7 @@ const AUD: &str = "test-api";
 /// `kid` is fixed and the key declares `use=sig, alg=RS256` so the
 /// resolver picks it via the "first signing-use key" rule.
 fn build_jwks(public: &RsaPublicKey) -> Value {
-    use base64::Engine;
+    use base64::Engine as _;
     let n_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(public.n().to_bytes_be());
     let e_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(public.e().to_bytes_be());
     json!({
@@ -283,7 +283,7 @@ fn build_jwks_two_keys(
     pub_b: &RsaPublicKey,
     kid_b: &str,
 ) -> Value {
-    use base64::Engine;
+    use base64::Engine as _;
     let make_entry = |k: &RsaPublicKey, kid: &str| {
         json!({
             "kty": "RSA",
@@ -458,7 +458,7 @@ async fn unknown_kid_yields_unknown_kid_violation() {
 #[tokio::test(flavor = "multi_thread")]
 async fn jwks_fetch_times_out_when_endpoint_stalls() {
     use std::time::Duration;
-    use tokio::io::AsyncWriteExt;
+    use tokio::io::AsyncWriteExt as _;
 
     // Stand up a tiny TCP listener that accepts connections, reads
     // the request headers, and then deliberately never sends a
@@ -616,7 +616,7 @@ async fn jwks_refresh_picks_up_rotated_key() {
 
     let jwks_a = build_jwks(&pub_a).to_string();
     let jwks_b = {
-        use base64::Engine;
+        use base64::Engine as _;
         json!({
             "keys": [{
                 "kty": "RSA",

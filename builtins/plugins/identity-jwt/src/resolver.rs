@@ -48,7 +48,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use base64::Engine;
+use base64::Engine as _;
 use jsonwebtoken::{Validation, decode};
 use serde_json::Value;
 
