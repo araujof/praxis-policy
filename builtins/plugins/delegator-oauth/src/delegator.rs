@@ -568,7 +568,7 @@ impl HookHandler<TokenDelegateHook> for OAuthDelegator {
         let token = RawDelegatedToken::new(
             parsed.access_token,
             self.typed.default_outbound_header.clone(),
-            audience.to_string(),
+            audience.to_owned(),
             effective_scopes,
             expires_at,
         );
@@ -677,7 +677,7 @@ mod scheme_tests {
     fn http_default_rejected() {
         let err = require_https("http://localhost:8081/oauth/token", false).unwrap_err();
         assert!(err.contains("must use https"), "{}", err);
-        assert!(err.contains("insecure_http"), "mentions opt-out: {}", err);
+        assert!(err.contains("insecure_http"), "mentions opt-out: {err}");
     }
 
     #[test]

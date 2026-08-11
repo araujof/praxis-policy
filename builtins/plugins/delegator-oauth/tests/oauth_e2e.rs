@@ -188,8 +188,8 @@ async fn happy_path_mints_delegated_token() {
     assert_eq!(token.audience, "https://hr.example.com");
     assert_eq!(token.outbound_header, "Authorization");
     // Effective scopes come from the IdP's `scope` field.
-    assert!(token.scopes.contains(&"read:compensation".to_string()));
-    assert!(token.scopes.contains(&"audit".to_string()));
+    assert!(token.scopes.contains(&"read:compensation".to_owned()));
+    assert!(token.scopes.contains(&"audit".to_owned()));
 
     // Mode is OnBehalfOfUser by default for RFC 8693 exchange.
     assert!(matches!(

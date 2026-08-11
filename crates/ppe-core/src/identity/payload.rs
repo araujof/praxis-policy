@@ -376,8 +376,7 @@ mod tests {
         let json = serde_json::to_string(&p).unwrap();
         assert!(
             !json.contains("eyJhbGciOiJSUzI1NiJ9"),
-            "raw_token leaked into serialized form: {}",
-            json,
+            "raw_token leaked into serialized form: {json}",
         );
         assert!(json.contains("bearer"));
     }
@@ -401,7 +400,7 @@ mod tests {
     #[test]
     fn input_builders_chain() {
         let mut h = HashMap::new();
-        h.insert("user-agent".to_string(), "curl/8.0".to_string());
+        h.insert("user-agent".to_owned(), "curl/8.0".to_owned());
         let p = IdentityPayload::new("tok", TokenSource::Bearer)
             .with_source_header("Authorization")
             .with_headers(h)

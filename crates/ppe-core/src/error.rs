@@ -152,7 +152,7 @@ impl From<&PluginError> for PluginErrorRecord {
                 proto_error_code,
             } => Self {
                 plugin_name: plugin_name.clone(),
-                message: format!("plugin timed out after {}ms", timeout_ms),
+                message: format!("plugin timed out after {timeout_ms}ms"),
                 code: Some("timeout".into()),
                 details: HashMap::new(),
                 proto_error_code: *proto_error_code,
@@ -176,7 +176,7 @@ impl From<&PluginError> for PluginErrorRecord {
             },
             PluginError::UnknownHook { hook_type } => Self {
                 plugin_name: String::new(),
-                message: format!("unknown hook type: {}", hook_type),
+                message: format!("unknown hook type: {hook_type}"),
                 code: Some("unknown_hook".into()),
                 details: HashMap::new(),
                 proto_error_code: None,

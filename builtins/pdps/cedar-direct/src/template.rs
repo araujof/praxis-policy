@@ -110,10 +110,9 @@ fn substitute(
 ) -> Result<serde_yaml::Value, PdpError> {
     let value = bag.get(key).ok_or_else(|| {
         PdpError::Dispatch(format!(
-            "cedar:() references `{}` but the bag has no key `{}` — \
+            "cedar:() references `{original}` but the bag has no key `{key}` — \
              check the spelling against the projection vocabulary \
-             populated by praxis-policy-apl-cmf (security / payload extractors)",
-            original, key
+             populated by praxis-policy-apl-cmf (security / payload extractors)"
         ))
     })?;
 
@@ -241,11 +240,10 @@ email: ${claim.email}
         let bag = AttributeBag::new();
         let yaml = serde_yaml::Value::String("${args.missing}".into());
         let err = resolve_refs(&yaml, &bag).unwrap_err();
-        let msg = format!("{:?}", err);
+        let msg = format!("{err:?}");
         assert!(
             msg.contains("args.missing"),
-            "error mentions the key: {}",
-            msg
+            "error mentions the key: {msg}"
         );
     }
 

@@ -95,15 +95,15 @@ impl HookHandler<CmfHook> for RewritePlugin {
             .map(|part| match (self.target, part) {
                 (Target::ToolResultContent, ContentPart::ToolResult { content }) => {
                     let mut next = content.clone();
-                    next.content = serde_json::Value::String("[REDACTED]".to_string());
+                    next.content = serde_json::Value::String("[REDACTED]".to_owned());
                     ContentPart::ToolResult { content: next }
                 },
                 (Target::ToolResultField(field), ContentPart::ToolResult { content }) => {
                     let mut next = content.clone();
                     if let Some(obj) = next.content.as_object_mut() {
                         obj.insert(
-                            field.to_string(),
-                            serde_json::Value::String("[REDACTED]".to_string()),
+                            field.to_owned(),
+                            serde_json::Value::String("[REDACTED]".to_owned()),
                         );
                     }
                     ContentPart::ToolResult { content: next }
@@ -111,16 +111,16 @@ impl HookHandler<CmfHook> for RewritePlugin {
                 (Target::ToolCallArguments, ContentPart::ToolCall { content }) => {
                     let mut next = content.clone();
                     next.arguments.insert(
-                        "city".to_string(),
-                        serde_json::Value::String("[REDACTED]".to_string()),
+                        "city".to_owned(),
+                        serde_json::Value::String("[REDACTED]".to_owned()),
                     );
                     ContentPart::ToolCall { content: next }
                 },
                 (Target::ToolCallArgument(arg), ContentPart::ToolCall { content }) => {
                     let mut next = content.clone();
                     next.arguments.insert(
-                        arg.to_string(),
-                        serde_json::Value::String("[REDACTED]".to_string()),
+                        arg.to_owned(),
+                        serde_json::Value::String("[REDACTED]".to_owned()),
                     );
                     ContentPart::ToolCall { content: next }
                 },
@@ -128,17 +128,17 @@ impl HookHandler<CmfHook> for RewritePlugin {
                     let mut next = content.clone();
                     if let Some(obj) = next.arguments.get_mut(arg).and_then(|v| v.as_object_mut()) {
                         obj.insert(
-                            key.to_string(),
-                            serde_json::Value::String("[REDACTED]".to_string()),
+                            key.to_owned(),
+                            serde_json::Value::String("[REDACTED]".to_owned()),
                         );
                     }
                     ContentPart::ToolCall { content: next }
                 },
                 (Target::Thinking, ContentPart::Thinking { .. }) => ContentPart::Thinking {
-                    text: "[REDACTED]".to_string(),
+                    text: "[REDACTED]".to_owned(),
                 },
                 (Target::Text, ContentPart::Text { .. }) => ContentPart::Text {
-                    text: "[REDACTED]".to_string(),
+                    text: "[REDACTED]".to_owned(),
                 },
                 (_, other) => other.clone(),
             })
@@ -334,8 +334,8 @@ async fn manager_with_yaml(
 /// tool meta for the `tool: get_weather` handler to fire at all.
 fn tool_meta() -> Extensions {
     let mut meta = praxis_policy_core::extensions::MetaExtension::default();
-    meta.entity_type = Some("tool".to_string());
-    meta.entity_name = Some("get_weather".to_string());
+    meta.entity_type = Some("tool".to_owned());
+    meta.entity_name = Some("get_weather".to_owned());
     Extensions {
         meta: Some(Arc::new(meta)),
         ..Default::default()
@@ -345,9 +345,9 @@ fn tool_meta() -> Extensions {
 fn tool_call_part(city: &str) -> ContentPart {
     ContentPart::ToolCall {
         content: ToolCall {
-            tool_call_id: "tc_001".to_string(),
-            name: "get_weather".to_string(),
-            arguments: [("city".to_string(), serde_json::json!(city))]
+            tool_call_id: "tc_001".to_owned(),
+            name: "get_weather".to_owned(),
+            arguments: [("city".to_owned(), serde_json::json!(city))]
                 .into_iter()
                 .collect(),
             namespace: None,
@@ -358,9 +358,9 @@ fn tool_call_part(city: &str) -> ContentPart {
 fn tool_result_part(content: &str) -> ContentPart {
     ContentPart::ToolResult {
         content: ToolResult {
-            tool_call_id: "tc_001".to_string(),
-            tool_name: "get_weather".to_string(),
-            content: serde_json::Value::String(content.to_string()),
+            tool_call_id: "tc_001".to_owned(),
+            tool_name: "get_weather".to_owned(),
+            content: serde_json::Value::String(content.to_owned()),
             is_error: false,
         },
     }
@@ -421,7 +421,7 @@ async fn tool_result_redaction_reaches_the_host() {
         Role::Tool,
         vec![
             ContentPart::Text {
-                text: "here is the result".to_string(),
+                text: "here is the result".to_owned(),
             },
             tool_result_part("sk-secret-value"),
         ],
@@ -439,7 +439,7 @@ async fn tool_result_redaction_reaches_the_host() {
     let out = forwarded(&result);
     assert_eq!(
         tool_result_of(&out),
-        Some(&serde_json::Value::String("[REDACTED]".to_string())),
+        Some(&serde_json::Value::String("[REDACTED]".to_owned())),
         "the host must receive the redacted tool result, not the original secret"
     );
     assert_eq!(
@@ -494,7 +494,7 @@ async fn thinking_rewrite_reaches_the_host() {
     let payload = payload_of(
         Role::Assistant,
         vec![ContentPart::Thinking {
-            text: "the user's SSN is 123-45-6789".to_string(),
+            text: "the user's SSN is 123-45-6789".to_owned(),
         }],
     );
 
@@ -527,7 +527,7 @@ async fn text_rewrite_still_reaches_the_host() {
     let payload = payload_of(
         Role::User,
         vec![ContentPart::Text {
-            text: "my card is 4111 1111 1111 1111".to_string(),
+            text: "my card is 4111 1111 1111 1111".to_owned(),
         }],
     );
 
@@ -562,7 +562,7 @@ async fn tool_result_redaction_reaches_the_host_in_post_phase() {
     assert!(result.continue_processing);
     assert_eq!(
         tool_result_of(&forwarded(&result)),
-        Some(&serde_json::Value::String("[REDACTED]".to_string()))
+        Some(&serde_json::Value::String("[REDACTED]".to_owned()))
     );
 }
 
@@ -607,11 +607,11 @@ routes:
         Role::User,
         vec![ContentPart::ToolCall {
             content: ToolCall {
-                tool_call_id: "tc_001".to_string(),
-                name: "get_weather".to_string(),
+                tool_call_id: "tc_001".to_owned(),
+                name: "get_weather".to_owned(),
                 arguments: [
-                    ("city".to_string(), serde_json::json!("London")),
-                    ("token".to_string(), serde_json::json!("sk-secret")),
+                    ("city".to_owned(), serde_json::json!("London")),
+                    ("token".to_owned(), serde_json::json!("sk-secret")),
                 ]
                 .into_iter()
                 .collect(),
@@ -671,8 +671,8 @@ routes:
         Role::Tool,
         vec![ContentPart::ToolResult {
             content: ToolResult {
-                tool_call_id: "tc_001".to_string(),
-                tool_name: "get_weather".to_string(),
+                tool_call_id: "tc_001".to_owned(),
+                tool_name: "get_weather".to_owned(),
                 content: serde_json::json!({
                     "employee_id": "E12345",
                     "ssn": "123-45-6789",
@@ -733,7 +733,7 @@ routes:
         Role::User,
         vec![
             ContentPart::Text {
-                text: "chatter that must not become an argument".to_string(),
+                text: "chatter that must not become an argument".to_owned(),
             },
             tool_call_part("London"),
         ],
@@ -804,7 +804,7 @@ routes:
         Role::Assistant,
         vec![
             ContentPart::Thinking {
-                text: "ssn is 123-45-6789".to_string(),
+                text: "ssn is 123-45-6789".to_owned(),
             },
             tool_result_part("sk-secret-value"),
         ],
@@ -818,7 +818,7 @@ routes:
     let out = forwarded(&result);
     assert_eq!(
         tool_result_of(&out),
-        Some(&serde_json::Value::String("[REDACTED]".to_string())),
+        Some(&serde_json::Value::String("[REDACTED]".to_owned())),
         "the first plugin's redaction must survive the second plugin's dispatch"
     );
     assert_eq!(
@@ -926,7 +926,7 @@ routes:
     );
     assert_eq!(
         tool_result_of(&forwarded(&result)),
-        Some(&serde_json::Value::String("sk-secret-value".to_string())),
+        Some(&serde_json::Value::String("sk-secret-value".to_owned())),
         "and the original must be what's forwarded"
     );
 }
@@ -963,12 +963,12 @@ routes:
         Role::User,
         vec![ContentPart::ToolCall {
             content: ToolCall {
-                tool_call_id: "tc_001".to_string(),
-                name: "get_weather".to_string(),
+                tool_call_id: "tc_001".to_owned(),
+                name: "get_weather".to_owned(),
                 arguments: [
-                    ("city".to_string(), serde_json::json!("London")),
-                    ("debug".to_string(), serde_json::json!("verbose")),
-                    ("token".to_string(), serde_json::json!("sk-secret")),
+                    ("city".to_owned(), serde_json::json!("London")),
+                    ("debug".to_owned(), serde_json::json!("verbose")),
+                    ("token".to_owned(), serde_json::json!("sk-secret")),
                 ]
                 .into_iter()
                 .collect(),
@@ -1029,10 +1029,10 @@ routes:
         Role::User,
         vec![ContentPart::ToolCall {
             content: ToolCall {
-                tool_call_id: "tc_001".to_string(),
-                name: "get_weather".to_string(),
+                tool_call_id: "tc_001".to_owned(),
+                name: "get_weather".to_owned(),
                 arguments: [(
-                    "user".to_string(),
+                    "user".to_owned(),
                     serde_json::json!({"name": "Ada Lovelace", "ssn": "123-45-6789"}),
                 )]
                 .into_iter()
@@ -1099,11 +1099,11 @@ routes:
         Role::User,
         vec![ContentPart::ToolCall {
             content: ToolCall {
-                tool_call_id: "tc_001".to_string(),
-                name: "get_weather".to_string(),
+                tool_call_id: "tc_001".to_owned(),
+                name: "get_weather".to_owned(),
                 arguments: [
-                    ("city".to_string(), serde_json::json!("London")),
-                    ("token".to_string(), serde_json::json!("sk-secret")),
+                    ("city".to_owned(), serde_json::json!("London")),
+                    ("token".to_owned(), serde_json::json!("sk-secret")),
                 ]
                 .into_iter()
                 .collect(),

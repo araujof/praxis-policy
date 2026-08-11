@@ -118,8 +118,8 @@ async fn cross_node_concurrent_append_unions() {
     let node_b = store_for(&target, None);
     let sid = "sess-union";
 
-    let labels_a = vec!["PII".to_string()];
-    let labels_b = vec!["INTERNAL".to_string()];
+    let labels_a = vec!["PII".to_owned()];
+    let labels_b = vec!["INTERNAL".to_owned()];
     let (ra, rb) = tokio::join!(
         node_a.append_labels(sid, &labels_a),
         node_b.append_labels(sid, &labels_b),
@@ -130,7 +130,7 @@ async fn cross_node_concurrent_append_unions() {
     let reader = store_for(&target, None);
     let mut labels = reader.load_labels(sid).await.expect("load");
     labels.sort();
-    assert_eq!(labels, vec!["INTERNAL".to_string(), "PII".to_string()]);
+    assert_eq!(labels, vec!["INTERNAL".to_owned(), "PII".to_owned()]);
 }
 
 /// An unknown session is a confirmed key-miss → Ok(empty), not Err.
@@ -204,7 +204,7 @@ async fn ttl_set_on_append_and_refreshed_on_load() {
     let store = store_for(&target, Some(100));
     let sid = "sess-ttl";
     store
-        .append_labels(sid, &["PII".to_string()])
+        .append_labels(sid, &["PII".to_owned()])
         .await
         .expect("append");
 

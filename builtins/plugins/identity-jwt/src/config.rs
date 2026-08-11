@@ -79,7 +79,7 @@ fn default_refresh_secs() -> u64 {
 }
 
 fn default_header() -> String {
-    "Authorization".to_string()
+    "Authorization".to_owned()
 }
 
 /// One issuer's config — issuer URL, audiences, decoding key
@@ -291,7 +291,7 @@ impl DecodingKeySource {
                         continue;
                     }
                     let kid = match k.common.key_id.as_deref() {
-                        Some(kid) if !kid.is_empty() => kid.to_string(),
+                        Some(kid) if !kid.is_empty() => kid.to_owned(),
                         _ => {
                             skipped_no_kid += 1;
                             continue;

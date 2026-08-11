@@ -37,12 +37,12 @@ use praxis_policy_core::cmf::{ContentPart, Message};
 pub(crate) fn rewrite_message_text(msg: &mut Message, new_text: &str) {
     for part in msg.content.iter_mut() {
         if let ContentPart::Text { text } = part {
-            *text = new_text.to_string();
+            *text = new_text.to_owned();
             return;
         }
     }
     msg.content.push(ContentPart::Text {
-        text: new_text.to_string(),
+        text: new_text.to_owned(),
     });
 }
 
@@ -290,11 +290,11 @@ mod tests {
             Role::User,
             vec![ContentPart::ToolCall {
                 content: ToolCall {
-                    tool_call_id: "tc_001".to_string(),
-                    name: "get_weather".to_string(),
+                    tool_call_id: "tc_001".to_owned(),
+                    name: "get_weather".to_owned(),
                     arguments: [
-                        ("city".to_string(), serde_json::json!("London")),
-                        ("units".to_string(), serde_json::json!("metric")),
+                        ("city".to_owned(), serde_json::json!("London")),
+                        ("units".to_owned(), serde_json::json!("metric")),
                     ]
                     .into_iter()
                     .collect(),
@@ -309,8 +309,8 @@ mod tests {
             Role::Tool,
             vec![ContentPart::ToolResult {
                 content: ToolResult {
-                    tool_call_id: "tc_001".to_string(),
-                    tool_name: "get_weather".to_string(),
+                    tool_call_id: "tc_001".to_owned(),
+                    tool_name: "get_weather".to_owned(),
                     content: serde_json::json!({"temp": 12, "sky": "grey"}),
                     is_error: false,
                 },

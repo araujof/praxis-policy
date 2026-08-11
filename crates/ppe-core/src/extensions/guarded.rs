@@ -132,7 +132,7 @@ mod tests {
 
     #[test]
     fn test_guarded_serde_transparent() {
-        let guarded = Guarded::new("hello".to_string());
+        let guarded = Guarded::new("hello".to_owned());
         let json = serde_json::to_string(&guarded).unwrap();
         assert_eq!(json, "\"hello\"");
         let deserialized: Guarded<String> = serde_json::from_str(&json).unwrap();

@@ -62,7 +62,7 @@ pub fn translate(response: &cedar_policy::Response, policy_set: &PolicySet) -> P
             policy_set
                 .policy(pid)
                 .and_then(|p| p.annotation("id"))
-                .map(|s| s.to_string())
+                .map(|s| s.to_owned())
                 .unwrap_or_else(|| pid.to_string())
         })
         .collect();
@@ -82,7 +82,7 @@ pub fn translate(response: &cedar_policy::Response, policy_set: &PolicySet) -> P
         let rule_source = firing_policies
             .first()
             .cloned()
-            .unwrap_or_else(|| "cedar.evaluation_error".to_string());
+            .unwrap_or_else(|| "cedar.evaluation_error".to_owned());
         return PdpDecision {
             decision: Decision::Deny {
                 reason: Some(reason),
@@ -101,14 +101,14 @@ pub fn translate(response: &cedar_policy::Response, policy_set: &PolicySet) -> P
             let reason = if firing_policies.is_empty() {
                 // Cedar deny with no firing policy means no `permit`
                 // matched — the "default deny" case.
-                "no Cedar permit policy matched the request".to_string()
+                "no Cedar permit policy matched the request".to_owned()
             } else {
                 format!("denied by Cedar policy: {}", firing_policies.join(", "))
             };
             let rule_source = firing_policies
                 .first()
                 .cloned()
-                .unwrap_or_else(|| "cedar.default_deny".to_string());
+                .unwrap_or_else(|| "cedar.default_deny".to_owned());
             Decision::Deny {
                 reason: Some(reason),
                 rule_source,

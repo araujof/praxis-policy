@@ -153,8 +153,8 @@ impl PluginFactory for AllowGateFactory {
 
 fn meta_for_tool(name: &str) -> MetaExtension {
     let mut meta = MetaExtension::default();
-    meta.entity_type = Some("tool".to_string());
-    meta.entity_name = Some(name.to_string());
+    meta.entity_type = Some("tool".to_owned());
+    meta.entity_name = Some(name.to_owned());
     meta
 }
 
@@ -241,7 +241,7 @@ async fn canonical_authn_and_authz_blocks_both_run() {
     );
     assert_eq!(
         *ledger.lock().unwrap(),
-        vec!["corp-jwt".to_string()],
+        vec!["corp-jwt".to_owned()],
         "the route's `authentication:` block must dispatch corp-jwt",
     );
 

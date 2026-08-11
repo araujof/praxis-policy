@@ -331,7 +331,7 @@ impl PdpDialect {
             "authzen" => Self::AuthZen,
             "nemo" => Self::NeMo,
             "cel" => Self::Cel,
-            other => Self::Custom(other.to_string()),
+            other => Self::Custom(other.to_owned()),
         }
     }
 }
@@ -759,7 +759,7 @@ impl ElicitationInvoker for NoopElicitationInvoker {
         _step: &ElicitStep,
         id: &str,
     ) -> Result<ElicitationStatus, ElicitationError> {
-        Err(ElicitationError::NotFound(id.to_string()))
+        Err(ElicitationError::NotFound(id.to_owned()))
     }
 
     async fn validate(
@@ -767,7 +767,7 @@ impl ElicitationInvoker for NoopElicitationInvoker {
         _step: &ElicitStep,
         id: &str,
     ) -> Result<ElicitationValidation, ElicitationError> {
-        Err(ElicitationError::NotFound(id.to_string()))
+        Err(ElicitationError::NotFound(id.to_owned()))
     }
 }
 
@@ -793,8 +793,8 @@ impl ElicitationInvoker for AutoApprovingElicitor {
         Ok(ElicitationDispatch {
             id: format!("auto-{}", step.plugin_name),
             // Echo the *resolved* approver, as a real channel would.
-            approver: Some(resolved_from.to_string()),
-            intent_id: Some("auto-intent".to_string()),
+            approver: Some(resolved_from.to_owned()),
+            intent_id: Some("auto-intent".to_owned()),
             expires_at: None,
         })
     }
@@ -819,7 +819,7 @@ impl ElicitationInvoker for AutoApprovingElicitor {
             // Leave approver/intent unset — the dispatch-time values
             // already recorded in the bag stand.
             approver: None,
-            intent_id: Some("auto-intent".to_string()),
+            intent_id: Some("auto-intent".to_owned()),
             reason: None,
         })
     }
@@ -990,7 +990,7 @@ mod tests {
     fn from_key_unknown_is_custom() {
         assert_eq!(
             PdpDialect::from_key("rego-remote"),
-            PdpDialect::Custom("rego-remote".to_string())
+            PdpDialect::Custom("rego-remote".to_owned())
         );
     }
 
@@ -1002,15 +1002,15 @@ mod tests {
         let inv = NoopElicitationInvoker;
         let step = ElicitStep {
             kind: ElicitKind::Approval,
-            plugin_name: "manager-approver".to_string(),
-            channel: Some("ciba".to_string()),
-            from: "user.manager".to_string(),
+            plugin_name: "manager-approver".to_owned(),
+            channel: Some("ciba".to_owned()),
+            from: "user.manager".to_owned(),
             purpose: None,
             scope: None,
             timeout: None,
             config_override: None,
             on_error: None,
-            source: "route.test.policy[0]".to_string(),
+            source: "route.test.policy[0]".to_owned(),
         };
 
         let d = inv.dispatch(&step, "alice@example.com").await;

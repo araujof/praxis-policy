@@ -157,7 +157,7 @@ impl AuditLogger {
         match self.typed.destination {
             AuditDestination::Stderr => {
                 // One JSON line — easy to grep / forward / jq through.
-                eprintln!("{}", record);
+                eprintln!("{record}");
             },
             AuditDestination::Tracing => {
                 tracing::info!(target: "apl.audit", record = %record, "audit");
@@ -232,7 +232,7 @@ mod tests {
                         tool_call_id: "1".into(),
                         name: "get_compensation".into(),
                         arguments: HashMap::from([(
-                            "employee_id".to_string(),
+                            "employee_id".to_owned(),
                             serde_json::json!("EMP-001234"),
                         )]),
                         namespace: None,

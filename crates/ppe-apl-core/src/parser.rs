@@ -211,7 +211,7 @@ impl<'a> Lexer<'a> {
             .get(start..self.pos)
             .and_then(|b| std::str::from_utf8(b).ok())
             .ok_or_else(|| self.err("non-utf8 in string literal"))?
-            .to_string();
+            .to_owned();
         self.bump(); // closing quote
         Ok(Tok::StringLit(s))
     }
@@ -247,11 +247,11 @@ impl<'a> Lexer<'a> {
         if is_float {
             text.parse::<f64>()
                 .map(Tok::FloatLit)
-                .map_err(|e| self.err(&format!("bad float `{}`: {}", text, e)))
+                .map_err(|e| self.err(&format!("bad float `{text}`: {e}")))
         } else {
             text.parse::<i64>()
                 .map(Tok::IntLit)
-                .map_err(|e| self.err(&format!("bad int `{}`: {}", text, e)))
+                .map_err(|e| self.err(&format!("bad int `{text}`: {e}")))
         }
     }
 
@@ -299,7 +299,7 @@ impl<'a> Lexer<'a> {
             .ok_or_else(|| self.err("bad identifier bounds"))?;
         // A path with an interpolation group is never a keyword.
         if has_bracket {
-            return Ok(Tok::Ident(s.to_string()));
+            return Ok(Tok::Ident(s.to_owned()));
         }
         Ok(match s {
             "true" => Tok::BoolLit(true),
@@ -311,13 +311,13 @@ impl<'a> Lexer<'a> {
             // "not" is NOT a keyword — it only appears in the `not in`
             // phrase. The parser handles that as an Ident("not") + Tok::In
             // sequence in parse_identifier_predicate.
-            _ => Tok::Ident(s.to_string()),
+            _ => Tok::Ident(s.to_owned()),
         })
     }
 
     fn err(&self, msg: &str) -> ParseError {
         ParseError::Predicate {
-            predicate: self.src.to_string(),
+            predicate: self.src.to_owned(),
             msg: format!("at byte {}: {}", self.pos, msg),
         }
     }
@@ -361,8 +361,8 @@ impl<'a> PredParser<'a> {
     }
     fn err(&self, msg: &str) -> ParseError {
         ParseError::Predicate {
-            predicate: self.src.to_string(),
-            msg: msg.to_string(),
+            predicate: self.src.to_owned(),
+            msg: msg.to_owned(),
         }
     }
 
@@ -426,7 +426,7 @@ impl<'a> PredParser<'a> {
             )),
             Some(Tok::Exists) => self.parse_exists(),
             Some(Tok::Ident(_)) => self.parse_identifier_predicate(),
-            other => Err(self.err(&format!("expected atom, got {:?}", other))),
+            other => Err(self.err(&format!("expected atom, got {other:?}"))),
         }
     }
 
@@ -442,8 +442,7 @@ impl<'a> PredParser<'a> {
             Some(Tok::Ident(s)) => s,
             other => {
                 return Err(self.err(&format!(
-                    "exists(...) expects an attribute key, got {:?}",
-                    other,
+                    "exists(...) expects an attribute key, got {other:?}",
                 )));
             },
         };
@@ -451,8 +450,7 @@ impl<'a> PredParser<'a> {
             Some(Tok::RParen) => {},
             other => {
                 return Err(self.err(&format!(
-                    "expected `)` after exists() argument, got {:?}",
-                    other,
+                    "expected `)` after exists() argument, got {other:?}",
                 )));
             },
         }
@@ -522,7 +520,7 @@ impl<'a> PredParser<'a> {
                      for set membership use `value_key in set_key`",
                 ));
             },
-            other => return Err(self.err(&format!("expected literal RHS, got {:?}", other))),
+            other => return Err(self.err(&format!("expected literal RHS, got {other:?}"))),
         };
 
         Ok(Expression::Condition(Condition::Comparison {
@@ -591,8 +589,8 @@ pub fn parse_rule(line: &str, source: &str) -> Result<Rule, ParseError> {
     // wrong entry point — point them at parse_step.
     if let Some(kind) = detect_step_kind(trimmed) {
         return Err(ParseError::UnsupportedStep {
-            rule: trimmed.to_string(),
-            kind: format!("{} (use parse_step for step kinds)", kind),
+            rule: trimmed.to_owned(),
+            kind: format!("{kind} (use parse_step for step kinds)"),
         });
     }
 
@@ -604,7 +602,7 @@ pub fn parse_rule(line: &str, source: &str) -> Result<Rule, ParseError> {
                 return Ok(Rule {
                     condition: Expression::Always,
                     effects,
-                    source: source.to_string(),
+                    source: source.to_owned(),
                 });
             }
             // Unconditional `deny('reason')` / `deny('reason', 'code')` —
@@ -617,7 +615,7 @@ pub fn parse_rule(line: &str, source: &str) -> Result<Rule, ParseError> {
                 return Ok(Rule {
                     condition: Expression::Always,
                     effects: vec![deny],
-                    source: source.to_string(),
+                    source: source.to_owned(),
                 });
             }
             // Default: bare predicate denies.
@@ -632,14 +630,14 @@ pub fn parse_rule(line: &str, source: &str) -> Result<Rule, ParseError> {
     };
 
     let condition = parse_predicate(predicate_str).map_err(|e| ParseError::Rule {
-        rule: trimmed.to_string(),
-        msg: format!("{}", e),
+        rule: trimmed.to_owned(),
+        msg: format!("{e}"),
     })?;
 
     Ok(Rule {
         condition,
         effects,
-        source: source.to_string(),
+        source: source.to_owned(),
     })
 }
 
@@ -660,8 +658,8 @@ fn parse_require_rule(line: &str) -> Result<Expression, ParseError> {
     let mut iter = toks.into_iter().peekable();
 
     let bad = |msg: &str| ParseError::Rule {
-        rule: line.to_string(),
-        msg: msg.to_string(),
+        rule: line.to_owned(),
+        msg: msg.to_owned(),
     };
 
     match iter.next() {
@@ -701,8 +699,7 @@ fn parse_require_rule(line: &str) -> Result<Expression, ParseError> {
             },
             Some(other) => {
                 return Err(bad(&format!(
-                    "expected `,`, `|`, or `)` in require(...), got {:?}",
-                    other,
+                    "expected `,`, `|`, or `)` in require(...), got {other:?}",
                 )));
             },
             None => return Err(bad("unexpected end of require(...) — missing `)`")),
@@ -796,7 +793,7 @@ fn parse_action(s: &str, rule: &str) -> Result<Vec<Effect>, ParseError> {
         return Ok(vec![deny]);
     }
     Err(ParseError::Rule {
-        rule: rule.to_string(),
+        rule: rule.to_owned(),
         msg: format!(
             "unsupported action `{}` — recognized: `deny`, `deny('reason')`, `deny('reason', 'code')`, `allow`",
             s.trim()
@@ -823,14 +820,14 @@ fn try_parse_deny_call(s: &str, rule: &str) -> Result<Option<Effect>, ParseError
         return Ok(None);
     }
     let inside = extract_call_args(s, "deny").ok_or_else(|| ParseError::Rule {
-        rule: rule.to_string(),
+        rule: rule.to_owned(),
         msg: "malformed `deny(...)`".into(),
     })?;
     // Two positional args max. Spec precedent: `deny('reason')` (1 arg);
     // Extension: `deny('reason', 'code')` (2 args). Both quoted.
     let parts = split_top_level_commas(&inside).map_err(|e| ParseError::Rule {
-        rule: rule.to_string(),
-        msg: format!("deny(...): {}", e),
+        rule: rule.to_owned(),
+        msg: format!("deny(...): {e}"),
     })?;
     let mut iter = parts.into_iter();
     let reason = match iter.next() {
@@ -843,7 +840,7 @@ fn try_parse_deny_call(s: &str, rule: &str) -> Result<Option<Effect>, ParseError
     };
     if iter.next().is_some() {
         return Err(ParseError::Rule {
-            rule: rule.to_string(),
+            rule: rule.to_owned(),
             msg: "deny(...) takes at most two args: deny('reason', 'code')".into(),
         });
     }
@@ -856,11 +853,11 @@ fn try_parse_deny_call(s: &str, rule: &str) -> Result<Option<Effect>, ParseError
 fn strip_string_literal(s: &str, rule: &str) -> Result<String, ParseError> {
     let s = s.trim();
     if let Some(inner) = unwrap_quotes(s) {
-        Ok(inner.to_string())
+        Ok(inner.to_owned())
     } else {
         Err(ParseError::Rule {
-            rule: rule.to_string(),
-            msg: format!("expected a quoted string, got `{}`", s),
+            rule: rule.to_owned(),
+            msg: format!("expected a quoted string, got `{s}`"),
         })
     }
 }
@@ -881,7 +878,7 @@ pub fn parse_step(value: &serde_yaml::Value, source: &str) -> Result<Step, Parse
         serde_yaml::Value::String(s) => parse_step_string(s, source),
         serde_yaml::Value::Mapping(m) => parse_step_map(m, source),
         other => Err(ParseError::Rule {
-            rule: format!("{:?}", other),
+            rule: format!("{other:?}"),
             msg: "step must be a string or a single-key map".into(),
         }),
     }
@@ -894,7 +891,7 @@ fn parse_step_string(line: &str, source: &str) -> Result<Step, ParseError> {
     // so the shape stays consistent with field-level taint.
     if trimmed.starts_with("taint(") {
         let inside = extract_call_args(trimmed, "taint").ok_or_else(|| ParseError::Rule {
-            rule: trimmed.to_string(),
+            rule: trimmed.to_owned(),
             msg: "malformed `taint(...)`".into(),
         })?;
         let taint_stage = parse_taint(&inside, trimmed)?;
@@ -903,7 +900,7 @@ fn parse_step_string(line: &str, source: &str) -> Result<Step, ParseError> {
             return Ok(Step::Taint { label, scopes });
         }
         return Err(ParseError::Rule {
-            rule: trimmed.to_string(),
+            rule: trimmed.to_owned(),
             msg: "internal: `taint(...)` did not produce a taint stage".into(),
         });
     }
@@ -919,18 +916,18 @@ fn parse_step_string(line: &str, source: &str) -> Result<Step, ParseError> {
     };
     if let Some(verb) = plugin_verb {
         let inside = extract_call_args(trimmed, verb).ok_or_else(|| ParseError::Rule {
-            rule: trimmed.to_string(),
+            rule: trimmed.to_owned(),
             msg: format!("malformed `{verb}(...)`"),
         })?;
         let name = inside.trim();
         if name.is_empty() {
             return Err(ParseError::Rule {
-                rule: trimmed.to_string(),
+                rule: trimmed.to_owned(),
                 msg: format!("`{verb}(...)`: plugin name must not be empty"),
             });
         }
         return Ok(Step::Plugin {
-            name: name.to_string(),
+            name: name.to_owned(),
         });
     }
 
@@ -942,7 +939,7 @@ fn parse_step_string(line: &str, source: &str) -> Result<Step, ParseError> {
     // parser doesn't handle.
     if trimmed.starts_with("delegate(") {
         let inside = extract_call_args(trimmed, "delegate").ok_or_else(|| ParseError::Rule {
-            rule: trimmed.to_string(),
+            rule: trimmed.to_owned(),
             msg: "malformed `delegate(...)`".into(),
         })?;
         let parsed = parse_delegate_call_args(&inside, source)?;
@@ -950,7 +947,7 @@ fn parse_step_string(line: &str, source: &str) -> Result<Step, ParseError> {
             plugin_name: parsed.plugin_name,
             config_override: parsed.config_override,
             on_error: parsed.on_error,
-            source: source.to_string(),
+            source: source.to_owned(),
         }));
     }
 
@@ -963,7 +960,7 @@ fn parse_step_string(line: &str, source: &str) -> Result<Step, ParseError> {
     for (verb, kind) in ELICIT_VERBS {
         if trimmed.starts_with(&format!("{verb}(")) {
             let inside = extract_call_args(trimmed, verb).ok_or_else(|| ParseError::Rule {
-                rule: trimmed.to_string(),
+                rule: trimmed.to_owned(),
                 msg: format!("malformed `{verb}(...)`"),
             })?;
             let parsed = parse_elicit_call_args(verb, &inside, source)?;
@@ -977,7 +974,7 @@ fn parse_step_string(line: &str, source: &str) -> Result<Step, ParseError> {
                 timeout: parsed.timeout,
                 config_override: parsed.config_override,
                 on_error: parsed.on_error,
-                source: source.to_string(),
+                source: source.to_owned(),
             }));
         }
     }
@@ -1022,7 +1019,7 @@ fn parse_delegate_call_args(inside: &str, source: &str) -> Result<ParsedDelegate
 
     let plugin_name = parts_iter
         .next()
-        .map(|s| s.trim().to_string())
+        .map(|s| s.trim().to_owned())
         .filter(|s| !s.is_empty())
         .ok_or_else(|| ParseError::Rule {
             rule: format!("delegate({inside})"),
@@ -1032,7 +1029,7 @@ fn parse_delegate_call_args(inside: &str, source: &str) -> Result<ParsedDelegate
             ),
         })?;
     // Strip wrapping quotes if the operator wrote `delegate("workday-oauth", ...)`.
-    let plugin_name = strip_wrapping_quotes(&plugin_name).to_string();
+    let plugin_name = strip_wrapping_quotes(&plugin_name).to_owned();
     if plugin_name.is_empty() {
         return Err(ParseError::Rule {
             rule: format!("delegate({inside})"),
@@ -1049,7 +1046,7 @@ fn parse_delegate_call_args(inside: &str, source: &str) -> Result<ParsedDelegate
             continue;
         }
         let (key, value_str) = kwarg.split_once(':').ok_or_else(|| ParseError::Rule {
-            rule: kwarg.to_string(),
+            rule: kwarg.to_owned(),
             msg: format!(
                 "{source}: `delegate(...)` kwarg `{kwarg}` must be `key: value` \
                      (use the map form for richer config)"
@@ -1059,22 +1056,22 @@ fn parse_delegate_call_args(inside: &str, source: &str) -> Result<ParsedDelegate
         let value_str = value_str.trim();
         if key.is_empty() {
             return Err(ParseError::Rule {
-                rule: kwarg.to_string(),
+                rule: kwarg.to_owned(),
                 msg: format!("{source}: `delegate(...)` kwarg has empty key"),
             });
         }
         if key == "on_error" {
             let val = parse_delegate_value(value_str).map_err(|msg| ParseError::Rule {
-                rule: kwarg.to_string(),
+                rule: kwarg.to_owned(),
                 msg: format!("{source}: on_error: {msg}"),
             })?;
             on_error = Some(
                 val.as_str()
                     .ok_or_else(|| ParseError::Rule {
-                        rule: kwarg.to_string(),
+                        rule: kwarg.to_owned(),
                         msg: format!("{source}: `on_error` must be a string"),
                     })?
-                    .to_string(),
+                    .to_owned(),
             );
             continue;
         }
@@ -1082,7 +1079,7 @@ fn parse_delegate_call_args(inside: &str, source: &str) -> Result<ParsedDelegate
         // first argument; allowing both would be ambiguous.
         if key == "plugin" {
             return Err(ParseError::Rule {
-                rule: kwarg.to_string(),
+                rule: kwarg.to_owned(),
                 msg: format!(
                     "{source}: `plugin` is set as the first positional argument \
                      of `delegate(...)`; don't pass it as a kwarg too"
@@ -1090,10 +1087,10 @@ fn parse_delegate_call_args(inside: &str, source: &str) -> Result<ParsedDelegate
             });
         }
         let value = parse_delegate_value(value_str).map_err(|msg| ParseError::Rule {
-            rule: kwarg.to_string(),
+            rule: kwarg.to_owned(),
             msg: format!("{source}: `{key}`: {msg}"),
         })?;
-        config_map.insert(serde_yaml::Value::String(key.to_string()), value);
+        config_map.insert(serde_yaml::Value::String(key.to_owned()), value);
     }
 
     let config_override = if config_map.is_empty() {
@@ -1160,7 +1157,7 @@ fn parse_elicit_call_args(
     // First positional argument: the plugin name (same as delegate()).
     let plugin_name = parts_iter
         .next()
-        .map(|s| strip_wrapping_quotes(s.trim()).to_string())
+        .map(|s| strip_wrapping_quotes(s.trim()).to_owned())
         .filter(|s| !s.is_empty())
         .ok_or_else(|| ParseError::Rule {
             rule: format!("{verb}({inside})"),
@@ -1195,7 +1192,7 @@ fn parse_elicit_call_args(
             continue;
         }
         let (key, value_str) = kwarg.split_once(':').ok_or_else(|| ParseError::Rule {
-            rule: kwarg.to_string(),
+            rule: kwarg.to_owned(),
             msg: format!(
                 "{source}: `{verb}(...)` argument `{kwarg}` must be `key: value` \
                  (the plugin name is the first positional argument)"
@@ -1205,12 +1202,12 @@ fn parse_elicit_call_args(
         let value_str = value_str.trim();
         if key.is_empty() {
             return Err(ParseError::Rule {
-                rule: kwarg.to_string(),
+                rule: kwarg.to_owned(),
                 msg: format!("{source}: `{verb}(...)` argument has empty key"),
             });
         }
         let value = parse_delegate_value(value_str).map_err(|msg| ParseError::Rule {
-            rule: kwarg.to_string(),
+            rule: kwarg.to_owned(),
             msg: format!("{source}: `{key}`: {msg}"),
         })?;
         match key {
@@ -1223,7 +1220,7 @@ fn parse_elicit_call_args(
             // Reject `plugin:` as a kwarg — it's the positional arg.
             "plugin" => {
                 return Err(ParseError::Rule {
-                    rule: kwarg.to_string(),
+                    rule: kwarg.to_owned(),
                     msg: format!(
                         "{source}: the plugin name is the first positional argument \
                          of `{verb}(...)`; don't pass it as a kwarg too"
@@ -1231,7 +1228,7 @@ fn parse_elicit_call_args(
                 });
             },
             _ => {
-                config_map.insert(serde_yaml::Value::String(key.to_string()), value);
+                config_map.insert(serde_yaml::Value::String(key.to_owned()), value);
             },
         }
     }
@@ -1310,10 +1307,10 @@ fn split_top_level_commas(input: &str) -> Result<Vec<String>, String> {
         }
     }
     if quote.is_some() {
-        return Err("unterminated quoted string in delegate(...) args".to_string());
+        return Err("unterminated quoted string in delegate(...) args".to_owned());
     }
     if bracket_depth != 0 {
-        return Err("unbalanced brackets in delegate(...) args".to_string());
+        return Err("unbalanced brackets in delegate(...) args".to_owned());
     }
     parts.push(current);
     Ok(parts)
@@ -1325,7 +1322,7 @@ fn split_top_level_commas(input: &str) -> Result<Vec<String>, String> {
 fn parse_delegate_value(s: &str) -> Result<serde_yaml::Value, String> {
     let trimmed = s.trim();
     if trimmed.is_empty() {
-        return Err("empty value".to_string());
+        return Err("empty value".to_owned());
     }
     // List literal — recursive scalar parse on each element.
     if let Some(stripped) = trimmed.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
@@ -1342,7 +1339,7 @@ fn parse_delegate_value(s: &str) -> Result<serde_yaml::Value, String> {
     }
     // Quoted string — strip the surrounding quotes.
     if let Some(inner) = unwrap_quotes(trimmed) {
-        return Ok(serde_yaml::Value::String(inner.to_string()));
+        return Ok(serde_yaml::Value::String(inner.to_owned()));
     }
     // Bool literals.
     if trimmed == "true" {
@@ -1360,7 +1357,7 @@ fn parse_delegate_value(s: &str) -> Result<serde_yaml::Value, String> {
     }
     // Fallback: treat as bare string (e.g. `target: workday-api` →
     // value is `workday-api`). Same convention as YAML scalars.
-    Ok(serde_yaml::Value::String(trimmed.to_string()))
+    Ok(serde_yaml::Value::String(trimmed.to_owned()))
 }
 
 /// The inner text of a value wrapped in one matching pair of `"` or `'`.
@@ -1397,14 +1394,14 @@ fn parse_step_map(m: &serde_yaml::Mapping, source: &str) -> Result<Step, ParseEr
     let mut entries = m.iter();
     let (Some((key_val, body_val)), None) = (entries.next(), entries.next()) else {
         return Err(ParseError::Rule {
-            rule: format!("{:?}", m),
+            rule: format!("{m:?}"),
             msg: "step map must have exactly one key (PDP call signature, \
                    `when:`/`do:`, or a `predicate: [effects...]` shorthand)"
                 .into(),
         });
     };
     let key = key_val.as_str().ok_or_else(|| ParseError::Rule {
-        rule: format!("{:?}", key_val),
+        rule: format!("{key_val:?}"),
         msg: "PDP step key must be a string".into(),
     })?;
 
@@ -1456,7 +1453,7 @@ fn parse_step_map(m: &serde_yaml::Mapping, source: &str) -> Result<Step, ParseEr
             return Ok(Step::Rule(Rule {
                 condition: Expression::Always,
                 effects: vec![effect],
-                source: source.to_string(),
+                source: source.to_owned(),
             }));
         },
         "parallel" => {
@@ -1464,7 +1461,7 @@ fn parse_step_map(m: &serde_yaml::Mapping, source: &str) -> Result<Step, ParseEr
             return Ok(Step::Rule(Rule {
                 condition: Expression::Always,
                 effects: vec![effect],
-                source: source.to_string(),
+                source: source.to_owned(),
             }));
         },
         _ => {},
@@ -1473,17 +1470,17 @@ fn parse_step_map(m: &serde_yaml::Mapping, source: &str) -> Result<Step, ParseEr
     // Split the key into "dialect" + optional "(args)" portion.
     let (dialect_str, paren_args) = if let Some(open) = key.find('(') {
         let close = key.rfind(')').ok_or_else(|| ParseError::Rule {
-            rule: key.to_string(),
+            rule: key.to_owned(),
             msg: "missing `)` in PDP call signature".into(),
         })?;
         let inside = key
             .get(open + 1..close)
             .ok_or_else(|| ParseError::Rule {
-                rule: key.to_string(),
+                rule: key.to_owned(),
                 msg: "malformed `()` in PDP call signature".into(),
             })?
             .trim()
-            .to_string();
+            .to_owned();
         let dialect = key.get(..open).unwrap_or(key).trim();
         (dialect, Some(inside))
     } else {
@@ -1496,11 +1493,8 @@ fn parse_step_map(m: &serde_yaml::Mapping, source: &str) -> Result<Step, ParseEr
     // Cedar: body map carries args fields directly + on_deny/on_allow.
     // Others: paren_args carries the call signature; body map is reactions only.
     let body = body_val.as_mapping().ok_or_else(|| ParseError::Rule {
-        rule: format!("{:?}", body_val),
-        msg: format!(
-            "`{}:` body must be a map (with on_deny / on_allow / args)",
-            key
-        ),
+        rule: format!("{body_val:?}"),
+        msg: format!("`{key}:` body must be a map (with on_deny / on_allow / args)"),
     })?;
 
     let (args, on_deny, on_allow) = extract_pdp_body(body, paren_args.as_deref(), source)?;
@@ -1515,7 +1509,7 @@ fn parse_step_map(m: &serde_yaml::Mapping, source: &str) -> Result<Step, ParseEr
 /// Lookup helper — `serde_yaml::Mapping::contains_key` only matches when
 /// the search key is a `Value`, so we wrap the string conversion.
 fn has_key(m: &serde_yaml::Mapping, key: &str) -> bool {
-    m.contains_key(serde_yaml::Value::String(key.to_string()))
+    m.contains_key(serde_yaml::Value::String(key.to_owned()))
 }
 
 /// Whether a top-level map key is a recognized PDP dialect. Used by
@@ -1540,10 +1534,9 @@ fn parse_when_do_rule(m: &serde_yaml::Mapping, source: &str) -> Result<Step, Par
         let key = k.as_str().unwrap_or("");
         if !matches!(key, "when" | "do" | "id") {
             return Err(ParseError::Rule {
-                rule: format!("{:?}", m),
+                rule: format!("{m:?}"),
                 msg: format!(
-                    "unexpected key `{}` in when/do rule (allowed: `when`, `do`, `id`)",
-                    key
+                    "unexpected key `{key}` in when/do rule (allowed: `when`, `do`, `id`)"
                 ),
             });
         }
@@ -1552,28 +1545,28 @@ fn parse_when_do_rule(m: &serde_yaml::Mapping, source: &str) -> Result<Step, Par
     let when_val = m
         .get(serde_yaml::Value::String("when".into()))
         .ok_or_else(|| ParseError::Rule {
-            rule: format!("{:?}", m),
+            rule: format!("{m:?}"),
             msg: "`when:` key missing from when/do rule".into(),
         })?;
     let predicate = when_val.as_str().ok_or_else(|| ParseError::Rule {
-        rule: format!("{:?}", when_val),
+        rule: format!("{when_val:?}"),
         msg: "`when:` must be a predicate string".into(),
     })?;
     let condition = parse_predicate(predicate).map_err(|e| ParseError::Rule {
-        rule: format!("when: {}", predicate),
-        msg: format!("{}", e),
+        rule: format!("when: {predicate}"),
+        msg: format!("{e}"),
     })?;
 
     let do_val = m
         .get(serde_yaml::Value::String("do".into()))
         .ok_or_else(|| ParseError::Rule {
-            rule: format!("{:?}", m),
+            rule: format!("{m:?}"),
             msg: "`do:` key missing from when/do rule".into(),
         })?;
     let effects = parse_do_body(do_val, source)?;
     if effects.is_empty() {
         return Err(ParseError::Rule {
-            rule: format!("{:?}", m),
+            rule: format!("{m:?}"),
             msg: "`do:` produced no effects".into(),
         });
     }
@@ -1581,7 +1574,7 @@ fn parse_when_do_rule(m: &serde_yaml::Mapping, source: &str) -> Result<Step, Par
     Ok(Step::Rule(Rule {
         condition,
         effects,
-        source: source.to_string(),
+        source: source.to_owned(),
     }))
 }
 
@@ -1594,8 +1587,8 @@ fn parse_shorthand_multi_effect(
     source: &str,
 ) -> Result<Step, ParseError> {
     let condition = parse_predicate(predicate).map_err(|e| ParseError::Rule {
-        rule: predicate.to_string(),
-        msg: format!("{}", e),
+        rule: predicate.to_owned(),
+        msg: format!("{e}"),
     })?;
 
     let mut effects = Vec::with_capacity(effect_list.len());
@@ -1604,14 +1597,14 @@ fn parse_shorthand_multi_effect(
     }
     if effects.is_empty() {
         return Err(ParseError::Rule {
-            rule: predicate.to_string(),
+            rule: predicate.to_owned(),
             msg: "shorthand multi-effect map produced no effects".into(),
         });
     }
     Ok(Step::Rule(Rule {
         condition,
         effects,
-        source: source.to_string(),
+        source: source.to_owned(),
     }))
 }
 
@@ -1631,7 +1624,7 @@ fn parse_do_body(val: &serde_yaml::Value, source: &str) -> Result<Vec<Effect>, P
             Ok(vec![parse_effect_value(val, source)?])
         },
         other => Err(ParseError::Rule {
-            rule: format!("{:?}", other),
+            rule: format!("{other:?}"),
             msg: "`do:` value must be a string, a list of effects, or an effect map".into(),
         }),
     }
@@ -1664,7 +1657,7 @@ fn parse_effect_value(val: &serde_yaml::Value, source: &str) -> Result<Effect, P
             step_to_effect(step, source)
         },
         other => Err(ParseError::Rule {
-            rule: format!("{:?}", other),
+            rule: format!("{other:?}"),
             msg: "effect entry must be a string or a map".into(),
         }),
     }
@@ -1674,12 +1667,12 @@ fn parse_effect_value(val: &serde_yaml::Value, source: &str) -> Result<Effect, P
 /// (a single effect would defeat the purpose of explicit grouping).
 fn parse_sequential_effect(body: &serde_yaml::Value, source: &str) -> Result<Effect, ParseError> {
     let items = body.as_sequence().ok_or_else(|| ParseError::Rule {
-        rule: format!("{:?}", body),
+        rule: format!("{body:?}"),
         msg: "`sequential:` body must be a list of effects".into(),
     })?;
     if items.is_empty() {
         return Err(ParseError::Rule {
-            rule: format!("{:?}", body),
+            rule: format!("{body:?}"),
             msg: "`sequential:` body is empty".into(),
         });
     }
@@ -1695,12 +1688,12 @@ fn parse_sequential_effect(body: &serde_yaml::Value, source: &str) -> Result<Eff
 /// `FieldOp` / `Delegate` nested anywhere underneath).
 fn parse_parallel_effect(body: &serde_yaml::Value, source: &str) -> Result<Effect, ParseError> {
     let items = body.as_sequence().ok_or_else(|| ParseError::Rule {
-        rule: format!("{:?}", body),
+        rule: format!("{body:?}"),
         msg: "`parallel:` body must be a list of effects".into(),
     })?;
     if items.is_empty() {
         return Err(ParseError::Rule {
-            rule: format!("{:?}", body),
+            rule: format!("{body:?}"),
             msg: "`parallel:` body is empty".into(),
         });
     }
@@ -1712,7 +1705,7 @@ fn parse_parallel_effect(body: &serde_yaml::Value, source: &str) -> Result<Effec
     parallel
         .validate_parallel_purity()
         .map_err(|msg| ParseError::Rule {
-            rule: source.to_string(),
+            rule: source.to_owned(),
             msg,
         })?;
     Ok(parallel)
@@ -1743,23 +1736,23 @@ fn parse_restrict_spec(
     use crate::constraint::{OnEmpty, RestrictSpec};
 
     let body = body_val.as_mapping().ok_or_else(|| ParseError::Rule {
-        rule: source.to_string(),
+        rule: source.to_owned(),
         msg: "`restrict:` body must be a map of constraint fields (allow_models / \
               deny_models / allow_regions / allow_sites / max_cost_tier / custom / \
               on_empty)"
-            .to_string(),
+            .to_owned(),
     })?;
 
     let mut spec = RestrictSpec::default();
 
     for (k, v) in body.iter() {
         let key = k.as_str().ok_or_else(|| ParseError::Rule {
-            rule: source.to_string(),
-            msg: "`restrict:` field keys must be strings".to_string(),
+            rule: source.to_owned(),
+            msg: "`restrict:` field keys must be strings".to_owned(),
         })?;
         // Field-scoped error so authors see e.g. `restrict.allow_models: ...`.
         let field_err = |msg: String| ParseError::Rule {
-            rule: source.to_string(),
+            rule: source.to_owned(),
             msg: format!("`restrict.{}`: {}", key.trim(), msg),
         };
         match key.trim() {
@@ -1778,11 +1771,11 @@ fn parse_restrict_spec(
             "max_cost_tier" => {
                 let tier = v
                     .as_str()
-                    .ok_or_else(|| field_err("must be a string tier".to_string()))?;
+                    .ok_or_else(|| field_err("must be a string tier".to_owned()))?;
                 if tier.trim().is_empty() {
-                    return Err(field_err("tier must not be empty".to_string()));
+                    return Err(field_err("tier must not be empty".to_owned()));
                 }
-                spec.max_cost_tier = Some(tier.trim().to_string());
+                spec.max_cost_tier = Some(tier.trim().to_owned());
             },
             "custom" => {
                 spec.custom = parse_label_map(v).map_err(&field_err)?;
@@ -1790,26 +1783,24 @@ fn parse_restrict_spec(
             "on_empty" => {
                 let s = v
                     .as_str()
-                    .ok_or_else(|| field_err("must be `deny` or `fallback`".to_string()))?;
+                    .ok_or_else(|| field_err("must be `deny` or `fallback`".to_owned()))?;
                 spec.on_empty = match s.trim() {
                     "deny" => OnEmpty::Deny,
                     "fallback" => OnEmpty::Fallback,
                     other => {
                         return Err(field_err(format!(
-                            "unknown value `{}` (expected `deny` or `fallback`)",
-                            other
+                            "unknown value `{other}` (expected `deny` or `fallback`)"
                         )));
                     },
                 };
             },
             other => {
                 return Err(ParseError::Rule {
-                    rule: source.to_string(),
+                    rule: source.to_owned(),
                     msg: format!(
-                        "unknown `restrict:` field `{}` (allowed: allow_models, \
+                        "unknown `restrict:` field `{other}` (allowed: allow_models, \
                          deny_models, allow_regions, allow_sites, max_cost_tier, \
-                         custom, on_empty)",
-                        other
+                         custom, on_empty)"
                     ),
                 });
             },
@@ -1820,11 +1811,11 @@ fn parse_restrict_spec(
     // nothing), so this also rejects `restrict: { on_empty: deny }`.
     if spec.is_empty() {
         return Err(ParseError::Rule {
-            rule: source.to_string(),
+            rule: source.to_owned(),
             msg: "`restrict:` declares no constraint fields — it would restrict nothing; \
                   remove it or add at least one of allow_models / deny_models / \
                   allow_regions / allow_sites / max_cost_tier / custom"
-                .to_string(),
+                .to_owned(),
         });
     }
 
@@ -1844,11 +1835,11 @@ fn parse_string_set_spec(
         serde_yaml::Value::String(s) => {
             let s = s.trim();
             if s.is_empty() {
-                return Err("reference path must not be empty".to_string());
+                return Err("reference path must not be empty".to_owned());
             }
-            Ok(StringSetSpec::Ref(s.to_string()))
+            Ok(StringSetSpec::Ref(s.to_owned()))
         },
-        _ => Err("must be a list of strings or a `data.*` reference string".to_string()),
+        _ => Err("must be a list of strings or a `data.*` reference string".to_owned()),
     }
 }
 
@@ -1859,19 +1850,19 @@ fn parse_string_set_spec(
 fn parse_string_list(v: &serde_yaml::Value) -> Result<Vec<String>, String> {
     let seq = v
         .as_sequence()
-        .ok_or_else(|| "must be a list of strings".to_string())?;
+        .ok_or_else(|| "must be a list of strings".to_owned())?;
     let mut out = Vec::with_capacity(seq.len());
     for item in seq {
         let s = item
             .as_str()
-            .ok_or_else(|| "list entries must be strings".to_string())?;
+            .ok_or_else(|| "list entries must be strings".to_owned())?;
         if s.trim().is_empty() {
-            return Err("list entries must not be empty".to_string());
+            return Err("list entries must not be empty".to_owned());
         }
-        out.push(s.trim().to_string());
+        out.push(s.trim().to_owned());
     }
     if out.is_empty() {
-        return Err("list must not be empty".to_string());
+        return Err("list must not be empty".to_owned());
     }
     Ok(out)
 }
@@ -1885,14 +1876,14 @@ fn parse_label_map(
 ) -> Result<std::collections::BTreeMap<String, String>, String> {
     let map = v
         .as_mapping()
-        .ok_or_else(|| "must be a map of `label: value` pairs".to_string())?;
+        .ok_or_else(|| "must be a map of `label: value` pairs".to_owned())?;
     let mut out = std::collections::BTreeMap::new();
     for (k, val) in map {
         let key = k
             .as_str()
-            .ok_or_else(|| "label keys must be strings".to_string())?;
+            .ok_or_else(|| "label keys must be strings".to_owned())?;
         if key.trim().is_empty() {
-            return Err("label keys must not be empty".to_string());
+            return Err("label keys must not be empty".to_owned());
         }
         let value = scalar_to_string(val).ok_or_else(|| {
             format!(
@@ -1900,10 +1891,10 @@ fn parse_label_map(
                 key.trim()
             )
         })?;
-        out.insert(key.trim().to_string(), value);
+        out.insert(key.trim().to_owned(), value);
     }
     if out.is_empty() {
-        return Err("`custom` map must not be empty".to_string());
+        return Err("`custom` map must not be empty".to_owned());
     }
     Ok(out)
 }
@@ -1975,17 +1966,17 @@ fn try_parse_field_op(s: &str, rule: &str) -> Result<Option<Effect>, ParseError>
         return Ok(None);
     }
     let pipeline = parse_pipeline(chain).map_err(|e| ParseError::Rule {
-        rule: rule.to_string(),
-        msg: format!("field op `{}`: {}", path, e),
+        rule: rule.to_owned(),
+        msg: format!("field op `{path}`: {e}"),
     })?;
     if pipeline.stages.is_empty() {
         return Err(ParseError::Rule {
-            rule: rule.to_string(),
-            msg: format!("field op `{}` has no stages", path),
+            rule: rule.to_owned(),
+            msg: format!("field op `{path}` has no stages"),
         });
     }
     Ok(Some(Effect::FieldOp {
-        path: path.to_string(),
+        path: path.to_owned(),
         stages: pipeline.stages,
     }))
 }
@@ -2102,7 +2093,7 @@ fn step_to_effect(step: Step, source: &str) -> Result<Effect, ParseError> {
             // — only control effects (allow/deny) flatten cleanly.
             if !matches!(rule.condition, Expression::Always) {
                 return Err(ParseError::Rule {
-                    rule: source.to_string(),
+                    rule: source.to_owned(),
                     msg: "conditional rules nested inside `do:` are not supported \
                           (use a sibling `when:`/`do:` rule instead)"
                         .into(),
@@ -2110,7 +2101,7 @@ fn step_to_effect(step: Step, source: &str) -> Result<Effect, ParseError> {
             }
             if rule.effects.len() != 1 {
                 return Err(ParseError::Rule {
-                    rule: source.to_string(),
+                    rule: source.to_owned(),
                     msg: format!(
                         "unconditional rule inside `do:` must produce exactly one \
                          effect, got {}",
@@ -2122,12 +2113,12 @@ fn step_to_effect(step: Step, source: &str) -> Result<Effect, ParseError> {
                 .into_iter()
                 .next()
                 .ok_or_else(|| ParseError::Rule {
-                    rule: source.to_string(),
+                    rule: source.to_owned(),
                     msg: "unconditional rule inside `do:` produced no effect".into(),
                 })
         },
         Step::Pdp { .. } => Err(ParseError::Rule {
-            rule: source.to_string(),
+            rule: source.to_owned(),
             msg: "PDP calls inside `do:` are not supported (use a sibling \
                   step instead)"
                 .into(),
@@ -2153,48 +2144,48 @@ fn step_to_effect(step: Step, source: &str) -> Result<Effect, ParseError> {
 /// attenuation are conventions, not parser-enforced).
 fn parse_delegate_step(body_val: &serde_yaml::Value, source: &str) -> Result<Step, ParseError> {
     let body = body_val.as_mapping().ok_or_else(|| ParseError::Rule {
-        rule: source.to_string(),
+        rule: source.to_owned(),
         msg: "`delegate:` body must be a map with `plugin:` and optional \
               `config:` / `on_error:`"
-            .to_string(),
+            .to_owned(),
     })?;
 
     let plugin = body
-        .get(serde_yaml::Value::String("plugin".to_string()))
+        .get(serde_yaml::Value::String("plugin".to_owned()))
         .ok_or_else(|| ParseError::Rule {
-            rule: source.to_string(),
+            rule: source.to_owned(),
             msg: "`delegate:` requires `plugin: <name>` referencing a \
                   top-level plugin registered under `token.delegate`"
-                .to_string(),
+                .to_owned(),
         })?;
     let plugin_name = plugin
         .as_str()
         .ok_or_else(|| ParseError::Rule {
-            rule: source.to_string(),
-            msg: "`delegate.plugin` must be a string".to_string(),
+            rule: source.to_owned(),
+            msg: "`delegate.plugin` must be a string".to_owned(),
         })?
-        .to_string();
+        .to_owned();
     if plugin_name.is_empty() {
         return Err(ParseError::Rule {
-            rule: source.to_string(),
-            msg: "`delegate.plugin` cannot be empty".to_string(),
+            rule: source.to_owned(),
+            msg: "`delegate.plugin` cannot be empty".to_owned(),
         });
     }
 
     let config_override = body
-        .get(serde_yaml::Value::String("config".to_string()))
+        .get(serde_yaml::Value::String("config".to_owned()))
         .cloned();
 
-    let on_error = match body.get(serde_yaml::Value::String("on_error".to_string())) {
+    let on_error = match body.get(serde_yaml::Value::String("on_error".to_owned())) {
         Some(v) => Some(
             v.as_str()
                 .ok_or_else(|| ParseError::Rule {
-                    rule: source.to_string(),
+                    rule: source.to_owned(),
                     msg: "`delegate.on_error` must be a string (e.g. `deny`, \
                           `continue`)"
-                        .to_string(),
+                        .to_owned(),
                 })?
-                .to_string(),
+                .to_owned(),
         ),
         None => None,
     };
@@ -2203,7 +2194,7 @@ fn parse_delegate_step(body_val: &serde_yaml::Value, source: &str) -> Result<Ste
         plugin_name,
         config_override,
         on_error,
-        source: source.to_string(),
+        source: source.to_owned(),
     }))
 }
 
@@ -2238,7 +2229,7 @@ fn extract_pdp_body(
     }
 
     let args = match paren_args {
-        Some(s) => serde_yaml::Value::String(s.to_string()),
+        Some(s) => serde_yaml::Value::String(s.to_owned()),
         None => serde_yaml::Value::Mapping(args_map),
     };
 
@@ -2251,12 +2242,12 @@ fn parse_reaction_list(
     which: &str,
 ) -> Result<Vec<Step>, ParseError> {
     let list = v.as_sequence().ok_or_else(|| ParseError::Rule {
-        rule: format!("{:?}", v),
-        msg: format!("`{}:` must be a list of steps", which),
+        rule: format!("{v:?}"),
+        msg: format!("`{which}:` must be a list of steps"),
     })?;
     list.iter()
         .enumerate()
-        .map(|(i, entry)| parse_step(entry, &format!("{}.{}[{}]", source, which, i)))
+        .map(|(i, entry)| parse_step(entry, &format!("{source}.{which}[{i}]")))
         .collect()
 }
 
@@ -2282,7 +2273,7 @@ fn extract_call_args(line: &str, name: &str) -> Option<String> {
                 if depth == 0 {
                     // Anything after the close paren is invalid.
                     if after.get(i + 1..)?.trim().is_empty() {
-                        return Some(after.get(1..i)?.to_string());
+                        return Some(after.get(1..i)?.to_owned());
                     }
                     return None;
                 }
@@ -2340,8 +2331,8 @@ fn split_top_level(s: &str, delim: u8) -> Vec<&str> {
 fn parse_stage(src: &str) -> Result<Stage, ParseError> {
     let s = src.trim();
     let bad = |msg: &str| ParseError::Predicate {
-        predicate: src.to_string(),
-        msg: msg.to_string(),
+        predicate: src.to_owned(),
+        msg: msg.to_owned(),
     };
 
     // Bare range literal: starts with `-`, digit, or `..`.
@@ -2388,15 +2379,14 @@ fn parse_stage(src: &str) -> Result<Stage, ParseError> {
             kind: ScanKind::InjectionScan,
         }),
 
-        (other, _) => Err(bad(&format!("unknown stage `{}`", other))),
+        (other, _) => Err(bad(&format!("unknown stage `{other}`"))),
     }
 }
 
 fn parse_stage_mask(a: &str, bad: &impl Fn(&str) -> ParseError) -> Result<Stage, ParseError> {
     let n: usize = a.trim().parse().map_err(|e| {
         bad(&format!(
-            "mask(N) expects a non-negative integer, got `{}`: {}",
-            a, e
+            "mask(N) expects a non-negative integer, got `{a}`: {e}"
         ))
     })?;
     Ok(Stage::Mask { keep_last: n })
@@ -2405,8 +2395,8 @@ fn parse_stage_mask(a: &str, bad: &impl Fn(&str) -> ParseError) -> Result<Stage,
 fn parse_stage_redact_cond(a: &str, src: &str) -> Result<Stage, ParseError> {
     // redact(!perm.view_ssn) — argument is a predicate expression.
     let cond = parse_predicate(a).map_err(|e| ParseError::Predicate {
-        predicate: src.to_string(),
-        msg: format!("invalid redact() condition: {}", e),
+        predicate: src.to_owned(),
+        msg: format!("invalid redact() condition: {e}"),
     })?;
     Ok(Stage::Redact {
         condition: Some(cond),
@@ -2415,13 +2405,12 @@ fn parse_stage_redact_cond(a: &str, src: &str) -> Result<Stage, ParseError> {
 
 fn parse_stage_len(a: &str, bad: &impl Fn(&str) -> ParseError) -> Result<Stage, ParseError> {
     let (min, max) = parse_range_inner(a)
-        .ok_or_else(|| bad(&format!("len(...) expects N..M range, got `{}`", a)))?;
+        .ok_or_else(|| bad(&format!("len(...) expects N..M range, got `{a}`")))?;
     // `try_from` carries both halves of what the manual check plus cast did:
     // negatives are rejected, and the conversion is exact on every target width
     // rather than only on 64-bit.
     let to_usize = |v: i64| -> Result<usize, ParseError> {
-        usize::try_from(v)
-            .map_err(|e| bad(&format!("len bound `{}` is not a valid length: {}", v, e)))
+        usize::try_from(v).map_err(|e| bad(&format!("len bound `{v}` is not a valid length: {e}")))
     };
     Ok(Stage::Length {
         min: min.map(to_usize).transpose()?,
@@ -2435,7 +2424,7 @@ fn parse_stage_enum(a: &str, bad: &impl Fn(&str) -> ParseError) -> Result<Stage,
         .map(|v| {
             let t = v.trim();
             // Allow either bare identifier or quoted string.
-            unwrap_quotes(t).unwrap_or(t).to_string()
+            unwrap_quotes(t).unwrap_or(t).to_owned()
         })
         .filter(|s| !s.is_empty())
         .collect::<Vec<_>>();
@@ -2448,7 +2437,7 @@ fn parse_stage_enum(a: &str, bad: &impl Fn(&str) -> ParseError) -> Result<Stage,
 fn parse_stage_regex(a: &str) -> Stage {
     let pattern = a.trim();
     Stage::Regex {
-        pattern: unwrap_quotes(pattern).unwrap_or(pattern).to_string(),
+        pattern: unwrap_quotes(pattern).unwrap_or(pattern).to_owned(),
     }
 }
 
@@ -2489,7 +2478,7 @@ fn parse_stage_plugin(
         )));
     }
     Ok(Stage::Plugin {
-        name: name.to_string(),
+        name: name.to_owned(),
     })
 }
 
@@ -2572,7 +2561,7 @@ fn split_head_args(s: &str) -> Option<(&str, Option<String>)> {
         if head.is_empty() {
             return None;
         }
-        let args = s.get(open + 1..close)?.to_string();
+        let args = s.get(open + 1..close)?.to_owned();
         // Reject trailing garbage after the closing paren.
         if s.get(close + 1..)?.trim().is_empty() {
             Some((head, Some(args)))
@@ -2592,15 +2581,15 @@ fn split_head_args(s: &str) -> Option<(&str, Option<String>)> {
 fn parse_taint(args: &str, src: &str) -> Result<Stage, ParseError> {
     // taint(label) | taint(label, session) | taint(label, [session, message])
     let parts = split_top_level(args, b',');
-    let Some(label) = parts.first().map(|p| p.trim().to_string()) else {
+    let Some(label) = parts.first().map(|p| p.trim().to_owned()) else {
         return Err(ParseError::Predicate {
-            predicate: src.to_string(),
+            predicate: src.to_owned(),
             msg: "taint() requires at least a label".into(),
         });
     };
     if label.is_empty() {
         return Err(ParseError::Predicate {
-            predicate: src.to_string(),
+            predicate: src.to_owned(),
             msg: "taint label must not be empty".into(),
         });
     }
@@ -2631,11 +2620,8 @@ fn parse_taint_scope(s: &str, src: &str) -> Result<TaintScope, ParseError> {
         "session" => Ok(TaintScope::Session),
         "message" => Ok(TaintScope::Message),
         other => Err(ParseError::Predicate {
-            predicate: src.to_string(),
-            msg: format!(
-                "unknown taint scope `{}` (expected `session` or `message`)",
-                other
-            ),
+            predicate: src.to_owned(),
+            msg: format!("unknown taint scope `{other}` (expected `session` or `message`)"),
         }),
     }
 }
@@ -2789,9 +2775,9 @@ fn reject_legacy_keys(
     for (old, new) in RENAMED_FIELDS {
         if other.contains_key(old) {
             return Err(ParseError::RenamedField {
-                location: location.to_string(),
-                old: old.to_string(),
-                new: new.to_string(),
+                location: location.to_owned(),
+                old: old.to_owned(),
+                new: new.to_owned(),
             });
         }
     }
@@ -2841,18 +2827,18 @@ fn compile_apl_blocks(source: &str, raw: RouteYaml) -> Result<CompiledRoute, Par
     // is fine — those are separate `compile_apl_blocks` calls.
     if !auth_pre.is_empty() && !raw.pre_invocation.is_empty() {
         return Err(ParseError::ConflictingAuthorizationForms {
-            location: source.to_string(),
-            phase: "pre_invocation".to_string(),
+            location: source.to_owned(),
+            phase: "pre_invocation".to_owned(),
         });
     }
     if !auth_post.is_empty() && !raw.post_invocation.is_empty() {
         return Err(ParseError::ConflictingAuthorizationForms {
-            location: source.to_string(),
-            phase: "post_invocation".to_string(),
+            location: source.to_owned(),
+            phase: "post_invocation".to_owned(),
         });
     }
     for (i, entry) in auth_pre.iter().chain(raw.pre_invocation.iter()).enumerate() {
-        let step = parse_step(entry, &format!("{}.pre_invocation[{}]", source, i))?;
+        let step = parse_step(entry, &format!("{source}.pre_invocation[{i}]"))?;
         route.policy.push(step_to_top_level_effect(step)?);
     }
     for (i, entry) in auth_post
@@ -2860,29 +2846,29 @@ fn compile_apl_blocks(source: &str, raw: RouteYaml) -> Result<CompiledRoute, Par
         .chain(raw.post_invocation.iter())
         .enumerate()
     {
-        let step = parse_step(entry, &format!("{}.post_invocation[{}]", source, i))?;
+        let step = parse_step(entry, &format!("{source}.post_invocation[{i}]"))?;
         route.post_policy.push(step_to_top_level_effect(step)?);
     }
     for (field, chain) in &raw.args {
         let pipeline = parse_pipeline(chain).map_err(|e| ParseError::Rule {
-            rule: format!("args.{}: {:?}", field, chain),
-            msg: format!("{}", e),
+            rule: format!("args.{field}: {chain:?}"),
+            msg: format!("{e}"),
         })?;
         route.args.push(FieldRule {
             field: field.clone(),
             pipeline,
-            source: format!("{}.args.{}", source, field),
+            source: format!("{source}.args.{field}"),
         });
     }
     for (field, chain) in &raw.result {
         let pipeline = parse_pipeline(chain).map_err(|e| ParseError::Rule {
-            rule: format!("result.{}: {:?}", field, chain),
-            msg: format!("{}", e),
+            rule: format!("result.{field}: {chain:?}"),
+            msg: format!("{e}"),
         })?;
         route.result.push(FieldRule {
             field: field.clone(),
             pipeline,
-            source: format!("{}.result.{}", source, field),
+            source: format!("{source}.result.{field}"),
         });
     }
     route.plugin_overrides = raw.plugins;
@@ -2979,7 +2965,7 @@ mod tests {
     #[test]
     fn lex_rejects_single_equals() {
         let err = Lexer::new("a = 1").tokenize_all().unwrap_err();
-        assert!(format!("{}", err).contains("expected `==`"));
+        assert!(format!("{err}").contains("expected `==`"));
     }
 
     // ----- interpolated attribute paths -----
@@ -3017,13 +3003,13 @@ mod tests {
         let err = Lexer::new("data.tenants[subject.tenant")
             .tokenize_all()
             .unwrap_err();
-        assert!(format!("{}", err).contains("unterminated"), "got: {}", err);
+        assert!(format!("{err}").contains("unterminated"), "got: {err}");
     }
 
     #[test]
     fn lex_rejects_nested_bracket() {
         let err = Lexer::new("data.x[a[b]]").tokenize_all().unwrap_err();
-        assert!(format!("{}", err).contains("nested"), "got: {}", err);
+        assert!(format!("{err}").contains("nested"), "got: {err}");
     }
 
     #[test]
@@ -3087,10 +3073,10 @@ mod tests {
                 assert_eq!(parts.len(), 2);
                 match &parts[0] {
                     Expression::And(_) => {},
-                    other => panic!("first OR branch should be AND, got {:?}", other),
+                    other => panic!("first OR branch should be AND, got {other:?}"),
                 }
             },
-            other => panic!("top-level should be OR, got {:?}", other),
+            other => panic!("top-level should be OR, got {other:?}"),
         }
     }
 
@@ -3104,7 +3090,7 @@ mod tests {
                 matches!(parts[0], Expression::Or(_));
                 matches!(parts[1], Expression::Not(_));
             },
-            other => panic!("expected top-level AND, got {:?}", other),
+            other => panic!("expected top-level AND, got {other:?}"),
         }
     }
 
@@ -3113,7 +3099,7 @@ mod tests {
         // require() is a rule-level shorthand, not a sub-predicate.
         // Trying to use it inside a predicate expression must fail clearly.
         let err = parse_predicate("require(authenticated)").unwrap_err();
-        assert!(format!("{}", err).contains("rule-level shorthand"));
+        assert!(format!("{err}").contains("rule-level shorthand"));
     }
 
     #[test]
@@ -3174,7 +3160,7 @@ mod tests {
     #[test]
     fn rule_require_mixed_rejected() {
         let err = parse_rule("require(a, b | c)", "test").unwrap_err();
-        assert!(format!("{}", err).contains("cannot mix"));
+        assert!(format!("{err}").contains("cannot mix"));
     }
 
     #[test]
@@ -3182,7 +3168,7 @@ mod tests {
         // `subject.type == allowed_types` — `==` doesn't take an ident RHS,
         // and the error should hint at `in` for set membership.
         let err = parse_predicate("subject.type == allowed_types").unwrap_err();
-        let msg = format!("{}", err);
+        let msg = format!("{err}");
         assert!(msg.contains("RHS-as-identifier"));
         assert!(msg.contains("set membership use"));
     }
@@ -3238,7 +3224,7 @@ mod tests {
                     }),
                 );
             },
-            other => panic!("expected And, got {:?}", other),
+            other => panic!("expected And, got {other:?}"),
         }
     }
 
@@ -3252,7 +3238,7 @@ mod tests {
     #[test]
     fn pred_trailing_tokens_rejected() {
         let err = parse_predicate("a b").unwrap_err();
-        assert!(format!("{}", err).contains("trailing"));
+        assert!(format!("{err}").contains("trailing"));
     }
 
     #[test]
@@ -3260,11 +3246,11 @@ mod tests {
         let r = parse_rule("delegation.depth > 2: deny", "test").unwrap();
         match r.effects.as_slice() {
             [Effect::Deny { .. }] => {},
-            other => panic!("expected [Deny], got {:?}", other),
+            other => panic!("expected [Deny], got {other:?}"),
         }
         match r.condition {
             Expression::Condition(Condition::Comparison { .. }) => {},
-            other => panic!("expected Comparison, got {:?}", other),
+            other => panic!("expected Comparison, got {other:?}"),
         }
     }
 
@@ -3314,10 +3300,7 @@ mod tests {
                     code: None,
                 },
             ] => assert_eq!(reason, "nope"),
-            other => panic!(
-                "expected [Deny{{reason: Some, code: None}}], got {:?}",
-                other
-            ),
+            other => panic!("expected [Deny{{reason: Some, code: None}}], got {other:?}"),
         }
 
         let r = parse_rule("deny('nope', 'cel.policy')", "test").unwrap();
@@ -3332,7 +3315,7 @@ mod tests {
                 assert_eq!(reason, "nope");
                 assert_eq!(code, "cel.policy");
             },
-            other => panic!("expected [Deny{{reason, code}}], got {:?}", other),
+            other => panic!("expected [Deny{{reason, code}}], got {other:?}"),
         }
     }
 
@@ -3343,8 +3326,7 @@ mod tests {
         let err = parse_rule("deny(unquoted)", "test").unwrap_err();
         assert!(
             matches!(err, ParseError::Rule { .. }),
-            "expected ParseError::Rule, got {:?}",
-            err
+            "expected ParseError::Rule, got {err:?}"
         );
     }
 
@@ -3359,9 +3341,7 @@ mod tests {
             let err = parse_rule(s, "test").unwrap_err();
             assert!(
                 matches!(err, ParseError::UnsupportedStep { .. }),
-                "expected UnsupportedStep for `{}`, got {:?}",
-                s,
-                err
+                "expected UnsupportedStep for `{s}`, got {err:?}"
             );
         }
     }
@@ -3373,7 +3353,7 @@ mod tests {
         // `deny('reason')` / `deny('reason', 'code')` and
         // the `code` extension.
         let err = parse_rule(r#"authenticated: deny "go away""#, "test").unwrap_err();
-        assert!(format!("{}", err).contains("unsupported action"));
+        assert!(format!("{err}").contains("unsupported action"));
     }
 
     #[test]
@@ -3406,7 +3386,7 @@ mod tests {
                 assert_eq!(reason, "too deep");
                 assert_eq!(code, "delegation.depth_exceeded");
             },
-            other => panic!("expected Deny with reason+code, got {:?}", other),
+            other => panic!("expected Deny with reason+code, got {other:?}"),
         }
     }
 
@@ -3414,14 +3394,14 @@ mod tests {
     fn rule_deny_with_too_many_args_rejected() {
         // Cap on positional args — `deny(reason, code)` is the limit.
         let err = parse_rule(r#"x: deny('a', 'b', 'c')"#, "test").unwrap_err();
-        assert!(format!("{}", err).contains("at most two args"));
+        assert!(format!("{err}").contains("at most two args"));
     }
 
     #[test]
     fn rule_deny_with_unquoted_args_in_call_rejected() {
         // The args MUST be quoted; bare identifiers aren't legal.
         let err = parse_rule(r#"x: deny(bare, identifier)"#, "test").unwrap_err();
-        assert!(format!("{}", err).contains("expected a quoted string"));
+        assert!(format!("{err}").contains("expected a quoted string"));
     }
 
     fn parse_step_yaml(yaml: &str) -> Result<Step, ParseError> {
@@ -3447,7 +3427,7 @@ mod tests {
                     }]
                 ));
             },
-            other => panic!("expected Step::Rule, got {:?}", other),
+            other => panic!("expected Step::Rule, got {other:?}"),
         }
     }
 
@@ -3471,7 +3451,7 @@ mod tests {
                 assert_eq!(r, "too deep");
                 assert_eq!(c, "delegation.depth_exceeded");
             },
-            other => panic!("expected Deny+reason+code, got {:?}", other),
+            other => panic!("expected Deny+reason+code, got {other:?}"),
         }
     }
 
@@ -3504,7 +3484,7 @@ do:
                 assert_eq!(r, "refused");
                 assert_eq!(c, "role.hr_required");
             },
-            other => panic!("expected Deny+reason+code, got {:?}", other),
+            other => panic!("expected Deny+reason+code, got {other:?}"),
         }
     }
 
@@ -3519,7 +3499,7 @@ do:
     fn when_do_with_unknown_key_rejected() {
         // Typo guard — surface unknown keys instead of silently dropping.
         let err = parse_step_yaml("when: x\ndo: deny\nwhne: typo").unwrap_err();
-        assert!(format!("{}", err).contains("unexpected key"));
+        assert!(format!("{err}").contains("unexpected key"));
     }
 
     #[test]
@@ -3527,7 +3507,7 @@ do:
         // An empty `do:` is almost certainly an author mistake;
         // require at least one effect.
         let err = parse_step_yaml("when: x\ndo: []").unwrap_err();
-        assert!(format!("{}", err).contains("no effects"));
+        assert!(format!("{err}").contains("no effects"));
     }
 
     #[test]
@@ -3587,13 +3567,13 @@ do:
         let err = parse_step_yaml("cedar: [oh no]").unwrap_err();
         // Existing PDP body validator complains about the shape —
         // proves we didn't try to read `cedar` as a predicate.
-        assert!(format!("{}", err).contains("body must be a map"));
+        assert!(format!("{err}").contains("body must be a map"));
     }
 
     #[test]
     fn shorthand_multi_effect_empty_list_rejected() {
         let err = parse_step_yaml(r#""x": []"#).unwrap_err();
-        assert!(format!("{}", err).contains("no effects"));
+        assert!(format!("{err}").contains("no effects"));
     }
 
     #[test]
@@ -3617,7 +3597,7 @@ do:
                 assert_eq!(path, "result.salary");
                 assert_eq!(stages.len(), 1, "single `redact` stage");
             },
-            other => panic!("expected FieldOp, got {:?}", other),
+            other => panic!("expected FieldOp, got {other:?}"),
         }
     }
 
@@ -3637,7 +3617,7 @@ do: "args.card_number | mask(4)"
                 assert_eq!(path, "args.card_number");
                 assert_eq!(stages.len(), 1);
             },
-            other => panic!("expected single FieldOp, got {:?}", other),
+            other => panic!("expected single FieldOp, got {other:?}"),
         }
     }
 
@@ -3658,7 +3638,7 @@ do: "args.card_number | str | mask(4)"
                 assert_eq!(path, "args.card_number");
                 assert_eq!(stages.len(), 2, "two-stage chain");
             },
-            other => panic!("expected single FieldOp, got {:?}", other),
+            other => panic!("expected single FieldOp, got {other:?}"),
         }
     }
 
@@ -3679,10 +3659,10 @@ do: "args.card_number | run(luhn)"
                 assert_eq!(path, "args.card_number");
                 match &stages[..] {
                     [Stage::Plugin { name }] => assert_eq!(name, "luhn"),
-                    other => panic!("expected [Stage::Plugin], got {:?}", other),
+                    other => panic!("expected [Stage::Plugin], got {other:?}"),
                 }
             },
-            other => panic!("expected single FieldOp, got {:?}", other),
+            other => panic!("expected single FieldOp, got {other:?}"),
         }
     }
 
@@ -3707,7 +3687,7 @@ do: "args.card_number | run(luhn)"
         // it as a FieldOp; instead it falls through to the predicate
         // parser, which will fail with a more specific error.
         let yaml = r#"do: "role.hr | redact""#;
-        let _ = parse_step_yaml(&format!("when: true\n{}", yaml));
+        let _ = parse_step_yaml(&format!("when: true\n{yaml}"));
         // The exact failure mode here isn't load-bearing — what matters
         // is we don't silently produce an unconditional FieldOp with a
         // bogus path. So just confirm we either error or produce
@@ -3721,7 +3701,7 @@ do: "args.card_number | run(luhn)"
                 );
             },
             Err(_) => {}, // also fine
-            other => panic!("unexpected: {:?}", other),
+            other => panic!("unexpected: {other:?}"),
         }
     }
 
@@ -3779,7 +3759,7 @@ sequential:
                 assert!(matches!(inner[0], Effect::Plugin { .. }));
                 assert!(matches!(inner[1], Effect::Plugin { .. }));
             },
-            other => panic!("expected single Sequential effect, got {:?}", other),
+            other => panic!("expected single Sequential effect, got {other:?}"),
         }
     }
 
@@ -3798,7 +3778,7 @@ parallel:
             [Effect::Parallel(inner)] => {
                 assert_eq!(inner.len(), 2);
             },
-            other => panic!("expected single Parallel effect, got {:?}", other),
+            other => panic!("expected single Parallel effect, got {other:?}"),
         }
     }
 
@@ -3819,7 +3799,7 @@ do:
         };
         match rule.effects.as_slice() {
             [Effect::Parallel(inner)] => assert_eq!(inner.len(), 2),
-            other => panic!("expected Parallel in do:, got {:?}", other),
+            other => panic!("expected Parallel in do:, got {other:?}"),
         }
     }
 
@@ -3832,7 +3812,7 @@ parallel:
   - "args.ssn | redact"
 "#;
         let err = parse_step_yaml(yaml).unwrap_err();
-        assert!(format!("{}", err).contains("mutation"), "got: {}", err);
+        assert!(format!("{err}").contains("mutation"), "got: {err}");
     }
 
     #[test]
@@ -3843,7 +3823,7 @@ parallel:
   - "delegate(workday)"
 "#;
         let err = parse_step_yaml(yaml).unwrap_err();
-        assert!(format!("{}", err).contains("mutation"));
+        assert!(format!("{err}").contains("mutation"));
     }
 
     #[test]
@@ -3863,20 +3843,20 @@ sequential:
                 assert!(matches!(inner[0], Effect::FieldOp { .. }));
                 assert!(matches!(inner[1], Effect::Plugin { .. }));
             },
-            other => panic!("got {:?}", other),
+            other => panic!("got {other:?}"),
         }
     }
 
     #[test]
     fn parallel_empty_list_rejected() {
         let err = parse_step_yaml("parallel: []").unwrap_err();
-        assert!(format!("{}", err).contains("empty"));
+        assert!(format!("{err}").contains("empty"));
     }
 
     #[test]
     fn sequential_empty_list_rejected() {
         let err = parse_step_yaml("sequential: []").unwrap_err();
-        assert!(format!("{}", err).contains("empty"));
+        assert!(format!("{err}").contains("empty"));
     }
 
     // ----- restrict effect -----
@@ -3904,7 +3884,7 @@ restrict:
 "#;
         let step = parse_step_yaml(yaml).unwrap();
         let Step::Restrict { spec } = step else {
-            panic!("expected Step::Restrict, got {:?}", step);
+            panic!("expected Step::Restrict, got {step:?}");
         };
         use crate::constraint::OnEmpty;
         assert_eq!(
@@ -3916,8 +3896,8 @@ restrict:
         assert_eq!(spec.allow_sites, lit(&["site-a"]));
         assert_eq!(spec.max_cost_tier.as_deref(), Some("cheap"));
         // `custom` coerces the bool `true` to the string "true".
-        assert_eq!(spec.custom.get("gpu"), Some(&"h100".to_string()));
-        assert_eq!(spec.custom.get("dedicated"), Some(&"true".to_string()));
+        assert_eq!(spec.custom.get("gpu"), Some(&"h100".to_owned()));
+        assert_eq!(spec.custom.get("dedicated"), Some(&"true".to_owned()));
         assert_eq!(spec.on_empty, OnEmpty::Fallback);
     }
 
@@ -3946,7 +3926,7 @@ restrict:
         assert_eq!(
             spec.allow_models,
             Some(crate::constraint::StringSetSpec::Ref(
-                "data.agents[subject.id].allowed_models".to_string()
+                "data.agents[subject.id].allowed_models".to_owned()
             ))
         );
     }
@@ -3962,7 +3942,7 @@ restrict:
         assert_eq!(
             spec.allow_regions,
             Some(crate::constraint::StringSetSpec::Ref(
-                "data.tenant_regions".to_string()
+                "data.tenant_regions".to_owned()
             ))
         );
     }
@@ -3984,7 +3964,7 @@ do:
             [Effect::Restrict { spec }] => {
                 assert_eq!(spec.allow_regions, lit(&["eu"]));
             },
-            other => panic!("expected single Restrict effect, got {:?}", other),
+            other => panic!("expected single Restrict effect, got {other:?}"),
         }
     }
 
@@ -4001,13 +3981,13 @@ cedar:
 "#;
         let step = parse_step_yaml(yaml).unwrap();
         let Step::Pdp { on_allow, .. } = step else {
-            panic!("expected Step::Pdp, got {:?}", step);
+            panic!("expected Step::Pdp, got {step:?}");
         };
         match on_allow.as_slice() {
             [Step::Restrict { spec }] => {
                 assert_eq!(spec.allow_regions, lit(&["eu"]));
             },
-            other => panic!("expected Restrict in on_allow, got {:?}", other),
+            other => panic!("expected Restrict in on_allow, got {other:?}"),
         }
     }
 
@@ -4017,9 +3997,8 @@ cedar:
         // author error.
         let err = parse_step_yaml("restrict: {}").unwrap_err();
         assert!(
-            format!("{}", err).contains("no constraint fields"),
-            "got: {}",
-            err
+            format!("{err}").contains("no constraint fields"),
+            "got: {err}"
         );
     }
 
@@ -4028,27 +4007,26 @@ cedar:
         // `on_empty` alone still constrains nothing.
         let err = parse_step_yaml("restrict: { on_empty: deny }").unwrap_err();
         assert!(
-            format!("{}", err).contains("no constraint fields"),
-            "got: {}",
-            err
+            format!("{err}").contains("no constraint fields"),
+            "got: {err}"
         );
     }
 
     #[test]
     fn restrict_unknown_field_rejected() {
         let err = parse_step_yaml("restrict: { allow_zones: [eu] }").unwrap_err();
-        let msg = format!("{}", err);
-        assert!(msg.contains("unknown"), "got: {}", msg);
-        assert!(msg.contains("allow_zones"), "got: {}", msg);
+        let msg = format!("{err}");
+        assert!(msg.contains("unknown"), "got: {msg}");
+        assert!(msg.contains("allow_zones"), "got: {msg}");
     }
 
     #[test]
     fn restrict_bad_on_empty_value_rejected() {
         let err = parse_step_yaml("restrict: { deny_models: [\"openai/*\"], on_empty: maybe }")
             .unwrap_err();
-        let msg = format!("{}", err);
-        assert!(msg.contains("on_empty"), "got: {}", msg);
-        assert!(msg.contains("maybe"), "got: {}", msg);
+        let msg = format!("{err}");
+        assert!(msg.contains("on_empty"), "got: {msg}");
+        assert!(msg.contains("maybe"), "got: {msg}");
     }
 
     #[test]
@@ -4059,7 +4037,7 @@ restrict:
     gpu: [h100, a100]
 "#;
         let err = parse_step_yaml(yaml).unwrap_err();
-        assert!(format!("{}", err).contains("scalar"), "got: {}", err);
+        assert!(format!("{err}").contains("scalar"), "got: {err}");
     }
 
     #[test]
@@ -4080,7 +4058,7 @@ parallel:
                 assert_eq!(inner.len(), 2);
                 assert!(matches!(inner[1], Effect::Restrict { .. }));
             },
-            other => panic!("expected Parallel with Restrict, got {:?}", other),
+            other => panic!("expected Parallel with Restrict, got {other:?}"),
         }
     }
 
@@ -4106,7 +4084,7 @@ sequential:
         assert!(matches!(outer[0], Effect::Plugin { .. }));
         match &outer[1] {
             Effect::Parallel(inner) => assert_eq!(inner.len(), 2),
-            other => panic!("expected nested Parallel, got {:?}", other),
+            other => panic!("expected nested Parallel, got {other:?}"),
         }
     }
 
@@ -4335,11 +4313,10 @@ routes:
 "#;
         let err = compile_config(yaml).unwrap_err();
         // RHS-as-identifier is rejected; the error mentions the offending input.
-        let msg = format!("{}", err);
+        let msg = format!("{err}");
         assert!(
             msg.contains("RHS-as-identifier") || msg.contains("garbage_ident"),
-            "error message should reference the failure: {}",
-            msg,
+            "error message should reference the failure: {msg}",
         );
     }
 
@@ -4356,7 +4333,7 @@ routes:
         assert_eq!(route.policy.len(), 1);
         match &route.policy[0] {
             Effect::Plugin { name } => assert_eq!(name, "rate_limiter"),
-            other => panic!("expected Effect::Plugin, got {:?}", other),
+            other => panic!("expected Effect::Plugin, got {other:?}"),
         }
     }
 
@@ -4375,21 +4352,21 @@ routes:
         assert_eq!(route.policy.len(), 1);
         match &route.policy[0] {
             Effect::Plugin { name } => assert_eq!(name, "rate_limiter"),
-            other => panic!("expected Effect::Plugin, got {:?}", other),
+            other => panic!("expected Effect::Plugin, got {other:?}"),
         }
     }
 
     #[test]
     fn parse_step_run_is_plugin_alias() {
         for s in ["run(audit-log)", "plugin(audit-log)"] {
-            let step = parse_step(&serde_yaml::Value::String(s.to_string()), "test").unwrap();
+            let step = parse_step(&serde_yaml::Value::String(s.to_owned()), "test").unwrap();
             match step {
                 crate::step::Step::Plugin { name } => assert_eq!(name, "audit-log", "{s}"),
                 other => panic!("expected Step::Plugin for `{s}`, got {other:?}"),
             }
         }
         // Empty / malformed `run(...)` surfaces a clear, verb-named error.
-        let err = parse_step(&serde_yaml::Value::String("run()".to_string()), "test").unwrap_err();
+        let err = parse_step(&serde_yaml::Value::String("run()".to_owned()), "test").unwrap_err();
         assert!(
             format!("{err}").contains("run("),
             "error should name `run(...)`: {err}"
@@ -4411,7 +4388,7 @@ routes:
                 assert_eq!(label, "audit");
                 assert_eq!(scopes, &vec![TaintScope::Session]);
             },
-            other => panic!("expected Effect::Taint, got {:?}", other),
+            other => panic!("expected Effect::Taint, got {other:?}"),
         }
     }
 
@@ -4448,7 +4425,7 @@ routes:
                 assert_eq!(on_deny.len(), 1);
                 assert_eq!(on_allow.len(), 1);
             },
-            other => panic!("expected Effect::Pdp, got {:?}", other),
+            other => panic!("expected Effect::Pdp, got {other:?}"),
         }
     }
 
@@ -4481,7 +4458,7 @@ routes:
                 assert_eq!(on_deny.len(), 1);
                 assert_eq!(on_allow.len(), 0);
             },
-            other => panic!("expected Effect::Pdp, got {:?}", other),
+            other => panic!("expected Effect::Pdp, got {other:?}"),
         }
     }
 
@@ -4505,7 +4482,7 @@ routes:
                 assert!(call.args.as_str().unwrap().contains("hr/compensation/deny"));
                 assert_eq!(on_deny.len(), 1);
             },
-            other => panic!("expected Effect::Pdp, got {:?}", other),
+            other => panic!("expected Effect::Pdp, got {other:?}"),
         }
     }
 
@@ -4523,7 +4500,7 @@ routes:
             Effect::Pdp { call, .. } => {
                 assert_eq!(call.dialect, PdpDialect::Custom("my_engine".into()));
             },
-            other => panic!("expected Pdp, got {:?}", other),
+            other => panic!("expected Pdp, got {other:?}"),
         }
     }
 
@@ -4587,11 +4564,10 @@ routes:
             Decision::Deny { rule_source, .. } => {
                 assert!(
                     rule_source.contains("pre_invocation[2]"),
-                    "expected pre_invocation[2], got {}",
-                    rule_source
+                    "expected pre_invocation[2], got {rule_source}"
                 );
             },
-            d => panic!("expected Deny, got {:?}", d),
+            d => panic!("expected Deny, got {d:?}"),
         }
 
         // Bob: authenticated but neither hr nor finance → deny on rule 1.
@@ -4614,11 +4590,10 @@ routes:
             Decision::Deny { rule_source, .. } => {
                 assert!(
                     rule_source.contains("pre_invocation[1]"),
-                    "expected pre_invocation[1], got {}",
-                    rule_source
+                    "expected pre_invocation[1], got {rule_source}"
                 );
             },
-            d => panic!("expected Deny, got {:?}", d),
+            d => panic!("expected Deny, got {d:?}"),
         }
     }
 
@@ -4693,7 +4668,7 @@ routes:
         assert_eq!(p.stages.len(), 2);
         match &p.stages[1] {
             Stage::Redact { condition: Some(_) } => {},
-            other => panic!("expected Redact with condition, got {:?}", other),
+            other => panic!("expected Redact with condition, got {other:?}"),
         }
     }
 
@@ -4782,9 +4757,9 @@ routes:
                 Expression::Condition(Condition::IsTrue { key }) => {
                     assert_eq!(key, "perm.view_ssn");
                 },
-                other => panic!("expected IsTrue(perm.view_ssn), got {:?}", other),
+                other => panic!("expected IsTrue(perm.view_ssn), got {other:?}"),
             },
-            other => panic!("expected Redact with Not condition, got {:?}", other),
+            other => panic!("expected Redact with Not condition, got {other:?}"),
         }
     }
 
@@ -4819,14 +4794,14 @@ routes:
     #[test]
     fn pipeline_unknown_stage_rejected() {
         let err = parse_pipeline("nonsense").unwrap_err();
-        assert!(format!("{}", err).contains("unknown stage"));
+        assert!(format!("{err}").contains("unknown stage"));
     }
 
     #[test]
     fn pipeline_omit_with_args_rejected() {
         // omit has no conditional form.
         let err = parse_pipeline("omit(!perm.x)").unwrap_err();
-        assert!(format!("{}", err).contains("omit takes no arguments"));
+        assert!(format!("{err}").contains("omit takes no arguments"));
     }
 
     #[test]
@@ -4888,7 +4863,7 @@ routes:
       x: "nonsense"
 "#;
         let err = compile_config(yaml).unwrap_err();
-        assert!(format!("{}", err).contains("unknown stage"));
+        assert!(format!("{err}").contains("unknown stage"));
     }
 
     #[test]
@@ -4913,8 +4888,8 @@ routes:
         assert_eq!(cfg.plugins.len(), 2);
         let rl = cfg.plugins.get("rate_limiter").unwrap();
         assert_eq!(rl.kind, "native");
-        assert_eq!(rl.hooks, vec!["tool_pre_invoke".to_string()]);
-        assert_eq!(rl.capabilities, vec!["read_subject".to_string()]);
+        assert_eq!(rl.hooks, vec!["tool_pre_invoke".to_owned()]);
+        assert_eq!(rl.capabilities, vec!["read_subject".to_owned()]);
         // The route should still compile (uses plugin(rate_limiter)).
         assert!(cfg.routes.contains_key("get_compensation"));
     }
@@ -4957,7 +4932,7 @@ routes:
         .unwrap();
         assert_eq!(eff.on_error, Some("ignore"));
         // Hooks NOT overridable — still from the global declaration.
-        assert_eq!(eff.hooks, &["tool_pre_invoke".to_string()]);
+        assert_eq!(eff.hooks, &["tool_pre_invoke".to_owned()]);
     }
 
     #[test]
@@ -4998,7 +4973,7 @@ pre_invocation:
             crate::rules::Effect::When { source, .. } => {
                 assert_eq!(source, "global.policies.hr.pre_invocation[0]");
             },
-            other => panic!("expected When, got {:?}", other),
+            other => panic!("expected When, got {other:?}"),
         }
     }
 
@@ -5329,7 +5304,7 @@ routes:
     }
 
     fn parse_elicit_str(s: &str) -> crate::step::ElicitStep {
-        let value = serde_yaml::Value::String(s.to_string());
+        let value = serde_yaml::Value::String(s.to_owned());
         let step = parse_step(&value, "test.policy[0]").expect("parse");
         match step {
             crate::step::Step::Elicit(e) => e,

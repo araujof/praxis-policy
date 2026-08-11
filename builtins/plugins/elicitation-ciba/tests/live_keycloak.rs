@@ -65,12 +65,12 @@ async fn live_dispatch_then_pending() {
 
     let insecure = backchannel.starts_with("http://") || token.starts_with("http://");
     let cfg = PluginConfig {
-        name: "manager-approver".to_string(),
-        kind: "elicitation/ciba".to_string(),
+        name: "manager-approver".to_owned(),
+        kind: "elicitation/ciba".to_owned(),
         description: None,
         author: None,
         version: None,
-        hooks: vec!["elicit".to_string()],
+        hooks: vec!["elicit".to_owned()],
         mode: PluginMode::Sequential,
         priority: 10,
         on_error: OnError::Fail,

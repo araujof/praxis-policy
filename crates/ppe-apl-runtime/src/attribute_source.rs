@@ -120,7 +120,7 @@ fn merge_object(
     prefix: &str,
 ) -> Result<(), AttributeError> {
     for (k, v) in incoming {
-        let path = format!("{}.{}", prefix, k);
+        let path = format!("{prefix}.{k}");
         if let Some(existing) = acc.get_mut(&k) {
             match (existing, v) {
                 (Value::Object(e), Value::Object(iv)) => merge_object(e, iv, &path)?,
@@ -167,7 +167,7 @@ mod tests {
     use serde_json::json;
 
     fn doc(label: &str, v: Value) -> (String, Value) {
-        (label.to_string(), v)
+        (label.to_owned(), v)
     }
 
     #[test]
@@ -231,7 +231,7 @@ mod tests {
                 assert_eq!(existing, "\"us\"");
                 assert_eq!(incoming, "\"eu\"");
             },
-            other => panic!("expected Conflict, got {:?}", other),
+            other => panic!("expected Conflict, got {other:?}"),
         }
     }
 
@@ -252,10 +252,10 @@ mod tests {
             .unwrap_err();
         match err {
             AttributeError::Parse(msg) => {
-                assert!(msg.contains("stray key"), "got: {}", msg);
-                assert!(msg.contains("org"), "got: {}", msg);
+                assert!(msg.contains("stray key"), "got: {msg}");
+                assert!(msg.contains("org"), "got: {msg}");
             },
-            other => panic!("expected Parse, got {:?}", other),
+            other => panic!("expected Parse, got {other:?}"),
         }
     }
 

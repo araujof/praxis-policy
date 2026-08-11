@@ -68,10 +68,7 @@ impl HookHandler<CmfHook> for IdentityChecker {
                 .first()
                 .map(|tr| tr.tool_name.as_str())
                 .unwrap_or("unknown");
-            println!(
-                "  [identity-checker] POST-INVOKE: verifying result from '{}'",
-                tool_name
-            );
+            println!("  [identity-checker] POST-INVOKE: verifying result from '{tool_name}'");
 
             if let Some(ref security) = extensions.security {
                 if let Some(ref subject) = security.subject {
@@ -90,14 +87,11 @@ impl HookHandler<CmfHook> for IdentityChecker {
                 .first()
                 .map(|tc| tc.name.as_str())
                 .unwrap_or("unknown");
-            println!(
-                "  [identity-checker] PRE-INVOKE: checking identity for '{}'",
-                tool_name
-            );
+            println!("  [identity-checker] PRE-INVOKE: checking identity for '{tool_name}'");
 
             if let Some(ref security) = extensions.security {
                 let labels: Vec<&String> = security.labels.iter().collect();
-                println!("  [identity-checker] Security labels: {:?}", labels);
+                println!("  [identity-checker] Security labels: {labels:?}");
 
                 if let Some(ref subject) = security.subject {
                     println!(
@@ -109,7 +103,7 @@ impl HookHandler<CmfHook> for IdentityChecker {
                     if security.has_label("PII") && !subject.roles.contains("hr_admin") {
                         return PluginResult::deny(PluginViolation::new(
                             "insufficient_role",
-                            format!("Tool '{}' requires 'hr_admin' role for PII data", tool_name),
+                            format!("Tool '{tool_name}' requires 'hr_admin' role for PII data"),
                         ));
                     }
                 }
@@ -235,16 +229,16 @@ impl HookHandler<CmfHook> for AuditLogger {
                 .unwrap_or("unknown")
         };
 
-        print!("  [audit-logger] AUDIT[{}]: tool='{}' ", phase, tool_name);
+        print!("  [audit-logger] AUDIT[{phase}]: tool='{tool_name}' ");
 
         if let Some(ref security) = extensions.security {
             let labels: Vec<&String> = security.labels.iter().collect();
-            print!("labels={:?} ", labels);
+            print!("labels={labels:?} ");
         }
 
         if let Some(ref http) = extensions.http {
             if let Some(req_id) = http.get_header("X-Request-ID") {
-                print!("request_id='{}' ", req_id);
+                print!("request_id='{req_id}' ");
             }
         }
 
@@ -255,7 +249,7 @@ impl HookHandler<CmfHook> for AuditLogger {
                 .first()
                 .map(|tr| tr.is_error)
                 .unwrap_or(false);
-            print!("error={} ", is_error);
+            print!("error={is_error} ");
         }
 
         println!();
@@ -337,9 +331,9 @@ async fn main() {
 
     // Load config from YAML file — capabilities declared per plugin
     let config_path = "crates/ppe-core/examples/cmf_capabilities_demo.yaml";
-    println!("--- Loading config from {} ---\n", config_path);
+    println!("--- Loading config from {config_path} ---\n");
     let yaml = std::fs::read_to_string(config_path)
-        .unwrap_or_else(|e| panic!("Failed to read {}: {}", config_path, e));
+        .unwrap_or_else(|e| panic!("Failed to read {config_path}: {e}"));
     let policy_config = praxis_policy_core::config::parse_config(&yaml).unwrap();
 
     let mgr = PluginManager::default();
@@ -362,7 +356,7 @@ async fn main() {
                     content: ToolCall {
                         tool_call_id: "tc_001".into(),
                         name: "get_compensation".into(),
-                        arguments: [("employee_id".to_string(), serde_json::json!(42))].into(),
+                        arguments: [("employee_id".to_owned(), serde_json::json!(42))].into(),
                         namespace: None,
                     },
                 },
@@ -379,8 +373,8 @@ async fn main() {
     security.subject = Some(praxis_policy_core::extensions::security::SubjectExtension {
         id: Some("alice".into()),
         subject_type: Some(praxis_policy_core::extensions::security::SubjectType::User),
-        roles: ["hr_admin".to_string()].into(),
-        permissions: ["read_compensation".to_string()].into(),
+        roles: ["hr_admin".to_owned()].into(),
+        permissions: ["read_compensation".to_owned()].into(),
         ..Default::default()
     });
 
@@ -399,7 +393,7 @@ async fn main() {
         meta: Some(Arc::new(MetaExtension {
             entity_type: Some("tool".into()),
             entity_name: Some("get_compensation".into()),
-            tags: ["pii".to_string(), "hr".to_string()].into(),
+            tags: ["pii".to_owned(), "hr".to_owned()].into(),
             ..Default::default()
         })),
         ..Default::default()
@@ -425,7 +419,7 @@ async fn main() {
         if let Some(ref modified_ext) = pre_result.modified_extensions {
             if let Some(ref sec) = modified_ext.security {
                 let labels: Vec<&String> = sec.labels.iter().collect();
-                println!("  Labels after pre-invoke: {:?}", labels);
+                println!("  Labels after pre-invoke: {labels:?}");
             }
             if let Some(ref http) = modified_ext.http {
                 println!("  Headers after pre-invoke: {:?}", http.request_headers);

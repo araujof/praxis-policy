@@ -692,8 +692,7 @@ mod tests {
         let json = serde_json::to_string(&p).unwrap();
         assert!(
             !json.contains("eyJ.caller.tok"),
-            "bearer_token leaked into serialized form: {}",
-            json,
+            "bearer_token leaked into serialized form: {json}",
         );
         assert!(json.contains("get_compensation"));
     }
@@ -811,8 +810,7 @@ mod tests {
         let json = serde_json::to_string(&p).unwrap();
         assert!(
             !json.contains("eyJ.workload.svid"),
-            "actor_token leaked into serialized form: {}",
-            json,
+            "actor_token leaked into serialized form: {json}",
         );
     }
 
@@ -833,7 +831,7 @@ mod tests {
         assert_eq!(p.bearer_token(), "tok");
         assert_eq!(p.target_name(), "get_compensation");
         assert_eq!(p.target_audience(), Some("https://hr.example.com"));
-        assert_eq!(p.required_permissions(), &["read:compensation".to_string()]);
+        assert_eq!(p.required_permissions(), &["read:compensation".to_owned()]);
         assert_eq!(p.trust_domain(), Some("hr.example.com"));
         assert_eq!(p.auth_enforced_by(), AuthEnforcedBy::Target);
         let att = p.route_attenuation().unwrap();

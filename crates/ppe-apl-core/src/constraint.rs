@@ -352,7 +352,7 @@ mod tests {
                 ..Default::default()
             },
             CandidateConstraint {
-                custom: [("k".to_string(), "v".to_string())].into(),
+                custom: [("k".to_owned(), "v".to_owned())].into(),
                 ..Default::default()
             },
         ];
@@ -388,7 +388,7 @@ mod tests {
         assert!(custom.is_empty());
         assert!(RestrictSpec::default().is_empty());
 
-        let lit = |s: &str| Some(StringSetSpec::Literal(vec![s.to_string()]));
+        let lit = |s: &str| Some(StringSetSpec::Literal(vec![s.to_owned()]));
         let each: [RestrictSpec; 6] = [
             RestrictSpec {
                 allow_models: lit("m"),
@@ -411,7 +411,7 @@ mod tests {
                 ..Default::default()
             },
             RestrictSpec {
-                custom: [("k".to_string(), "v".to_string())].into(),
+                custom: [("k".to_owned(), "v".to_owned())].into(),
                 ..Default::default()
             },
         ];
@@ -435,7 +435,7 @@ mod tests {
         // real restriction. Catches a field the two `is_empty()`s (or
         // `resolve()`) disagree on.
         let bag = AttributeBag::new();
-        let lit = |s: &str| Some(StringSetSpec::Literal(vec![s.to_string()]));
+        let lit = |s: &str| Some(StringSetSpec::Literal(vec![s.to_owned()]));
         let specs: [RestrictSpec; 6] = [
             RestrictSpec {
                 allow_models: lit("m"),
@@ -458,7 +458,7 @@ mod tests {
                 ..Default::default()
             },
             RestrictSpec {
-                custom: [("k".to_string(), "v".to_string())].into(),
+                custom: [("k".to_owned(), "v".to_owned())].into(),
                 ..Default::default()
             },
         ];

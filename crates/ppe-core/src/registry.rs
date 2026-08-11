@@ -325,7 +325,7 @@ impl PluginRegistry {
         let name = config.name.clone();
 
         if self.plugins.contains_key(&name) {
-            return Err(format!("plugin '{}' is already registered", name));
+            return Err(format!("plugin '{name}' is already registered"));
         }
 
         let plugin_ref = Arc::new(PluginRef::new(plugin, config));
@@ -362,7 +362,7 @@ impl PluginRegistry {
         let name = config.name.clone();
 
         if self.plugins.contains_key(&name) {
-            return Err(format!("plugin '{}' is already registered", name));
+            return Err(format!("plugin '{name}' is already registered"));
         }
 
         let plugin_ref = Arc::new(PluginRef::new(plugin, config));
@@ -453,7 +453,7 @@ impl PluginRegistry {
         for (hook_type, entries) in &self.hook_index {
             for entry in entries {
                 if entry.plugin_ref.name() == plugin_name {
-                    out.push((hook_type.as_str().to_string(), entry.clone()));
+                    out.push((hook_type.as_str().to_owned(), entry.clone()));
                 }
             }
         }
@@ -559,8 +559,8 @@ mod tests {
 
     fn make_config(name: &str, hooks: Vec<&str>, priority: i32) -> PluginConfig {
         PluginConfig {
-            name: name.to_string(),
-            kind: "test".to_string(),
+            name: name.to_owned(),
+            kind: "test".to_owned(),
             description: None,
             author: None,
             version: None,

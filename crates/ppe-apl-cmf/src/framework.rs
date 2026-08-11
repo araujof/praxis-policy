@@ -30,7 +30,7 @@ pub fn extract_framework(f: &FrameworkExtension, bag: &mut AttributeBag) {
     }
     // metadata is a HashMap<String, Value> — flatten the same way args/result do.
     for (k, v) in &f.metadata {
-        crate::payload::walk(v, &format!("framework.metadata.{}", k), bag);
+        crate::payload::walk(v, &format!("framework.metadata.{k}"), bag);
     }
 }
 
@@ -56,9 +56,9 @@ mod tests {
             framework_version: Some("0.1.42".into()),
             node_id: Some("retriever".into()),
             metadata: HashMap::from([
-                ("chain_id".to_string(), json!("abc")),
-                ("step".to_string(), json!(7)),
-                ("flags".to_string(), json!({ "verbose": true })),
+                ("chain_id".to_owned(), json!("abc")),
+                ("step".to_owned(), json!(7)),
+                ("flags".to_owned(), json!({ "verbose": true })),
             ]),
             ..Default::default()
         };

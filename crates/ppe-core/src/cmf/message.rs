@@ -48,14 +48,14 @@ pub struct Message {
 }
 
 fn default_schema_version() -> String {
-    super::constants::SCHEMA_VERSION.to_string()
+    super::constants::SCHEMA_VERSION.to_owned()
 }
 
 impl Message {
     /// Create a simple text message.
     pub fn text(role: Role, text: impl Into<String>) -> Self {
         Self {
-            schema_version: super::constants::SCHEMA_VERSION.to_string(),
+            schema_version: super::constants::SCHEMA_VERSION.to_owned(),
             role,
             content: vec![ContentPart::Text { text: text.into() }],
             channel: None,
@@ -69,7 +69,7 @@ impl Message {
     /// multimodal mixes).
     pub fn with_content(role: Role, content: Vec<ContentPart>) -> Self {
         Self {
-            schema_version: super::constants::SCHEMA_VERSION.to_string(),
+            schema_version: super::constants::SCHEMA_VERSION.to_owned(),
             role,
             content,
             channel: None,
@@ -296,7 +296,7 @@ mod tests {
         };
         assert_eq!(
             msg.get_thinking_content(),
-            Some("Let me think...".to_string())
+            Some("Let me think...".to_owned())
         );
         assert_eq!(msg.get_text_content(), "Here's my answer.");
     }
@@ -314,7 +314,7 @@ mod tests {
                     content: ToolCall {
                         tool_call_id: "tc_001".into(),
                         name: "get_weather".into(),
-                        arguments: [("city".to_string(), serde_json::json!("London"))].into(),
+                        arguments: [("city".to_owned(), serde_json::json!("London"))].into(),
                         namespace: None,
                     },
                 },
@@ -322,7 +322,7 @@ mod tests {
                     content: ToolCall {
                         tool_call_id: "tc_002".into(),
                         name: "get_time".into(),
-                        arguments: [("timezone".to_string(), serde_json::json!("UTC"))].into(),
+                        arguments: [("timezone".to_owned(), serde_json::json!("UTC"))].into(),
                         namespace: None,
                     },
                 },
@@ -426,7 +426,7 @@ mod tests {
                     content: ToolCall {
                         tool_call_id: "tc_001".into(),
                         name: "search".into(),
-                        arguments: [("q".to_string(), serde_json::json!("rust"))].into(),
+                        arguments: [("q".to_owned(), serde_json::json!("rust"))].into(),
                         namespace: None,
                     },
                 },

@@ -468,7 +468,7 @@ async fn dispatch_effect(
             // position. Lets MCP clients dispatch on stable categories
             // (`quota.exceeded`) rather than positional codes that
             // shift with YAML edits.
-            let rule_source = code.clone().unwrap_or_else(|| fallback_source.to_string());
+            let rule_source = code.clone().unwrap_or_else(|| fallback_source.to_owned());
             EffectOutcome::Halt(Decision::Deny {
                 reason: reason.clone(),
                 rule_source,
@@ -490,8 +490,8 @@ async fn dispatch_effect(
                     }
                 },
                 Err(e) => EffectOutcome::Halt(Decision::Deny {
-                    reason: Some(format!("plugin `{}` error: {}", name, e)),
-                    rule_source: format!("plugin:{}", name),
+                    reason: Some(format!("plugin `{name}` error: {e}")),
+                    rule_source: format!("plugin:{name}"),
                 }),
             }
         },
@@ -599,7 +599,7 @@ async fn dispatch_effect(
                 },
                 Err(e) => EffectOutcome::Halt(Decision::Deny {
                     reason: Some(e.to_string()),
-                    rule_source: fallback_source.to_string(),
+                    rule_source: fallback_source.to_owned(),
                 }),
             }
         },
@@ -779,7 +779,7 @@ async fn dispatch_effect(
                     },
                 },
                 Err(e) => EffectOutcome::Halt(Decision::Deny {
-                    reason: Some(format!("PDP error: {}", e)),
+                    reason: Some(format!("PDP error: {e}")),
                     rule_source: format!("pdp:{:?}", call.dialect),
                 }),
             }
@@ -841,7 +841,7 @@ async fn dispatch_elicitation(
     // attribute vocabulary lives here in the runtime, so the invoker
     // receives the resolved identity rather than re-deriving it.
     let resolved_from = match bag.get_string(&step.from) {
-        Some(v) => v.to_string(),
+        Some(v) => v.to_owned(),
         None if looks_like_attribute_ref(&step.from) => {
             return fail(format!(
                 "elicitation `from` attribute `{}` did not resolve to an identity",
@@ -851,11 +851,11 @@ async fn dispatch_elicitation(
         None => step.from.clone(),
     };
     let id = match bag.get_string(bk::ID) {
-        Some(existing) => existing.to_string(),
+        Some(existing) => existing.to_owned(),
         None => match elicitations.dispatch(step, &resolved_from).await {
             Ok(d) => {
                 bag.set(bk::ID, d.id.clone());
-                bag.set(bk::STATUS, "pending".to_string());
+                bag.set(bk::STATUS, "pending".to_owned());
                 // Optional audit label — not a routing key.
                 if let Some(channel) = &step.channel {
                     bag.set(bk::CHANNEL, channel.clone());
@@ -887,10 +887,10 @@ async fn dispatch_elicitation(
             // emits `-32120` (retry) instead of forwarding. Built from the
             // bag, which dispatch populated — works the same on first
             // arrival and on a later still-pending retry.
-            bag.set(bk::STATUS, "pending".to_string());
-            let approver = bag.get_string(bk::APPROVER).map(str::to_string);
-            let intent_id = bag.get_string(bk::INTENT_ID).map(str::to_string);
-            let expires_at = bag.get_string(bk::EXPIRES_AT).map(str::to_string);
+            bag.set(bk::STATUS, "pending".to_owned());
+            let approver = bag.get_string(bk::APPROVER).map(str::to_owned);
+            let intent_id = bag.get_string(bk::INTENT_ID).map(str::to_owned);
+            let expires_at = bag.get_string(bk::EXPIRES_AT).map(str::to_owned);
             EffectOutcome::Pending(crate::step::PendingElicitation {
                 id,
                 plugin_name: step.plugin_name.clone(),
@@ -902,18 +902,18 @@ async fn dispatch_elicitation(
             })
         },
         ElicitationStatus::Expired => {
-            bag.set(bk::STATUS, "expired".to_string());
-            fail("elicitation expired before a response".to_string())
+            bag.set(bk::STATUS, "expired".to_owned());
+            fail("elicitation expired before a response".to_owned())
         },
         ElicitationStatus::Resolved {
             outcome: ElicitationOutcome::Denied,
         } => {
-            bag.set(bk::STATUS, "resolved".to_string());
-            bag.set(bk::OUTCOME, "denied".to_string());
+            bag.set(bk::STATUS, "resolved".to_owned());
+            bag.set(bk::OUTCOME, "denied".to_owned());
             // A genuine "no" halts unconditionally — not subject to
             // `on_error`.
             EffectOutcome::Halt(Decision::Deny {
-                reason: Some("elicitation denied by approver".to_string()),
+                reason: Some("elicitation denied by approver".to_owned()),
                 rule_source: step.source.clone(),
             })
         },
@@ -929,7 +929,7 @@ async fn dispatch_elicitation(
             if !validation.valid {
                 let why = validation
                     .reason
-                    .unwrap_or_else(|| "response failed validation".to_string());
+                    .unwrap_or_else(|| "response failed validation".to_owned());
                 return fail(format!("elicitation invalid: {why}"));
             }
 
@@ -953,8 +953,8 @@ async fn dispatch_elicitation(
 
             // Approved + genuine + sufficient. Record resolved facts for
             // downstream rules / audit, then continue.
-            bag.set(bk::STATUS, "resolved".to_string());
-            bag.set(bk::OUTCOME, "approved".to_string());
+            bag.set(bk::STATUS, "resolved".to_owned());
+            bag.set(bk::OUTCOME, "approved".to_owned());
             if let Some(approver) = validation.approver {
                 bag.set(bk::APPROVER, approver);
             }
@@ -1041,7 +1041,7 @@ fn dispatch_parallel<'a>(
         let mut branches: Vec<ErasedBranch<BranchResult>> = Vec::with_capacity(effects.len());
         for effect in effects.iter() {
             let effect = effect.clone();
-            let fallback = fallback_source.to_string();
+            let fallback = fallback_source.to_owned();
             let mut branch_bag = bag.clone();
             let mut branch_payload = payload.clone();
             let pdp = Arc::clone(pdp);
@@ -1191,10 +1191,9 @@ async fn dispatch_field_op(
     } else {
         return EffectOutcome::Halt(Decision::Deny {
             reason: Some(format!(
-                "FieldOp path `{}` must start with `args.` or `result.`",
-                path
+                "FieldOp path `{path}` must start with `args.` or `result.`"
             )),
-            rule_source: fallback_source.to_string(),
+            rule_source: fallback_source.to_owned(),
         });
     };
 
@@ -1235,7 +1234,7 @@ async fn dispatch_field_op(
             stage_index: _,
         } => EffectOutcome::Halt(Decision::Deny {
             reason: Some(reason),
-            rule_source: fallback_source.to_string(),
+            rule_source: fallback_source.to_owned(),
         }),
     }
 }
@@ -1324,7 +1323,7 @@ pub async fn evaluate_pipeline(
                 if min.map_or(false, |m| len < m) || max.map_or(false, |m| len > m) {
                     return PipelineEvaluation {
                         outcome: FieldOutcome::Deny {
-                            reason: format!("length {} outside [{:?}, {:?}]", len, min, max),
+                            reason: format!("length {len} outside [{min:?}, {max:?}]"),
                             stage_index: idx,
                         },
                         taints,
@@ -1347,7 +1346,7 @@ pub async fn evaluate_pipeline(
                 if min.map_or(false, |m| n < m) || max.map_or(false, |m| n > m) {
                     return PipelineEvaluation {
                         outcome: FieldOutcome::Deny {
-                            reason: format!("value {} outside [{:?}, {:?}]", n, min, max),
+                            reason: format!("value {n} outside [{min:?}, {max:?}]"),
                             stage_index: idx,
                         },
                         taints,
@@ -1370,7 +1369,7 @@ pub async fn evaluate_pipeline(
                 if !values.iter().any(|v| v == s) {
                     return PipelineEvaluation {
                         outcome: FieldOutcome::Deny {
-                            reason: format!("value `{}` not in enum {:?}", s, values),
+                            reason: format!("value `{s}` not in enum {values:?}"),
                             stage_index: idx,
                         },
                         taints,
@@ -1385,7 +1384,7 @@ pub async fn evaluate_pipeline(
                     Err(e) => {
                         return PipelineEvaluation {
                             outcome: FieldOutcome::Deny {
-                                reason: format!("invalid regex `{}`: {}", pattern, e),
+                                reason: format!("invalid regex `{pattern}`: {e}"),
                                 stage_index: idx,
                             },
                             taints,
@@ -1407,7 +1406,7 @@ pub async fn evaluate_pipeline(
                 if !re.is_match(s) {
                     return PipelineEvaluation {
                         outcome: FieldOutcome::Deny {
-                            reason: format!("value did not match regex `{}`", pattern),
+                            reason: format!("value did not match regex `{pattern}`"),
                             stage_index: idx,
                         },
                         taints,
@@ -1424,9 +1423,8 @@ pub async fn evaluate_pipeline(
                 return PipelineEvaluation {
                     outcome: FieldOutcome::Deny {
                         reason: format!(
-                            "`validate({})` is not implemented; use `regex(...)` \
-                             or `plugin({})` instead",
-                            name, name,
+                            "`validate({name})` is not implemented; use `regex(...)` \
+                             or `plugin({name})` instead",
                         ),
                         stage_index: idx,
                     },
@@ -1520,7 +1518,7 @@ pub async fn evaluate_pipeline(
                                 return PipelineEvaluation {
                                     outcome: FieldOutcome::Deny {
                                         reason: reason
-                                            .unwrap_or_else(|| format!("plugin `{}` denied", name)),
+                                            .unwrap_or_else(|| format!("plugin `{name}` denied")),
                                         stage_index: idx,
                                     },
                                     taints,
@@ -1532,7 +1530,7 @@ pub async fn evaluate_pipeline(
                         // Fail-closed: plugin dispatch failure halts the pipeline.
                         return PipelineEvaluation {
                             outcome: FieldOutcome::Deny {
-                                reason: format!("plugin `{}` error: {}", name, e),
+                                reason: format!("plugin `{name}` error: {e}"),
                                 stage_index: idx,
                             },
                             taints,
@@ -1552,7 +1550,7 @@ pub async fn evaluate_pipeline(
                     ScanKind::InjectionScan => ("injection", false),
                 };
                 taints.push(TaintEvent {
-                    label: label.to_string(),
+                    label: label.to_owned(),
                     scopes: vec![TaintScope::Session],
                 });
                 if redact {
@@ -1737,10 +1735,10 @@ mod tests {
             channel: Some("ciba".into()),
             from: "user.manager".into(),
             purpose: Some("approve payroll adjustment".into()),
-            scope: scope.map(|s| s.to_string()),
+            scope: scope.map(|s| s.to_owned()),
             timeout: None,
             config_override: None,
-            on_error: on_error.map(|s| s.to_string()),
+            on_error: on_error.map(|s| s.to_owned()),
             source: "route.test.policy[0]".into(),
         })
     }
@@ -1847,7 +1845,7 @@ mod tests {
         bag.set("subject.id", "support-bot");
         bag.set(
             "data.agents.support-bot.allowed_models",
-            std::collections::HashSet::from(["vllm/*".to_string(), "anthropic/*".to_string()]),
+            std::collections::HashSet::from(["vllm/*".to_owned(), "anthropic/*".to_owned()]),
         );
         assert!(eval_pred(
             "data.agents[subject.id].allowed_models contains 'vllm/*'",
@@ -1912,7 +1910,7 @@ mod tests {
                 assert_eq!(reason.as_deref(), Some("first"));
                 assert_eq!(rule_source, "r0");
             },
-            d => panic!("expected Deny, got {:?}", d),
+            d => panic!("expected Deny, got {d:?}"),
         }
     }
 
@@ -1938,7 +1936,7 @@ mod tests {
 
         match evaluate_rules(&rules, &bag) {
             Decision::Deny { rule_source, .. } => assert_eq!(rule_source, "r1_deny"),
-            d => panic!("allow short-circuited; expected later deny, got {:?}", d),
+            d => panic!("allow short-circuited; expected later deny, got {d:?}"),
         }
     }
 
@@ -2113,7 +2111,7 @@ mod tests {
         let mut bag = AttributeBag::new();
         bag.set(
             "session.labels",
-            HashSet::from(["PII".to_string(), "financial".to_string()]),
+            HashSet::from(["PII".to_owned(), "financial".to_owned()]),
         );
 
         assert!(eval_condition(
@@ -2207,7 +2205,7 @@ mod tests {
         bag.set("delegation.depth", 3_i64);
         match evaluate_rules(&rules, &bag) {
             Decision::Deny { rule_source, .. } => assert_eq!(rule_source, "r2"),
-            d => panic!("expected r2 deny, got {:?}", d),
+            d => panic!("expected r2 deny, got {d:?}"),
         }
     }
 
@@ -2251,10 +2249,7 @@ mod tests {
             _bag: &AttributeBag,
             _invocation: PluginInvocation<'_>,
         ) -> Result<PluginOutcome, PluginError> {
-            panic!(
-                "NullPipelinePlugins should not dispatch; got plugin({})",
-                name
-            );
+            panic!("NullPipelinePlugins should not dispatch; got plugin({name})");
         }
     }
 
@@ -2284,7 +2279,7 @@ mod tests {
                 assert!(reason.contains("expected Str"));
                 assert_eq!(stage_index, 0);
             },
-            other => panic!("expected Deny, got {:?}", other),
+            other => panic!("expected Deny, got {other:?}"),
         }
     }
 
@@ -2294,7 +2289,7 @@ mod tests {
         let p = make_pipeline(vec![Stage::Mask { keep_last: 4 }]);
         match run_pipeline(&p, &json!("123-45-6789"), &bag).await {
             FieldOutcome::Replace(v) => assert_eq!(v, json!("*******6789")),
-            other => panic!("expected Replace, got {:?}", other),
+            other => panic!("expected Replace, got {other:?}"),
         }
     }
 
@@ -2305,7 +2300,7 @@ mod tests {
         // keep_last >= length → no mask chars; full string preserved.
         match run_pipeline(&p, &json!("ab"), &bag).await {
             FieldOutcome::Replace(v) => assert_eq!(v, json!("ab")),
-            other => panic!("expected Replace, got {:?}", other),
+            other => panic!("expected Replace, got {other:?}"),
         }
     }
 
@@ -2315,7 +2310,7 @@ mod tests {
         let p = make_pipeline(vec![Stage::Redact { condition: None }]);
         match run_pipeline(&p, &json!("secret"), &bag).await {
             FieldOutcome::Replace(v) => assert_eq!(v, json!("[REDACTED]")),
-            other => panic!("expected Replace, got {:?}", other),
+            other => panic!("expected Replace, got {other:?}"),
         }
     }
 
@@ -2332,7 +2327,7 @@ mod tests {
         }]);
         match run_pipeline(&p, &json!("123-45-6789"), &bag).await {
             FieldOutcome::Replace(v) => assert_eq!(v, json!("[REDACTED]")),
-            other => panic!("expected Replace (redact fired), got {:?}", other),
+            other => panic!("expected Replace (redact fired), got {other:?}"),
         }
     }
 
@@ -2390,7 +2385,7 @@ mod tests {
                 assert!(reason.contains("outside"));
                 assert_eq!(stage_index, 1);
             },
-            other => panic!("expected Deny, got {:?}", other),
+            other => panic!("expected Deny, got {other:?}"),
         }
     }
 
@@ -2451,7 +2446,7 @@ mod tests {
                 assert!(s.starts_with("hash:"));
                 assert_eq!(s.len(), "hash:".len() + 16);
             },
-            other => panic!("expected Replace, got {:?}", other),
+            other => panic!("expected Replace, got {other:?}"),
         }
     }
 
@@ -2485,7 +2480,7 @@ mod tests {
                     "deny reason should point at alternatives: {reason}",
                 );
             },
-            other => panic!("expected Deny on validate(...) stage, got {:?}", other),
+            other => panic!("expected Deny on validate(...) stage, got {other:?}"),
         }
     }
 
@@ -2499,7 +2494,7 @@ mod tests {
         ]);
         match run_pipeline(&p, &json!("hello"), &bag).await {
             FieldOutcome::Deny { stage_index, .. } => assert_eq!(stage_index, 0),
-            other => panic!("expected Deny at stage 0, got {:?}", other),
+            other => panic!("expected Deny at stage 0, got {other:?}"),
         }
     }
 
@@ -2529,7 +2524,7 @@ mod tests {
                 assert!(reason.contains("did not match"));
                 assert_eq!(stage_index, 0);
             },
-            other => panic!("expected Deny, got {:?}", other),
+            other => panic!("expected Deny, got {other:?}"),
         }
     }
 
@@ -2543,7 +2538,7 @@ mod tests {
             FieldOutcome::Deny { reason, .. } => {
                 assert!(reason.contains("invalid regex"));
             },
-            other => panic!("expected Deny, got {:?}", other),
+            other => panic!("expected Deny, got {other:?}"),
         }
     }
 
@@ -2557,7 +2552,7 @@ mod tests {
             FieldOutcome::Deny { reason, .. } => {
                 assert!(reason.contains("requires string"));
             },
-            other => panic!("expected Deny on non-string regex input, got {:?}", other),
+            other => panic!("expected Deny on non-string regex input, got {other:?}"),
         }
     }
 
@@ -2715,7 +2710,7 @@ mod tests {
         let mut bag = AttributeBag::new();
         let plugins: std::sync::Arc<dyn PluginInvoker> = std::sync::Arc::new(PipePlugin {
             outcomes: std::collections::HashMap::from([(
-                "noop".to_string(),
+                "noop".to_owned(),
                 PluginOutcome::allow(),
             )]),
         });
@@ -2744,11 +2739,11 @@ mod tests {
         let mut bag = AttributeBag::new();
         let plugins: std::sync::Arc<dyn PluginInvoker> = std::sync::Arc::new(PipePlugin {
             outcomes: std::collections::HashMap::from([(
-                "scrubber".to_string(),
+                "scrubber".to_owned(),
                 PluginOutcome {
                     decision: Decision::Allow,
                     taints: vec![TaintEvent {
-                        label: "PII".to_string(),
+                        label: "PII".to_owned(),
                         scopes: vec![TaintScope::Session],
                     }],
                     modified_value: Some(json!("***scrubbed***")),
@@ -2785,7 +2780,7 @@ mod tests {
         let mut bag = AttributeBag::new();
         let plugins: std::sync::Arc<dyn PluginInvoker> = std::sync::Arc::new(PipePlugin {
             outcomes: std::collections::HashMap::from([(
-                "guard".to_string(),
+                "guard".to_owned(),
                 PluginOutcome {
                     decision: Decision::Deny {
                         reason: Some("policy violation".into()),
@@ -2820,7 +2815,7 @@ mod tests {
                 assert_eq!(reason, "policy violation");
                 assert_eq!(stage_index, 0);
             },
-            other => panic!("expected Deny, got {:?}", other),
+            other => panic!("expected Deny, got {other:?}"),
         }
     }
 
@@ -2844,7 +2839,7 @@ mod tests {
         .await;
         match result.outcome {
             FieldOutcome::Deny { reason, .. } => assert!(reason.contains("missing")),
-            other => panic!("expected Deny on missing plugin, got {:?}", other),
+            other => panic!("expected Deny on missing plugin, got {other:?}"),
         }
     }
 
@@ -2880,7 +2875,7 @@ mod tests {
         bag.set("subject.type", "user");
         bag.set(
             "allowed_types",
-            std::collections::HashSet::from(["user".to_string(), "service".to_string()]),
+            std::collections::HashSet::from(["user".to_owned(), "service".to_owned()]),
         );
 
         assert!(eval_condition(
@@ -2909,7 +2904,7 @@ mod tests {
         bag.set("subject.type", "agent");
         bag.set(
             "blocked_types",
-            std::collections::HashSet::from(["service".to_string()]),
+            std::collections::HashSet::from(["service".to_owned()]),
         );
 
         // agent is not in blocked_types → not in → true
@@ -2965,7 +2960,7 @@ mod tests {
         };
         match evaluate_rules(&[r], &bag) {
             Decision::Deny { reason, .. } => assert_eq!(reason.as_deref(), Some("unconditional")),
-            d => panic!("expected Deny, got {:?}", d),
+            d => panic!("expected Deny, got {d:?}"),
         }
     }
 
@@ -3026,7 +3021,7 @@ mod tests {
         ) -> Result<crate::step::ElicitationDispatch, crate::step::ElicitationError> {
             Ok(crate::step::ElicitationDispatch {
                 id: "deny-1".into(),
-                approver: Some(resolved_from.to_string()),
+                approver: Some(resolved_from.to_owned()),
                 intent_id: None,
                 expires_at: None,
             })
@@ -3062,7 +3057,7 @@ mod tests {
         ) -> Result<crate::step::ElicitationDispatch, crate::step::ElicitationError> {
             Ok(crate::step::ElicitationDispatch {
                 id: "pending-1".into(),
-                approver: Some(resolved_from.to_string()),
+                approver: Some(resolved_from.to_owned()),
                 intent_id: Some("intent-xyz".into()),
                 expires_at: Some("2026-12-31T00:00:00Z".into()),
             })
@@ -3203,7 +3198,7 @@ mod tests {
         .decision
         {
             Decision::Deny { reason, .. } => assert_eq!(reason.as_deref(), Some("forbidden")),
-            d => panic!("expected Deny, got {:?}", d),
+            d => panic!("expected Deny, got {d:?}"),
         }
     }
 
@@ -3253,7 +3248,7 @@ mod tests {
                 assert_eq!(reason.as_deref(), Some("reaction took over"));
                 assert_eq!(rule_source, "on_deny[0]");
             },
-            d => panic!("expected Deny, got {:?}", d),
+            d => panic!("expected Deny, got {d:?}"),
         }
     }
 
@@ -3294,7 +3289,7 @@ mod tests {
         .decision
         {
             Decision::Deny { reason, .. } => assert_eq!(reason.as_deref(), Some("reaction veto")),
-            d => panic!("expected Deny, got {:?}", d),
+            d => panic!("expected Deny, got {d:?}"),
         }
     }
 
@@ -3318,7 +3313,7 @@ mod tests {
             Decision::Deny { reason, .. } => {
                 assert!(reason.unwrap().contains("PDP error"));
             },
-            d => panic!("expected Deny on PDP error, got {:?}", d),
+            d => panic!("expected Deny on PDP error, got {d:?}"),
         }
     }
 
@@ -3327,9 +3322,9 @@ mod tests {
         let mut bag = AttributeBag::new();
         let plugins: std::sync::Arc<dyn PluginInvoker> = std::sync::Arc::new(FakePlugin {
             decisions: std::collections::HashMap::from([
-                ("ok_plugin".to_string(), Decision::Allow),
+                ("ok_plugin".to_owned(), Decision::Allow),
                 (
-                    "blocking_plugin".to_string(),
+                    "blocking_plugin".to_owned(),
                     Decision::Deny {
                         reason: Some("rate limit hit".into()),
                         rule_source: "plugin".into(),
@@ -3383,7 +3378,7 @@ mod tests {
         .decision
         {
             Decision::Deny { reason, .. } => assert_eq!(reason.as_deref(), Some("rate limit hit")),
-            d => panic!("expected Deny from blocking_plugin, got {:?}", d),
+            d => panic!("expected Deny from blocking_plugin, got {d:?}"),
         }
     }
 
@@ -3418,7 +3413,7 @@ mod tests {
                 assert!(reason.unwrap().contains("missing"));
                 assert!(rule_source.contains("missing"));
             },
-            d => panic!("expected Deny, got {:?}", d),
+            d => panic!("expected Deny, got {d:?}"),
         }
     }
 
@@ -3455,7 +3450,7 @@ mod tests {
         .await;
         match eval.decision {
             Decision::Deny { reason, .. } => assert_eq!(reason.as_deref(), Some("after taint")),
-            d => panic!("expected Deny from rule after Taint, got {:?}", d),
+            d => panic!("expected Deny from rule after Taint, got {d:?}"),
         }
         // Step::Taint should have been accumulated into the phase's taints
         // before the deny landed — audit needs to see what tainted before
@@ -3509,7 +3504,7 @@ mod tests {
         assert_eq!(e.constraints.len(), 1);
         assert_eq!(
             e.constraints[0].allow_regions.as_deref(),
-            Some(&["eu".to_string()][..])
+            Some(&["eu".to_owned()][..])
         );
     }
 
@@ -3572,7 +3567,7 @@ mod tests {
         assert_eq!(e.constraints.len(), 1);
         assert_eq!(
             e.constraints[0].allow_regions.as_deref(),
-            Some(&["eu".to_string()][..])
+            Some(&["eu".to_owned()][..])
         );
     }
 
@@ -3580,7 +3575,7 @@ mod tests {
         use crate::constraint::{RestrictSpec, StringSetSpec};
         Effect::Restrict {
             spec: RestrictSpec {
-                allow_models: Some(StringSetSpec::Ref(path.to_string())),
+                allow_models: Some(StringSetSpec::Ref(path.to_owned())),
                 ..Default::default()
             },
         }
@@ -3594,7 +3589,7 @@ mod tests {
         bag.set("subject.id", "support-bot");
         bag.set(
             "data.agents.support-bot.allowed_models",
-            std::collections::HashSet::from(["vllm/*".to_string(), "anthropic/*".to_string()]),
+            std::collections::HashSet::from(["vllm/*".to_owned(), "anthropic/*".to_owned()]),
         );
         let effects = vec![restrict_allow_models_ref(
             "data.agents[subject.id].allowed_models",
@@ -3604,7 +3599,7 @@ mod tests {
         // Resolved to the tree's set (sorted).
         assert_eq!(
             e.constraints[0].allow_models.as_deref(),
-            Some(&["anthropic/*".to_string(), "vllm/*".to_string()][..])
+            Some(&["anthropic/*".to_owned(), "vllm/*".to_owned()][..])
         );
     }
 
@@ -3614,7 +3609,7 @@ mod tests {
         bag.set("subject.id", "research-bot");
         bag.set(
             "data.agents.research-bot.allowed_models",
-            std::collections::HashSet::from(["openai/*".to_string()]),
+            std::collections::HashSet::from(["openai/*".to_owned()]),
         );
         let effects = vec![restrict_allow_models_ref(
             "data.agents[subject.id].allowed_models",
@@ -3622,7 +3617,7 @@ mod tests {
         let e = eval(&effects, &mut bag).await;
         assert_eq!(
             e.constraints[0].allow_models.as_deref(),
-            Some(&["openai/*".to_string()][..])
+            Some(&["openai/*".to_owned()][..])
         );
     }
 
@@ -3646,7 +3641,7 @@ mod tests {
         use crate::constraint::{RestrictSpec, StringSetSpec};
         Effect::Restrict {
             spec: RestrictSpec {
-                deny_models: Some(StringSetSpec::Ref(path.to_string())),
+                deny_models: Some(StringSetSpec::Ref(path.to_owned())),
                 ..Default::default()
             },
         }
@@ -3672,7 +3667,7 @@ mod tests {
         bag.set("subject.id", "support-bot");
         bag.set(
             "data.agents.support-bot.banned_models",
-            std::collections::HashSet::from(["openai/*".to_string()]),
+            std::collections::HashSet::from(["openai/*".to_owned()]),
         );
         let effects = vec![restrict_deny_models_ref(
             "data.agents[subject.id].banned_models",
@@ -3680,7 +3675,7 @@ mod tests {
         let e = eval(&effects, &mut bag).await;
         assert_eq!(e.decision, Decision::Allow);
         assert_eq!(e.constraints.len(), 1);
-        assert_eq!(e.constraints[0].deny_models, vec!["openai/*".to_string()]);
+        assert_eq!(e.constraints[0].deny_models, vec!["openai/*".to_owned()]);
     }
 
     #[tokio::test]
@@ -3730,7 +3725,7 @@ mod tests {
         assert_eq!(e.constraints.len(), 1);
         assert_eq!(
             e.constraints[0].deny_models,
-            vec!["deprecated/*".to_string()]
+            vec!["deprecated/*".to_owned()]
         );
     }
 
@@ -3808,7 +3803,7 @@ mod tests {
                 invocation: PluginInvocation<'_>,
             ) -> Result<PluginOutcome, PluginError> {
                 if let PluginInvocation::Field { name, .. } = invocation {
-                    self.seen.lock().unwrap().push(name.to_string());
+                    self.seen.lock().unwrap().push(name.to_owned());
                 }
                 Ok(PluginOutcome::allow())
             }
@@ -3850,7 +3845,7 @@ mod tests {
 
         assert_eq!(
             recorder.seen.lock().unwrap().as_slice(),
-            ["user.ssn".to_string()],
+            ["user.ssn".to_owned()],
             "the `args.` prefix belongs to the config path, not the field name"
         );
     }
@@ -3926,7 +3921,7 @@ mod tests {
                 assert!(reason.unwrap_or_default().contains("must start with"));
                 assert_eq!(rule_source, "demo.policy[0]");
             },
-            other => panic!("expected Deny, got {:?}", other),
+            other => panic!("expected Deny, got {other:?}"),
         }
     }
 
@@ -3975,7 +3970,7 @@ mod tests {
                 // rather than the rule's `test.policy[0]` source.
                 assert_eq!(rule_source, "seq.test");
             },
-            other => panic!("expected Deny, got {:?}", other),
+            other => panic!("expected Deny, got {other:?}"),
         }
     }
 
@@ -4053,7 +4048,7 @@ mod tests {
             Decision::Deny { reason, .. } => {
                 assert_eq!(reason.as_deref(), Some("branch 1 denied"));
             },
-            other => panic!("expected Deny, got {:?}", other),
+            other => panic!("expected Deny, got {other:?}"),
         }
     }
 
@@ -4098,7 +4093,7 @@ mod tests {
             Decision::Deny { reason, .. } => {
                 assert_eq!(reason.as_deref(), Some("idx-0"), "lower-index halt wins");
             },
-            other => panic!("expected Deny, got {:?}", other),
+            other => panic!("expected Deny, got {other:?}"),
         }
     }
 
@@ -4177,11 +4172,10 @@ mod tests {
                         .as_deref()
                         .unwrap_or("")
                         .contains("scope not satisfied"),
-                    "got: {:?}",
-                    reason
+                    "got: {reason:?}"
                 );
             },
-            d => panic!("expected scope Deny, got {:?}", d),
+            d => panic!("expected scope Deny, got {d:?}"),
         }
     }
 
@@ -4198,7 +4192,7 @@ mod tests {
                 assert!(reason.as_deref().unwrap_or("").contains("dispatch failed"));
                 assert_eq!(rule_source, "route.test.policy[0]");
             },
-            d => panic!("expected fail-closed Deny, got {:?}", d),
+            d => panic!("expected fail-closed Deny, got {d:?}"),
         }
     }
 
@@ -4231,7 +4225,7 @@ mod tests {
                         .contains("denied by approver")
                 );
             },
-            d => panic!("expected denial Deny, got {:?}", d),
+            d => panic!("expected denial Deny, got {d:?}"),
         }
         assert_eq!(bag.get_string("elicitation.outcome"), Some("denied"));
     }
@@ -4324,10 +4318,7 @@ mod tests {
                 assert!(r.contains("did not resolve"), "got: {r}");
                 assert!(r.contains("user.manager"), "got: {r}");
             },
-            d => panic!(
-                "expected fail-closed Deny on unresolved `from`, got {:?}",
-                d
-            ),
+            d => panic!("expected fail-closed Deny on unresolved `from`, got {d:?}"),
         }
         // Nothing was dispatched, so no elicitation id was recorded.
         assert!(bag.get_string("elicitation.id").is_none());

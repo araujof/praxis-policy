@@ -88,11 +88,7 @@ fn short_hash(raw: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(raw.as_bytes());
     let digest = hasher.finalize();
-    digest
-        .iter()
-        .take(8)
-        .map(|b| format!("{:02x}", b))
-        .collect()
+    digest.iter().take(8).map(|b| format!("{b:02x}")).collect()
 }
 
 /// Bind a client/upstream-supplied raw session value to the authenticated
@@ -104,7 +100,7 @@ fn short_hash(raw: &str) -> String {
 /// which also requires a subject.
 fn subject_scoped(subject_id: Option<&str>, raw: &str) -> Option<String> {
     let sub = subject_id?;
-    Some(short_hash(&format!("{}:{}", sub, raw)))
+    Some(short_hash(&format!("{sub}:{raw}")))
 }
 
 /// Resolve a session id from the request's `Extensions`. Returns
@@ -180,7 +176,7 @@ pub fn resolve_session(ext: &Extensions) -> Option<(String, SessionSource)> {
                 .as_ref()
                 .and_then(|w| w.client_id.as_deref())
                 .unwrap_or("-");
-            let raw = format!("{}:{}:{}", sub, actor, aud);
+            let raw = format!("{sub}:{actor}:{aud}");
             return Some((short_hash(&raw), SessionSource::Identity));
         }
     }
@@ -453,7 +449,7 @@ mod tests {
         let sec = SecurityExtension {
             subject: Some(SubjectExtension {
                 id: None,
-                claims: [("session_id".to_string(), "claim-value".to_string())]
+                claims: [("session_id".to_owned(), "claim-value".to_owned())]
                     .into_iter()
                     .collect(),
                 ..Default::default()

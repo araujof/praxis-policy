@@ -178,7 +178,7 @@ async fn initialize_fetches_jwks_and_validates_token() {
     );
 
     let mut headers = std::collections::HashMap::new();
-    headers.insert("Authorization".to_string(), format!("Bearer {token}"));
+    headers.insert("Authorization".to_owned(), format!("Bearer {token}"));
 
     let payload = IdentityPayload::new(token.clone(), TokenSource::Bearer)
         .with_source_header("Authorization")
@@ -253,7 +253,7 @@ async fn skipping_initialize_rejects_with_untrusted_issuer() {
         }),
     );
     let mut headers = std::collections::HashMap::new();
-    headers.insert("Authorization".to_string(), format!("Bearer {token}"));
+    headers.insert("Authorization".to_owned(), format!("Bearer {token}"));
 
     let payload = IdentityPayload::new(token, TokenSource::Bearer)
         .with_source_header("Authorization")
@@ -541,7 +541,7 @@ async fn jwks_unreachable_at_initialize_soft_fails() {
     // Point at 127.0.0.1:1 — port 1 isn't bound by typical systems,
     // so the TCP connect fails fast. The fetch timeout would also
     // catch a slow endpoint; here we just want "unreachable."
-    let jwks_url = "http://127.0.0.1:1/jwks".to_string();
+    let jwks_url = "http://127.0.0.1:1/jwks".to_owned();
     let cfg = resolver_config(&jwks_url);
     let resolver = Arc::new(JwtIdentityResolver::new(cfg.clone()).expect("constructs"));
     let mgr = Arc::new(PluginManager::default());

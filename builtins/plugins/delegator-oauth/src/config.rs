@@ -107,15 +107,15 @@ pub enum ClientSecretSource {
 }
 
 fn default_subject_token_type() -> String {
-    "urn:ietf:params:oauth:token-type:access_token".to_string()
+    "urn:ietf:params:oauth:token-type:access_token".to_owned()
 }
 
 fn default_actor_token_type() -> String {
-    "urn:ietf:params:oauth:token-type:jwt".to_string()
+    "urn:ietf:params:oauth:token-type:jwt".to_owned()
 }
 
 fn default_workload_assertion_type() -> String {
-    "urn:ietf:params:oauth:client-assertion-type:jwt-spiffe".to_string()
+    "urn:ietf:params:oauth:client-assertion-type:jwt-spiffe".to_owned()
 }
 
 fn default_timeout_seconds() -> u64 {
@@ -123,7 +123,7 @@ fn default_timeout_seconds() -> u64 {
 }
 
 fn default_outbound_header() -> String {
-    "Authorization".to_string()
+    "Authorization".to_owned()
 }
 
 impl OAuthDelegatorConfig {
@@ -143,7 +143,7 @@ impl ClientSecretSource {
                 std::env::var(name).map_err(|e| format!("env var '{name}' unavailable: {e}"))
             },
             Self::File { path } => std::fs::read_to_string(path)
-                .map(|s| s.trim().to_string())
+                .map(|s| s.trim().to_owned())
                 .map_err(|e| format!("secret file '{}' unreadable: {e}", path.display())),
             Self::Literal { secret } => Ok(secret.clone()),
         }

@@ -91,7 +91,7 @@ impl ElicitationPluginInvoker {
             .elicitation_entries
             .get(plugin_name)
             .cloned()
-            .ok_or_else(|| ElicitationError::NotFound(plugin_name.to_string()))
+            .ok_or_else(|| ElicitationError::NotFound(plugin_name.to_owned()))
     }
 
     /// Common dispatch: invoke the resolved entry with `payload`, returns
@@ -122,7 +122,7 @@ impl ElicitationPluginInvoker {
             let detail = result
                 .violation
                 .map(|v| format!("{}: {}", v.code, v.reason))
-                .unwrap_or_else(|| "denied without violation detail".to_string());
+                .unwrap_or_else(|| "denied without violation detail".to_owned());
             return Err(ElicitationError::Handler(format!(
                 "{op}: plugin `{plugin_name}` halted: {detail}"
             )));

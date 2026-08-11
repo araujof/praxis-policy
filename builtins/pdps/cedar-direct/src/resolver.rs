@@ -157,7 +157,7 @@ impl CedarDirectResolver {
 
         let dialect = match read_yaml_string(map, "dialect").as_deref() {
             None | Some("cedar") => PdpDialect::Cedar,
-            Some(other) => PdpDialect::Custom(other.to_string()),
+            Some(other) => PdpDialect::Custom(other.to_owned()),
         };
 
         let entity_namespace = read_yaml_string(map, "entity_namespace");
@@ -242,7 +242,7 @@ impl PdpResolver for CedarDirectResolver {
                 parsed.context,
                 self.schema.as_deref(),
             )
-            .map_err(|e| PdpError::Dispatch(format!("Cedar request validation failed: {}", e)))?;
+            .map_err(|e| PdpError::Dispatch(format!("Cedar request validation failed: {e}")))?;
 
             let response = self
                 .authorizer
@@ -260,9 +260,9 @@ fn parse_schema(text: &str) -> Result<Schema, BuildError> {
 }
 
 fn read_yaml_string(map: &serde_yaml::Mapping, key: &str) -> Option<String> {
-    map.get(serde_yaml::Value::String(key.to_string()))?
+    map.get(serde_yaml::Value::String(key.to_owned()))?
         .as_str()
-        .map(|s| s.to_string())
+        .map(|s| s.to_owned())
 }
 
 /// Build the principal `EntityUid` for the Cedar request. Returns the
@@ -275,19 +275,16 @@ fn build_principal_uid(
 ) -> Result<cedar_policy::EntityUid, PdpError> {
     let id = bag
         .get_string("subject.id")
-        .ok_or_else(|| PdpError::Dispatch("bag missing `subject.id`".to_string()))?;
+        .ok_or_else(|| PdpError::Dispatch("bag missing `subject.id`".to_owned()))?;
     let kind = bag.get_string("subject.type").unwrap_or("User");
     let entity_type = match namespace {
-        Some(ns) if !ns.is_empty() => format!("{}::{}", ns, kind),
-        _ => kind.to_string(),
+        Some(ns) if !ns.is_empty() => format!("{ns}::{kind}"),
+        _ => kind.to_owned(),
     };
     let uid_str = format!("{}::\"{}\"", entity_type, escape_id(id));
-    uid_str.parse().map_err(|e| {
-        PdpError::Dispatch(format!(
-            "failed to parse principal UID '{}': {}",
-            uid_str, e
-        ))
-    })
+    uid_str
+        .parse()
+        .map_err(|e| PdpError::Dispatch(format!("failed to parse principal UID '{uid_str}': {e}")))
 }
 
 fn build_resource_uid(
@@ -295,15 +292,15 @@ fn build_resource_uid(
 ) -> Result<cedar_policy::EntityUid, PdpError> {
     let map = resource_args
         .as_mapping()
-        .ok_or_else(|| PdpError::Dispatch("cedar:() `resource` must be a mapping".to_string()))?;
+        .ok_or_else(|| PdpError::Dispatch("cedar:() `resource` must be a mapping".to_owned()))?;
     let type_name = read_yaml_string(map, "type")
-        .ok_or_else(|| PdpError::Dispatch("cedar:() `resource.type` missing".to_string()))?;
+        .ok_or_else(|| PdpError::Dispatch("cedar:() `resource.type` missing".to_owned()))?;
     let id = read_yaml_string(map, "id")
-        .ok_or_else(|| PdpError::Dispatch("cedar:() `resource.id` missing".to_string()))?;
+        .ok_or_else(|| PdpError::Dispatch("cedar:() `resource.id` missing".to_owned()))?;
     let uid_str = format!("{}::\"{}\"", type_name, escape_id(&id));
-    uid_str.parse().map_err(|e| {
-        PdpError::Dispatch(format!("failed to parse resource UID '{}': {}", uid_str, e))
-    })
+    uid_str
+        .parse()
+        .map_err(|e| PdpError::Dispatch(format!("failed to parse resource UID '{uid_str}': {e}")))
 }
 
 /// Cedar identifiers in double-quoted form need backslash + quote

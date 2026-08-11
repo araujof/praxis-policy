@@ -161,14 +161,14 @@ fn cmf_payload(text: &str) -> MessagePayload {
 
 fn meta_for_tool(name: &str) -> MetaExtension {
     let mut meta = MetaExtension::default();
-    meta.entity_type = Some("tool".to_string());
-    meta.entity_name = Some(name.to_string());
+    meta.entity_type = Some("tool".to_owned());
+    meta.entity_name = Some(name.to_owned());
     meta
 }
 
 fn extensions_with_label(label: &str) -> Extensions {
     let mut security = SecurityExtension::default();
-    security.add_label(label.to_string());
+    security.add_label(label.to_owned());
     Extensions {
         meta: Some(Arc::new(meta_for_tool("get_weather"))),
         security: Some(Arc::new(security)),
@@ -235,7 +235,7 @@ routes:
     let seen = observed.lock().unwrap().clone();
     assert_eq!(
         seen,
-        vec!["EXISTING".to_string()],
+        vec!["EXISTING".to_owned()],
         "plugin must observe the EXISTING label that the request carried; \
          empty means the synthetic AplRouteHandler stripped security.labels \
          because its cap union didn't include read_labels"
@@ -295,8 +295,7 @@ routes:
     assert!(
         seen.is_empty(),
         "plugin should see no labels when neither it nor the baseline \
-         grants read_labels — got: {:?}",
-        seen
+         grants read_labels — got: {seen:?}"
     );
 }
 
@@ -352,12 +351,11 @@ routes:
         .map(|s| s.labels.iter().cloned().collect())
         .unwrap_or_default();
     assert!(
-        labels.contains(&"APPENDED".to_string()),
+        labels.contains(&"APPENDED".to_owned()),
         "expected APPENDED to land in final security.labels — \
          a missing label means the executor rejected the write on the \
          way out of AplRouteHandler (no append_labels cap on the synthetic). \
-         Got: {:?}",
-        labels
+         Got: {labels:?}"
     );
 }
 
@@ -384,7 +382,7 @@ routes:
     // Set subject id so `authenticated` derives true via praxis-policy-apl-cmf.
     let mut security = SecurityExtension::default();
     security.subject = Some(praxis_policy_core::extensions::SubjectExtension {
-        id: Some("alice".to_string()),
+        id: Some("alice".to_owned()),
         ..Default::default()
     });
     let ext = Extensions {
@@ -438,7 +436,7 @@ routes:
     // false → require denies.
     let mut security = SecurityExtension::default();
     security.subject = Some(praxis_policy_core::extensions::SubjectExtension {
-        id: Some("alice".to_string()),
+        id: Some("alice".to_owned()),
         ..Default::default()
     });
     let ext = Extensions {

@@ -62,30 +62,29 @@ pub fn parse<'a>(
 ) -> Result<ParsedCall<'a>, PdpError> {
     let map = call.args.as_mapping().ok_or_else(|| {
         PdpError::Dispatch(
-            "cedar:() args must be a mapping with `action` and `resource` keys".to_string(),
+            "cedar:() args must be a mapping with `action` and `resource` keys".to_owned(),
         )
     })?;
 
     let action_str = map
-        .get(serde_yaml::Value::String("action".to_string()))
+        .get(serde_yaml::Value::String("action".to_owned()))
         .and_then(|v| v.as_str())
         .ok_or_else(|| {
             PdpError::Dispatch(
                 "cedar:() `action` missing — provide a fully-qualified UID \
                  like 'Action::\"read\"'"
-                    .to_string(),
+                    .to_owned(),
             )
         })?;
     let action: EntityUid = action_str.parse().map_err(|e| {
         PdpError::Dispatch(format!(
-            "cedar:() `action` '{}' not a valid EntityUid: {}",
-            action_str, e
+            "cedar:() `action` '{action_str}' not a valid EntityUid: {e}"
         ))
     })?;
 
     let resource_args = map
-        .get(serde_yaml::Value::String("resource".to_string()))
-        .ok_or_else(|| PdpError::Dispatch("cedar:() `resource` missing".to_string()))?;
+        .get(serde_yaml::Value::String("resource".to_owned()))
+        .ok_or_else(|| PdpError::Dispatch("cedar:() `resource` missing".to_owned()))?;
 
     // Build the merged context: operator-supplied `args.context` keys,
     // overlaid on top of PPE-derived context (delegation, meta,
@@ -93,19 +92,19 @@ pub fn parse<'a>(
     // explicitly wrote it.
     let policy_ctx = build_policy_context(bag);
     let operator_ctx = map
-        .get(serde_yaml::Value::String("context".to_string()))
+        .get(serde_yaml::Value::String("context".to_owned()))
         .cloned()
         .unwrap_or(serde_yaml::Value::Null);
     let mut merged = policy_ctx;
     if !operator_ctx.is_null() {
         let op_json: Value = serde_json::to_value(&operator_ctx).map_err(|e| {
-            PdpError::Dispatch(format!("cedar:() `context` not JSON-representable: {}", e))
+            PdpError::Dispatch(format!("cedar:() `context` not JSON-representable: {e}"))
         })?;
         merge_into(&mut merged, op_json);
     }
 
     let cedar_context = cedar_policy::Context::from_json_value(merged, None)
-        .map_err(|e| PdpError::Dispatch(format!("failed to construct Cedar context: {}", e)))?;
+        .map_err(|e| PdpError::Dispatch(format!("failed to construct Cedar context: {e}")))?;
     // Note: schema-validated context construction takes an
     // (action_schema, action) pair via Cedar's `from_json_value`. For
     // v0 we skip schema-side validation of the context shape — the
@@ -131,7 +130,7 @@ fn build_policy_context(bag: &AttributeBag) -> Value {
 
     let mut delegation = Map::new();
     if let Some(depth) = bag.get_int("delegation.depth") {
-        delegation.insert("depth".to_string(), json!(depth));
+        delegation.insert("depth".to_owned(), json!(depth));
     }
     // The full chain isn't currently in a flat bag key; praxis-policy-apl-cmf
     // exposes presence-only `delegated=true` plus per-attribute hops.
@@ -139,47 +138,47 @@ fn build_policy_context(bag: &AttributeBag) -> Value {
     // forward it here. For now, the depth + delegated bool let policies
     // do basic chain-depth bounds checks.
     if let Some(delegated) = bag.get_bool("delegated") {
-        delegation.insert("delegated".to_string(), json!(delegated));
+        delegation.insert("delegated".to_owned(), json!(delegated));
     }
     if !delegation.is_empty() {
-        root.insert("delegation".to_string(), Value::Object(delegation));
+        root.insert("delegation".to_owned(), Value::Object(delegation));
     }
 
     let mut meta = Map::new();
     if let Some(et) = bag.get_string("meta.entity_type") {
-        meta.insert("entity_type".to_string(), json!(et));
+        meta.insert("entity_type".to_owned(), json!(et));
     }
     if let Some(en) = bag.get_string("meta.entity_name") {
-        meta.insert("entity_name".to_string(), json!(en));
+        meta.insert("entity_name".to_owned(), json!(en));
     }
     if let Some(scope) = bag.get_string("meta.scope") {
-        meta.insert("scope".to_string(), json!(scope));
+        meta.insert("scope".to_owned(), json!(scope));
     }
     if let Some(tags) = bag.get_string_set("meta.tags") {
-        meta.insert("tags".to_string(), json!(tags.iter().collect::<Vec<_>>()));
+        meta.insert("tags".to_owned(), json!(tags.iter().collect::<Vec<_>>()));
     }
     if !meta.is_empty() {
-        root.insert("meta".to_string(), Value::Object(meta));
+        root.insert("meta".to_owned(), Value::Object(meta));
     }
 
     let mut security = Map::new();
     if let Some(labels) = bag.get_string_set("security.labels") {
         security.insert(
-            "labels".to_string(),
+            "labels".to_owned(),
             json!(labels.iter().collect::<Vec<_>>()),
         );
     }
     if let Some(cls) = bag.get_string("security.classification") {
-        security.insert("classification".to_string(), json!(cls));
+        security.insert("classification".to_owned(), json!(cls));
     }
     if !security.is_empty() {
-        root.insert("security".to_string(), Value::Object(security));
+        root.insert("security".to_owned(), Value::Object(security));
     }
 
     // Pass `authenticated` through as a top-level convenience for
     // policies that want `context.authenticated` shorthand.
     if let Some(auth) = bag.get_bool("authenticated") {
-        root.insert("authenticated".to_string(), json!(auth));
+        root.insert("authenticated".to_owned(), json!(auth));
     }
 
     Value::Object(root)

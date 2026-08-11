@@ -441,7 +441,7 @@ mod tests {
         let tc = ToolCall {
             tool_call_id: "tc_001".into(),
             name: "search".into(),
-            arguments: [("query".to_string(), serde_json::json!("rust"))].into(),
+            arguments: [("query".to_owned(), serde_json::json!("rust"))].into(),
             namespace: None,
         };
         assert_eq!(tc.name, "search");

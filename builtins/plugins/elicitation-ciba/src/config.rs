@@ -78,7 +78,7 @@ pub enum ClientSecretSource {
 }
 
 fn default_scope() -> String {
-    "openid".to_string()
+    "openid".to_owned()
 }
 
 fn default_requested_expiry_seconds() -> u64 {
@@ -90,7 +90,7 @@ fn default_http_timeout_seconds() -> u64 {
 }
 
 fn default_approver_claim() -> String {
-    "preferred_username".to_string()
+    "preferred_username".to_owned()
 }
 
 impl CibaConfig {
@@ -109,7 +109,7 @@ impl ClientSecretSource {
                 std::env::var(name).map_err(|e| format!("env var '{name}' unavailable: {e}"))
             },
             Self::File { path } => std::fs::read_to_string(path)
-                .map(|s| s.trim().to_string())
+                .map(|s| s.trim().to_owned())
                 .map_err(|e| format!("secret file '{}' unreadable: {e}", path.display())),
             Self::Literal { secret } => Ok(secret.clone()),
         }

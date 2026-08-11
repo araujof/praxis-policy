@@ -334,7 +334,7 @@ mod tests {
             allow_models: Some(vec!["vllm/*".into()]),
             deny_models: vec!["openai/*".into()],
             max_cost_tiers: vec!["cheap".into(), "standard".into()],
-            custom: [("gpu".to_string(), "h100".to_string())].into(),
+            custom: [("gpu".to_owned(), "h100".to_owned())].into(),
             on_empty: OnEmpty::Fallback,
             ..Default::default()
         };
@@ -481,7 +481,7 @@ mod tests {
     #[test]
     fn custom_labels_equality() {
         let c = CandidateConstraintExtension {
-            custom: [("gpu".to_string(), "h100".to_string())].into(),
+            custom: [("gpu".to_owned(), "h100".to_owned())].into(),
             ..Default::default()
         };
         assert!(c.accepts(&backend(&[("gpu", "h100")]), rank));
@@ -495,7 +495,7 @@ mod tests {
             allow_regions: Some(vec!["eu".into()]),
             deny_models: vec!["openai/*".into()],
             max_cost_tiers: vec!["standard".into()],
-            custom: [("gpu".to_string(), "h100".to_string())].into(),
+            custom: [("gpu".to_owned(), "h100".to_owned())].into(),
             ..Default::default()
         };
         // Satisfies everything.
@@ -527,7 +527,7 @@ mod tests {
             ..Default::default()
         };
         let labels: std::collections::HashMap<String, String> =
-            [("region".to_string(), "eu".to_string())].into();
+            [("region".to_owned(), "eu".to_owned())].into();
         assert!(c.accepts(&labels, rank));
     }
 }

@@ -69,7 +69,7 @@ async fn unconditional_permit_returns_allow() {
         .expect("evaluate");
 
     assert_eq!(decision.decision, Decision::Allow);
-    assert_eq!(decision.diagnostics, vec!["allow-all".to_string()]);
+    assert_eq!(decision.diagnostics, vec!["allow-all".to_owned()]);
 }
 
 /// No policies → default-deny. Confirms the fail-closed default that
@@ -87,7 +87,7 @@ async fn empty_policy_set_denies_by_default() {
         Decision::Deny { rule_source, .. } => {
             assert_eq!(rule_source, "cedar.default_deny");
         },
-        other => panic!("expected Deny on empty policy set, got {:?}", other),
+        other => panic!("expected Deny on empty policy set, got {other:?}"),
     }
     assert!(decision.diagnostics.is_empty(), "no policies fired");
 }
@@ -116,7 +116,7 @@ async fn role_in_bag_reaches_principal_attributes() {
         .await
         .expect("evaluate");
     assert_eq!(decision.decision, Decision::Allow);
-    assert_eq!(decision.diagnostics, vec!["hr-only".to_string()]);
+    assert_eq!(decision.diagnostics, vec!["hr-only".to_owned()]);
 
     // Bob has no roles → policy doesn't match → default-deny.
     let mut bob_bag = AttributeBag::new();
@@ -133,7 +133,7 @@ async fn role_in_bag_reaches_principal_attributes() {
                 "no permit matched → default-deny, not policy-attributed"
             );
         },
-        other => panic!("expected Deny for bob, got {:?}", other),
+        other => panic!("expected Deny for bob, got {other:?}"),
     }
 }
 
@@ -168,11 +168,10 @@ async fn forbid_attribution_carries_policy_id() {
             );
             assert!(
                 reason.as_deref().unwrap_or("").contains("blocklist"),
-                "reason should mention the firing policy: {:?}",
-                reason
+                "reason should mention the firing policy: {reason:?}"
             );
         },
-        other => panic!("expected Deny via blocklist, got {:?}", other),
+        other => panic!("expected Deny via blocklist, got {other:?}"),
     }
     assert!(decision.diagnostics.iter().any(|d| d == "blocklist"));
 }
@@ -192,11 +191,10 @@ async fn missing_subject_id_errors_clearly() {
         .await
         .expect_err("should fail with no subject.id");
 
-    let msg = format!("{}", err);
+    let msg = format!("{err}");
     assert!(
         msg.contains("subject.id"),
-        "error should mention the missing key: {}",
-        msg
+        "error should mention the missing key: {msg}"
     );
 }
 
@@ -220,7 +218,7 @@ policy_text: |
         .await
         .expect("evaluate");
     assert_eq!(decision.decision, Decision::Allow);
-    assert_eq!(decision.diagnostics, vec!["from-config".to_string()]);
+    assert_eq!(decision.diagnostics, vec!["from-config".to_owned()]);
 }
 
 /// Operators can register the resolver under a custom dialect to
@@ -229,10 +227,10 @@ policy_text: |
 async fn with_dialect_overrides_default() {
     let resolver = CedarDirectResolver::from_policy_text("permit(principal, action, resource);")
         .expect("policy parses")
-        .with_dialect(PdpDialect::Custom("workload".to_string()));
+        .with_dialect(PdpDialect::Custom("workload".to_owned()));
 
     assert_eq!(
         resolver.dialect(),
-        PdpDialect::Custom("workload".to_string())
+        PdpDialect::Custom("workload".to_owned())
     );
 }

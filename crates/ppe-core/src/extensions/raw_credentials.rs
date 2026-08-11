@@ -463,8 +463,7 @@ mod tests {
         // this is the load-bearing invariant of the whole extension.
         assert!(
             !json.contains("eyJhbGciOiJSUzI1NiJ9"),
-            "raw token leaked into serialized form: {}",
-            json
+            "raw token leaked into serialized form: {json}"
         );
         assert!(json.contains("Authorization"));
         assert!(json.contains("jwt"));
@@ -491,8 +490,7 @@ mod tests {
         let json = serde_json::to_string(&tok).unwrap();
         assert!(
             !json.contains("minted-secret-bytes"),
-            "delegated token leaked: {}",
-            json
+            "delegated token leaked: {json}"
         );
         assert!(json.contains("downstream.example.com"));
     }

@@ -354,7 +354,7 @@ pub(crate) fn set_dotted(
         cur = next;
     }
     if let serde_json::Value::Object(map) = cur {
-        map.insert((*leaf).to_string(), value);
+        map.insert((*leaf).to_owned(), value);
         true
     } else {
         false
@@ -491,7 +491,7 @@ mod tests {
         FieldRule {
             field: field.into(),
             pipeline: Pipeline { stages },
-            source: format!("test.{}", field),
+            source: format!("test.{field}"),
         }
     }
 
@@ -638,11 +638,10 @@ mod tests {
             Decision::Deny { rule_source, .. } => {
                 assert!(
                     rule_source.contains("amount"),
-                    "expected args rule source, got {}",
-                    rule_source
+                    "expected args rule source, got {rule_source}"
                 );
             },
-            d => panic!("expected Deny from args phase, got {:?}", d),
+            d => panic!("expected Deny from args phase, got {d:?}"),
         }
     }
 
@@ -718,7 +717,7 @@ mod tests {
         .await;
         match r.decision {
             Decision::Deny { rule_source, .. } => assert_eq!(rule_source, "policy[0]"),
-            d => panic!("expected policy deny, got {:?}", d),
+            d => panic!("expected policy deny, got {d:?}"),
         }
         assert!(!r.result_modified);
         // Result payload not mutated — redact didn't run.
@@ -886,7 +885,7 @@ mod tests {
         .await;
         match r.decision {
             Decision::Deny { rule_source, .. } => assert_eq!(rule_source, "post_policy[0]"),
-            d => panic!("expected post_policy deny, got {:?}", d),
+            d => panic!("expected post_policy deny, got {d:?}"),
         }
         // Result was still mutated before the post_policy deny fired.
         assert!(r.result_modified);
@@ -1033,11 +1032,10 @@ mod tests {
             Decision::Deny { rule_source, .. } => {
                 assert!(
                     rule_source.contains("test.id"),
-                    "args denial got source {}",
-                    rule_source
+                    "args denial got source {rule_source}"
                 );
             },
-            d => panic!("expected args-side Deny, got {:?}", d),
+            d => panic!("expected args-side Deny, got {d:?}"),
         }
     }
 

@@ -84,11 +84,11 @@ impl HookHandler<ElicitationHook> for FakeApprover {
         let mut out = payload.clone();
         match payload.operation() {
             ElicitationOp::Dispatch => {
-                out.id = Some("elic-1".to_string());
+                out.id = Some("elic-1".to_owned());
                 out.status = Some(ElicitationStatusKind::Pending);
-                out.approver = Some(payload.from().to_string());
-                out.intent_id = Some("intent-1".to_string());
-                out.expires_at = Some("2099-12-31T00:00:00Z".to_string());
+                out.approver = Some(payload.from().to_owned());
+                out.intent_id = Some("intent-1".to_owned());
+                out.expires_at = Some("2099-12-31T00:00:00Z".to_owned());
             },
             // Resolve immediately (approved or denied) so a single
             // evaluate pass reaches the delegate step or halts at it.
@@ -98,8 +98,8 @@ impl HookHandler<ElicitationHook> for FakeApprover {
             },
             ElicitationOp::Validate => {
                 out.valid = Some(true);
-                out.approver = Some("manager@corp.com".to_string());
-                out.intent_id = Some("intent-1".to_string());
+                out.approver = Some("manager@corp.com".to_owned());
+                out.intent_id = Some("intent-1".to_owned());
             },
         }
         PluginResult::modify_payload(out)
@@ -108,12 +108,12 @@ impl HookHandler<ElicitationHook> for FakeApprover {
 
 fn approver_cfg() -> PluginConfig {
     PluginConfig {
-        name: "manager-approver".to_string(),
-        kind: "test".to_string(),
+        name: "manager-approver".to_owned(),
+        kind: "test".to_owned(),
         description: None,
         author: None,
         version: None,
-        hooks: vec![HOOK_ELICIT.to_string()],
+        hooks: vec![HOOK_ELICIT.to_owned()],
         mode: PluginMode::Sequential,
         priority: 10,
         on_error: OnError::Fail,
@@ -151,13 +151,13 @@ impl HookHandler<TokenDelegateHook> for RecordingDelegate {
         self.ledger
             .lock()
             .unwrap()
-            .push(payload.target_name().to_string());
+            .push(payload.target_name().to_owned());
 
         let token = RawDelegatedToken::new(
             "fake.delegated.token",
             "Authorization",
             "workday-api",
-            vec!["read_compensation".to_string()],
+            vec!["read_compensation".to_owned()],
             Utc::now() + Duration::seconds(300),
         );
         let mut updated = payload.clone();
@@ -168,12 +168,12 @@ impl HookHandler<TokenDelegateHook> for RecordingDelegate {
 
 fn delegate_cfg() -> PluginConfig {
     PluginConfig {
-        name: "workday-oauth".to_string(),
-        kind: "test".to_string(),
+        name: "workday-oauth".to_owned(),
+        kind: "test".to_owned(),
         description: None,
         author: None,
         version: None,
-        hooks: vec![HOOK_TOKEN_DELEGATE.to_string()],
+        hooks: vec![HOOK_TOKEN_DELEGATE.to_owned()],
         mode: PluginMode::Sequential,
         priority: 10,
         on_error: OnError::Fail,

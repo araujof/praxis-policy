@@ -159,18 +159,16 @@ fn check_plugin_mode<L: PluginModeLookup + ?Sized>(
         Some(m) => m,
         None => {
             errors.push(format!(
-                "{}: `parallel:` references unknown plugin `{}`",
-                location, name
+                "{location}: `parallel:` references unknown plugin `{name}`"
             ));
             return;
         },
     };
     if !is_safe_in_parallel(mode) {
         errors.push(format!(
-            "{}: plugin `{}` has mode `{}` which can modify state; parallel \
+            "{location}: plugin `{name}` has mode `{mode}` which can modify state; parallel \
              branches discard mutations, so this would silently lose its effect. \
              Use `sequential:` for ordered mutations or change the plugin's mode.",
-            location, name, mode,
         ));
     }
 }
@@ -212,7 +210,7 @@ mod tests {
             Self(HashMap::new())
         }
         fn with(mut self, name: &str, mode: PluginMode) -> Self {
-            self.0.insert(name.to_string(), mode);
+            self.0.insert(name.to_owned(), mode);
             self
         }
     }
@@ -267,9 +265,9 @@ mod tests {
         let reg = MockLookup::new().with("mutator", PluginMode::Sequential);
         let route = route_with_policy(vec![rule(vec![parallel_plugin("mutator")])]);
         let err = validate_parallel_plugin_modes(&route, &reg).unwrap_err();
-        assert!(err.contains("mutator"), "names plugin: {}", err);
-        assert!(err.contains("sequential"), "names mode: {}", err);
-        assert!(err.contains("`sequential:`"), "suggests fix: {}", err);
+        assert!(err.contains("mutator"), "names plugin: {err}");
+        assert!(err.contains("sequential"), "names mode: {err}");
+        assert!(err.contains("`sequential:`"), "suggests fix: {err}");
     }
 
     #[test]
@@ -327,8 +325,8 @@ mod tests {
             Effect::Plugin { name: "b".into() },
         ])])]);
         let err = validate_parallel_plugin_modes(&route, &reg).unwrap_err();
-        assert!(err.contains("`a`"), "names a: {}", err);
-        assert!(err.contains("`b`"), "names b: {}", err);
+        assert!(err.contains("`a`"), "names a: {err}");
+        assert!(err.contains("`b`"), "names b: {err}");
     }
 
     #[test]

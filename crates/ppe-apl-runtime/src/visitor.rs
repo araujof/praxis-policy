@@ -211,7 +211,7 @@ impl AplConfigVisitor {
     /// resolvers from `global.apl.pdp[]` config blocks.
     pub fn register_pdp_factory(&mut self, factory: Arc<dyn PdpFactory>) {
         self.pdp_factories
-            .insert(factory.kind().to_string(), factory);
+            .insert(factory.kind().to_owned(), factory);
     }
 
     /// Register a `SessionStoreFactory` by its `kind()`. Called during
@@ -220,7 +220,7 @@ impl AplConfigVisitor {
     /// `global.apl.session_store` block.
     pub fn register_session_store_factory(&mut self, factory: Arc<dyn SessionStoreFactory>) {
         self.session_store_factories
-            .insert(factory.kind().to_string(), factory);
+            .insert(factory.kind().to_owned(), factory);
     }
 
     /// Parse the optional `global.apl.session_store` block and swap the
@@ -234,24 +234,20 @@ impl AplConfigVisitor {
         block: &serde_yaml::Value,
     ) -> Result<(), VisitorError> {
         let map = block.as_mapping().ok_or_else(|| {
-            "global.apl.session_store must be a mapping with a `kind:` field".to_string()
+            "global.apl.session_store must be a mapping with a `kind:` field".to_owned()
         })?;
         let kind = map
-            .get(serde_yaml::Value::String("kind".to_string()))
+            .get(serde_yaml::Value::String("kind".to_owned()))
             .and_then(|v| v.as_str())
-            .ok_or_else(|| "global.apl.session_store missing required `kind:` field".to_string())?;
+            .ok_or_else(|| "global.apl.session_store missing required `kind:` field".to_owned())?;
         let factory = self.session_store_factories.get(kind).ok_or_else(|| {
             format!(
-                "global.apl.session_store declared kind='{}' but no factory is registered for that \
-                 kind — host must call register_session_store_factory(...) before load_config_yaml",
-                kind
+                "global.apl.session_store declared kind='{kind}' but no factory is registered for that \
+                 kind — host must call register_session_store_factory(...) before load_config_yaml"
             )
         })?;
         let store = factory.build(block).map_err(|e| {
-            format!(
-                "global.apl.session_store (kind='{}') failed to build: {}",
-                kind, e
-            )
+            format!("global.apl.session_store (kind='{kind}') failed to build: {e}")
         })?;
         *self
             .session_store
@@ -291,9 +287,9 @@ impl AplConfigVisitor {
 
         let mut paths = Vec::with_capacity(entries.len());
         for (i, entry) in entries.iter().enumerate() {
-            let s = entry.as_str().ok_or_else(|| {
-                format!("global.apl.attribute_files[{}] must be a string path", i)
-            })?;
+            let s = entry
+                .as_str()
+                .ok_or_else(|| format!("global.apl.attribute_files[{i}] must be a string path"))?;
             paths.push(std::path::PathBuf::from(s));
         }
         if paths.is_empty() {
@@ -302,7 +298,7 @@ impl AplConfigVisitor {
 
         let tree = crate::attribute_source::FileAttributeSource::new(paths)
             .load()
-            .map_err(|e| format!("global.apl.attribute_files failed to load: {}", e))?;
+            .map_err(|e| format!("global.apl.attribute_files failed to load: {e}"))?;
         *self
             .attribute_tree
             .write()
@@ -333,28 +329,21 @@ impl AplConfigVisitor {
         index: usize,
     ) -> Result<(), VisitorError> {
         let map = entry.as_mapping().ok_or_else(|| {
-            format!(
-                "global.apl.pdp[{}] must be a mapping with a `kind:` field",
-                index
-            )
+            format!("global.apl.pdp[{index}] must be a mapping with a `kind:` field")
         })?;
         let kind = map
-            .get(serde_yaml::Value::String("kind".to_string()))
+            .get(serde_yaml::Value::String("kind".to_owned()))
             .and_then(|v| v.as_str())
-            .ok_or_else(|| format!("global.apl.pdp[{}] missing required `kind:` field", index))?;
+            .ok_or_else(|| format!("global.apl.pdp[{index}] missing required `kind:` field"))?;
         let factory = self.pdp_factories.get(kind).ok_or_else(|| {
             format!(
-                "global.apl.pdp[{}] declared kind='{}' but no factory is registered for that kind — \
-                 host must call register_pdp_factory(...) before load_config_yaml",
-                index, kind
+                "global.apl.pdp[{index}] declared kind='{kind}' but no factory is registered for that kind — \
+                 host must call register_pdp_factory(...) before load_config_yaml"
             )
         })?;
-        let resolver = factory.build(entry).map_err(|e| {
-            format!(
-                "global.apl.pdp[{}] (kind='{}') failed to build: {}",
-                index, kind, e
-            )
-        })?;
+        let resolver = factory
+            .build(entry)
+            .map_err(|e| format!("global.apl.pdp[{index}] (kind='{kind}') failed to build: {e}"))?;
         let mut state = self.state.write().unwrap_or_else(|p| p.into_inner());
         state.pdp_router.register(resolver);
         Ok(())
@@ -500,7 +489,7 @@ impl ConfigVisitor for AplConfigVisitor {
         // takes precedence (injected > attribute_files > none).
         if let Some(files) = apl_block.get("attribute_files") {
             let entries = files.as_sequence().ok_or_else(|| {
-                "global.apl.attribute_files must be a list of file paths".to_string()
+                "global.apl.attribute_files must be a list of file paths".to_owned()
             })?;
             self.build_attribute_tree_from_config(entries)?;
         }
@@ -574,7 +563,7 @@ impl ConfigVisitor for AplConfigVisitor {
         entity_type: &str,
         yaml: &serde_yaml::Value,
     ) -> Result<(), VisitorError> {
-        let source = format!("global.defaults.{}.apl", entity_type);
+        let source = format!("global.defaults.{entity_type}.apl");
         reject_legacy_apl_keys(&source, yaml)?;
         warn_if_response_at_unsupported_scope(yaml, &format!("global.defaults.{entity_type}"));
         let Some(apl_block) = apl_subblock(yaml) else {
@@ -587,7 +576,7 @@ impl ConfigVisitor for AplConfigVisitor {
             .write()
             .unwrap_or_else(|p| p.into_inner())
             .default_layers
-            .insert(entity_type.to_string(), compiled);
+            .insert(entity_type.to_owned(), compiled);
         Ok(())
     }
 
@@ -597,7 +586,7 @@ impl ConfigVisitor for AplConfigVisitor {
         tag: &str,
         yaml: &serde_yaml::Value,
     ) -> Result<(), VisitorError> {
-        let source = format!("global.policies.{}.apl", tag);
+        let source = format!("global.policies.{tag}.apl");
         reject_legacy_apl_keys(&source, yaml)?;
         warn_if_response_at_unsupported_scope(yaml, &format!("global.policies.{tag}"));
         let Some(apl_block) = apl_subblock(yaml) else {
@@ -610,7 +599,7 @@ impl ConfigVisitor for AplConfigVisitor {
             .write()
             .unwrap_or_else(|p| p.into_inner())
             .tag_layers
-            .insert(tag.to_string(), compiled);
+            .insert(tag.to_owned(), compiled);
         Ok(())
     }
 
@@ -666,8 +655,8 @@ impl ConfigVisitor for AplConfigVisitor {
             // entity — otherwise two same-named annotations share one
             // cached plan and the second's overrides leak into the first.
             let route_key = match &scope {
-                Some(s) => format!("{}:{}@{}", entity_type, entity_name, s),
-                None => format!("{}:{}", entity_type, entity_name),
+                Some(s) => format!("{entity_type}:{entity_name}@{s}"),
+                None => format!("{entity_type}:{entity_name}"),
             };
             let state = self.state.read().unwrap_or_else(|p| p.into_inner());
 
@@ -690,7 +679,7 @@ impl ConfigVisitor for AplConfigVisitor {
             drop(state);
 
             if let Some(block) = &route_apl {
-                let source = format!("routes.{}.apl", route_key);
+                let source = format!("routes.{route_key}.apl");
                 let route_layer = compile_policy_block_value(&source, block)
                     .map_err(|e| -> VisitorError { Box::new(e) })?;
                 effective.apply_layer(route_layer);
@@ -740,7 +729,7 @@ impl ConfigVisitor for AplConfigVisitor {
             if let Err(msg) =
                 crate::parallel_safety::validate_parallel_plugin_modes(&effective, mgr.as_ref())
             {
-                let err_msg = format!("route '{}': parallel-safety: {}", route_key, msg);
+                let err_msg = format!("route '{route_key}': parallel-safety: {msg}");
                 return Err(err_msg.into());
             }
 
@@ -852,14 +841,14 @@ fn install_handler(
     // an `HttpExtension`. This lets an entity-route rule combine `http.*` with
     // entity/`args.*` predicates in one evaluation. It is a no-op for hosts that
     // never populate the HTTP extension (nothing to read).
-    capabilities.insert("read_headers".to_string());
+    capabilities.insert("read_headers".to_owned());
     // The APL engine emits the backend candidate constraint (the `restrict`
     // effect's output) into `Extensions.candidate_constraint`. That slot is
     // write-gated in the executor, so the synthetic handler holds the write
     // capability intrinsically — emitting its own routing output, the same
     // way it emits taints. No other plugin can overwrite or drop it without
     // this capability. See `praxis_policy_core::extensions::CAP_WRITE_CANDIDATE_CONSTRAINT`.
-    capabilities.insert(praxis_policy_core::extensions::CAP_WRITE_CANDIDATE_CONSTRAINT.to_string());
+    capabilities.insert(praxis_policy_core::extensions::CAP_WRITE_CANDIDATE_CONSTRAINT.to_owned());
 
     let plugin_config = PluginConfig {
         name: format!(
@@ -868,9 +857,9 @@ fn install_handler(
             entity_name,
             if phase == Phase::Pre { "pre" } else { "post" }
         ),
-        kind: "builtin".to_string(),
+        kind: "builtin".to_owned(),
         // The annotated handler covers exactly one CMF hook name.
-        hooks: vec![hook_name.to_string()],
+        hooks: vec![hook_name.to_owned()],
         capabilities,
         ..Default::default()
     };
@@ -888,10 +877,10 @@ fn install_handler(
         handler = handler.with_pdp(pdp);
     }
     mgr.annotate_route(
-        entity_type.to_string(),
-        entity_name.to_string(),
+        entity_type.to_owned(),
+        entity_name.to_owned(),
         scope,
-        hook_name.to_string(),
+        hook_name.to_owned(),
         Arc::new(handler),
         plugin_config,
     );
@@ -919,7 +908,7 @@ fn entity_identity(route: &RouteEntry) -> Option<(&'static str, Vec<String>)> {
 
 fn names_of(sol: &praxis_policy_core::config::StringOrList) -> Vec<String> {
     match sol {
-        praxis_policy_core::config::StringOrList::Single(p) => vec![p.as_str().to_string()],
+        praxis_policy_core::config::StringOrList::Single(p) => vec![p.as_str().to_owned()],
         praxis_policy_core::config::StringOrList::List(v) => v.clone(),
     }
 }
@@ -1007,7 +996,7 @@ fn reject_legacy_apl_keys(scope: &str, yaml: &serde_yaml::Value) -> Result<(), V
         return Ok(());
     };
     for (old, new) in RENAMED_APL_KEYS {
-        if map.contains_key(serde_yaml::Value::String(old.to_string())) {
+        if map.contains_key(serde_yaml::Value::String(old.to_owned())) {
             return Err(format!(
                 "in `{scope}`: config field `{old}` was renamed to `{new}` — update your config",
             )
@@ -1028,7 +1017,7 @@ fn strip_non_dsl_keys(apl_block: &serde_yaml::Value) -> serde_yaml::Value {
     };
     let mut cloned = map.clone();
     for key in GLOBAL_ONLY_NON_DSL_KEYS {
-        cloned.remove(serde_yaml::Value::String(key.to_string()));
+        cloned.remove(serde_yaml::Value::String(key.to_owned()));
     }
     serde_yaml::Value::Mapping(cloned)
 }
@@ -1100,7 +1089,7 @@ fn apl_subblock(yaml: &serde_yaml::Value) -> Option<serde_yaml::Value> {
     let mut block = serde_yaml::Mapping::new();
     for key in FLAT_APL_KEYS {
         if let Some(value) = yaml.get(key) {
-            block.insert(serde_yaml::Value::String(key.to_string()), value.clone());
+            block.insert(serde_yaml::Value::String(key.to_owned()), value.clone());
         }
     }
     // `plugins` only in its apl-override (map) shape; a list is the
@@ -1108,7 +1097,7 @@ fn apl_subblock(yaml: &serde_yaml::Value) -> Option<serde_yaml::Value> {
     if let Some(value) = yaml.get("plugins") {
         if value.is_mapping() {
             block.insert(
-                serde_yaml::Value::String("plugins".to_string()),
+                serde_yaml::Value::String("plugins".to_owned()),
                 value.clone(),
             );
         }
@@ -1216,11 +1205,11 @@ mod tests {
 
     fn field_rule(field: &str) -> FieldRule {
         FieldRule {
-            field: field.to_string(),
+            field: field.to_owned(),
             pipeline: Pipeline {
                 stages: vec![Stage::Type(TypeCheck::Str)],
             },
-            source: "test".to_string(),
+            source: "test".to_owned(),
         }
     }
 
@@ -1453,11 +1442,11 @@ mod tests {
 
         let referenced = crate::dispatch_plan::collect_plugin_names(&route);
         assert!(
-            referenced.contains(&"used".to_string()),
+            referenced.contains(&"used".to_owned()),
             "pre_invocation step is referenced"
         );
         assert!(
-            !referenced.contains(&"unused".to_string()),
+            !referenced.contains(&"unused".to_owned()),
             "config-only override is not a reference",
         );
         assert!(

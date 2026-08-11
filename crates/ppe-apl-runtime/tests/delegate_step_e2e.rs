@@ -108,8 +108,8 @@ impl HookHandler<TokenDelegateHook> for RecordingDelegate {
     ) -> PluginResult<DelegationPayload> {
         self.ledger.lock().unwrap().push(DelegateCallRecord {
             plugin_name: self.cfg.name.clone(),
-            target_name: payload.target_name().to_string(),
-            target_audience: payload.target_audience().map(str::to_string),
+            target_name: payload.target_name().to_owned(),
+            target_audience: payload.target_audience().map(str::to_owned),
             required_permissions: payload.required_permissions().to_vec(),
         });
 
@@ -168,12 +168,12 @@ fn delegate_cfg(name: &str) -> PluginConfig {
 /// `read_delegation`. Used by cap-gating tests.
 fn delegate_cfg_with_caps(name: &str, caps: &[&str]) -> PluginConfig {
     PluginConfig {
-        name: name.to_string(),
-        kind: "test".to_string(),
+        name: name.to_owned(),
+        kind: "test".to_owned(),
         description: None,
         author: None,
         version: None,
-        hooks: vec![HOOK_TOKEN_DELEGATE.to_string()],
+        hooks: vec![HOOK_TOKEN_DELEGATE.to_owned()],
         mode: PluginMode::Sequential,
         priority: 10,
         on_error: OnError::Fail,
@@ -241,7 +241,7 @@ fn ext_with_subject_and_label(token: &str, subject_id: &str, label: &str) -> Ext
 
     let mut sec = SecurityExtension::default();
     sec.subject = Some(SubjectExtension {
-        id: Some(subject_id.to_string()),
+        id: Some(subject_id.to_owned()),
         ..Default::default()
     });
     sec.add_label(label);
@@ -289,8 +289,8 @@ async fn delegate_step_grants_visible_to_downstream_require() {
     let plugin = Arc::new(RecordingDelegate {
         cfg: delegate_cfg("workday-oauth"),
         ledger: Arc::clone(&ledger),
-        grant_scopes: Some(vec!["read_compensation".to_string()]),
-        grant_audience: "workday-api".to_string(),
+        grant_scopes: Some(vec!["read_compensation".to_owned()]),
+        grant_audience: "workday-api".to_owned(),
         deny_code: None,
         observed_extensions: Arc::new(Mutex::new(None)),
     });
@@ -314,7 +314,7 @@ routes:
     let (mgr, cfg, cache) = build_setup(
         yaml,
         vec![(
-            "workday-oauth".to_string(),
+            "workday-oauth".to_owned(),
             Arc::clone(&plugin),
             delegate_cfg("workday-oauth"),
         )],
@@ -422,7 +422,7 @@ async fn delegate_step_default_on_error_denies_route() {
         ledger: Arc::clone(&ledger),
         grant_scopes: None,
         grant_audience: String::new(),
-        deny_code: Some("delegation.idp_rejected".to_string()),
+        deny_code: Some("delegation.idp_rejected".to_owned()),
         observed_extensions: Arc::new(Mutex::new(None)),
     });
 
@@ -442,7 +442,7 @@ routes:
     let (mgr, cfg, cache) = build_setup(
         yaml,
         vec![(
-            "workday-oauth".to_string(),
+            "workday-oauth".to_owned(),
             Arc::clone(&plugin),
             delegate_cfg("workday-oauth"),
         )],
@@ -522,7 +522,7 @@ async fn delegate_step_on_error_continue_lets_pipeline_proceed() {
         ledger: Arc::clone(&ledger),
         grant_scopes: None,
         grant_audience: String::new(),
-        deny_code: Some("audit.unavailable".to_string()),
+        deny_code: Some("audit.unavailable".to_owned()),
         observed_extensions: Arc::new(Mutex::new(None)),
     });
 
@@ -539,7 +539,7 @@ routes:
     let (mgr, cfg, cache) = build_setup(
         yaml,
         vec![(
-            "audit-receipt".to_string(),
+            "audit-receipt".to_owned(),
             Arc::clone(&plugin),
             delegate_cfg("audit-receipt"),
         )],
@@ -608,16 +608,16 @@ async fn multiple_delegates_most_recent_wins_in_bag_extensions_accumulate() {
     let workday = Arc::new(RecordingDelegate {
         cfg: delegate_cfg("workday-oauth"),
         ledger: Arc::clone(&ledger),
-        grant_scopes: Some(vec!["read_compensation".to_string()]),
-        grant_audience: "workday-api".to_string(),
+        grant_scopes: Some(vec!["read_compensation".to_owned()]),
+        grant_audience: "workday-api".to_owned(),
         deny_code: None,
         observed_extensions: Arc::new(Mutex::new(None)),
     });
     let payroll = Arc::new(RecordingDelegate {
         cfg: delegate_cfg("payroll-oauth"),
         ledger: Arc::clone(&ledger),
-        grant_scopes: Some(vec!["read_salary".to_string()]),
-        grant_audience: "payroll-api".to_string(),
+        grant_scopes: Some(vec!["read_salary".to_owned()]),
+        grant_audience: "payroll-api".to_owned(),
         deny_code: None,
         observed_extensions: Arc::new(Mutex::new(None)),
     });
@@ -649,12 +649,12 @@ routes:
         yaml,
         vec![
             (
-                "workday-oauth".to_string(),
+                "workday-oauth".to_owned(),
                 Arc::clone(&workday),
                 delegate_cfg("workday-oauth"),
             ),
             (
-                "payroll-oauth".to_string(),
+                "payroll-oauth".to_owned(),
                 Arc::clone(&payroll),
                 delegate_cfg("payroll-oauth"),
             ),
@@ -757,8 +757,8 @@ async fn delegate_with_read_subject_sees_subject_but_not_labels() {
     let plugin = Arc::new(RecordingDelegate {
         cfg: plugin_cfg.clone(),
         ledger: Arc::clone(&ledger),
-        grant_scopes: Some(vec!["read_compensation".to_string()]),
-        grant_audience: "workday-api".to_string(),
+        grant_scopes: Some(vec!["read_compensation".to_owned()]),
+        grant_audience: "workday-api".to_owned(),
         deny_code: None,
         observed_extensions: Arc::clone(&observed),
     });
@@ -776,7 +776,7 @@ routes:
     let (mgr, cfg, cache) = build_setup(
         yaml,
         vec![(
-            "scoped-delegate".to_string(),
+            "scoped-delegate".to_owned(),
             Arc::clone(&plugin),
             plugin_cfg,
         )],
@@ -866,8 +866,8 @@ async fn delegate_without_caps_sees_stripped_extensions() {
     let plugin = Arc::new(RecordingDelegate {
         cfg: plugin_cfg.clone(),
         ledger: Arc::clone(&ledger),
-        grant_scopes: Some(vec!["read_compensation".to_string()]),
-        grant_audience: "workday-api".to_string(),
+        grant_scopes: Some(vec!["read_compensation".to_owned()]),
+        grant_audience: "workday-api".to_owned(),
         deny_code: None,
         observed_extensions: Arc::clone(&observed),
     });
@@ -885,7 +885,7 @@ routes:
     let (mgr, cfg, cache) = build_setup(
         yaml,
         vec![(
-            "capless-delegate".to_string(),
+            "capless-delegate".to_owned(),
             Arc::clone(&plugin),
             plugin_cfg,
         )],

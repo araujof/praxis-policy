@@ -44,10 +44,10 @@ async fn manager_with(yaml: &str) -> Arc<PluginManager> {
 /// extension carrying the request method.
 fn http_request(method: &str) -> Extensions {
     let mut meta = MetaExtension::default();
-    meta.entity_type = Some(ENTITY_HTTP.to_string());
-    meta.entity_name = Some(ENTITY_NAME_GLOBAL.to_string());
+    meta.entity_type = Some(ENTITY_HTTP.to_owned());
+    meta.entity_name = Some(ENTITY_NAME_GLOBAL.to_owned());
     let http = HttpExtension {
-        method: Some(method.to_string()),
+        method: Some(method.to_owned()),
         ..Default::default()
     };
     Extensions {
@@ -66,8 +66,8 @@ fn payload() -> MessagePayload {
 /// An MCP tool-call request: `meta` naming a `tool` entity, no `http` ext.
 fn tool_request(name: &str) -> Extensions {
     let mut meta = MetaExtension::default();
-    meta.entity_type = Some("tool".to_string());
-    meta.entity_name = Some(name.to_string());
+    meta.entity_type = Some("tool".to_owned());
+    meta.entity_name = Some(name.to_owned());
     Extensions {
         meta: Some(Arc::new(meta)),
         ..Default::default()
@@ -79,10 +79,10 @@ fn tool_request(name: &str) -> Extensions {
 /// request line so one policy can combine `http.*` and entity attributes.
 fn tool_request_with_http(name: &str, method: &str) -> Extensions {
     let mut meta = MetaExtension::default();
-    meta.entity_type = Some("tool".to_string());
-    meta.entity_name = Some(name.to_string());
+    meta.entity_type = Some("tool".to_owned());
+    meta.entity_name = Some(name.to_owned());
     let http = HttpExtension {
-        method: Some(method.to_string()),
+        method: Some(method.to_owned()),
         ..Default::default()
     };
     Extensions {

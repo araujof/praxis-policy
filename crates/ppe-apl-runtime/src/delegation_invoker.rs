@@ -156,7 +156,7 @@ impl DelegationInvoker for DelegationPluginInvoker {
             .and_then(|m| m.get(serde_yaml::Value::String("target".into())))
             .and_then(|v| v.as_str())
             .unwrap_or(&step.plugin_name)
-            .to_string();
+            .to_owned();
 
         // Optional RFC 8693 actor. When the step opts in with e.g.
         // `actor: client`, attach that inbound credential as the
@@ -198,7 +198,7 @@ impl DelegationInvoker for DelegationPluginInvoker {
         {
             let list: Vec<String> = perms
                 .iter()
-                .filter_map(|v| v.as_str().map(str::to_string))
+                .filter_map(|v| v.as_str().map(str::to_owned))
                 .collect();
             if !list.is_empty() {
                 payload = payload.with_required_permissions(list);
@@ -376,7 +376,7 @@ fn target_type_from_str(s: &str) -> TargetType {
         "agent" => TargetType::Agent,
         "resource" => TargetType::Resource,
         "service" => TargetType::Service,
-        other => TargetType::Custom(other.to_string()),
+        other => TargetType::Custom(other.to_owned()),
     }
 }
 

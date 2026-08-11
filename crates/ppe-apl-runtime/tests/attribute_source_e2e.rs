@@ -38,8 +38,8 @@ fn cmf_payload(text: &str) -> MessagePayload {
 
 fn meta_for_tool(name: &str) -> MetaExtension {
     let mut meta = MetaExtension::default();
-    meta.entity_type = Some("tool".to_string());
-    meta.entity_name = Some(name.to_string());
+    meta.entity_type = Some("tool".to_owned());
+    meta.entity_name = Some(name.to_owned());
     meta
 }
 
@@ -61,7 +61,7 @@ async fn build_manager_with_data(yaml: &str, data_docs_yaml: &str) -> Arc<Plugin
     // Load the tree from an in-memory "file" and install it BEFORE the
     // config walk (handlers capture the tree during load_config_yaml).
     let doc: serde_json::Value = serde_yaml::from_str(data_docs_yaml).unwrap();
-    let tree = merge_attribute_docs([("attrs.yaml".to_string(), doc)]).unwrap();
+    let tree = merge_attribute_docs([("attrs.yaml".to_owned(), doc)]).unwrap();
     visitor.set_attribute_tree(tree);
 
     mgr.load_config_yaml(yaml).expect("load_config_yaml");
@@ -129,7 +129,7 @@ async fn missing_data_key_is_absent_not_error() {
 /// Invoke with a subject id so `subject.id` lands in the bag.
 async fn invoke_as_subject(mgr: &Arc<PluginManager>, tool: &str, subject_id: &str) -> bool {
     let mut subject = SubjectExtension::default();
-    subject.id = Some(subject_id.to_string());
+    subject.id = Some(subject_id.to_owned());
     let ext = Extensions {
         meta: Some(Arc::new(meta_for_tool(tool))),
         security: Some(Arc::new(SecurityExtension {
@@ -189,7 +189,7 @@ async fn constraint_as_subject(
     subject_id: &str,
 ) -> Option<CandidateConstraintExtension> {
     let mut subject = SubjectExtension::default();
-    subject.id = Some(subject_id.to_string());
+    subject.id = Some(subject_id.to_owned());
     let ext = Extensions {
         meta: Some(Arc::new(meta_for_tool(tool))),
         security: Some(Arc::new(SecurityExtension {
@@ -231,14 +231,14 @@ async fn restrict_field_reference_resolves_per_caller() {
     let support = constraint_as_subject(&mgr, "infer", "support-bot")
         .await
         .expect("support-bot constraint");
-    assert_eq!(support.allow_models, Some(vec!["vllm/*".to_string()]));
+    assert_eq!(support.allow_models, Some(vec!["vllm/*".to_owned()]));
 
     let research = constraint_as_subject(&mgr, "infer", "research-bot")
         .await
         .expect("research-bot constraint");
     assert_eq!(
         research.allow_models,
-        Some(vec!["anthropic/*".to_string(), "vllm/*".to_string()])
+        Some(vec!["anthropic/*".to_owned(), "vllm/*".to_owned()])
     );
 }
 
@@ -392,7 +392,7 @@ routes:
     // Inject a tree saying `us` — must win over the file's `eu`.
     let doc: serde_json::Value =
         serde_yaml::from_str("data:\n  org:\n    default_region: us\n").unwrap();
-    visitor.set_attribute_tree(merge_attribute_docs([("inj".to_string(), doc)]).unwrap());
+    visitor.set_attribute_tree(merge_attribute_docs([("inj".to_owned(), doc)]).unwrap());
     mgr.load_config_yaml(&yaml).expect("load_config_yaml");
     mgr.initialize().await.expect("initialize");
 

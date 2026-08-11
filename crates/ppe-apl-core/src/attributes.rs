@@ -56,7 +56,7 @@ impl From<f64> for AttributeValue {
 }
 impl From<&str> for AttributeValue {
     fn from(v: &str) -> Self {
-        AttributeValue::String(v.to_string())
+        AttributeValue::String(v.to_owned())
     }
 }
 impl From<String> for AttributeValue {
@@ -265,7 +265,7 @@ mod tests {
         let mut bag = AttributeBag::new();
         bag.set(
             "session.labels",
-            HashSet::from(["PII".to_string(), "financial".to_string()]),
+            HashSet::from(["PII".to_owned(), "financial".to_owned()]),
         );
 
         assert!(bag.set_contains("session.labels", "PII"));

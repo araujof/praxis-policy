@@ -104,10 +104,10 @@ fn alice_hr() -> SecurityExtension {
         subject: Some(SubjectExtension {
             id: Some("alice@corp.com".into()),
             subject_type: Some(SubjectType::User),
-            roles: HashSet::from(["hr".to_string()]),
-            permissions: HashSet::from(["view_ssn".to_string()]),
-            teams: HashSet::from(["compliance".to_string()]),
-            claims: HashMap::from([("iss".to_string(), "auth.corp".to_string())]),
+            roles: HashSet::from(["hr".to_owned()]),
+            permissions: HashSet::from(["view_ssn".to_owned()]),
+            teams: HashSet::from(["compliance".to_owned()]),
+            claims: HashMap::from([("iss".to_owned(), "auth.corp".to_owned())]),
         }),
         this_workload: Some(WorkloadIdentity {
             client_id: Some("hr-tool".into()),
@@ -304,11 +304,10 @@ routes:
         Decision::Deny { rule_source, .. } => {
             assert!(
                 rule_source.contains("pre_invocation"),
-                "got source {}",
-                rule_source
+                "got source {rule_source}"
             );
         },
-        d => panic!("expected Deny on include_ssn, got {:?}", d),
+        d => panic!("expected Deny on include_ssn, got {d:?}"),
     }
 }
 

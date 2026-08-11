@@ -204,7 +204,7 @@ where
                 // slot; cancelled ones get left as `None` and filled
                 // with `Aborted` post-loop.
                 if e.is_panic() {
-                    let payload = format!("{:?}", e);
+                    let payload = format!("{e:?}");
                     if let Some(&idx) = id_to_idx.get(&e.id()) {
                         done.insert(idx, BranchOutcome::Panicked(payload));
                     }
@@ -289,7 +289,7 @@ mod tests {
         for (i, outcome) in out.into_iter().enumerate() {
             match outcome {
                 BranchOutcome::Completed(v) => assert_eq!(v, i, "input order preserved"),
-                other => panic!("expected Completed({}), got {:?}", i, other),
+                other => panic!("expected Completed({i}), got {other:?}"),
             }
         }
     }

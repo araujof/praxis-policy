@@ -64,8 +64,8 @@ routes:
 
 fn meta_for_tool(name: &str) -> MetaExtension {
     MetaExtension {
-        entity_type: Some("tool".to_string()),
-        entity_name: Some(name.to_string()),
+        entity_type: Some("tool".to_owned()),
+        entity_name: Some(name.to_owned()),
         ..Default::default()
     }
 }
@@ -73,7 +73,7 @@ fn meta_for_tool(name: &str) -> MetaExtension {
 fn security_with_roles(id: &str, roles: &[&str]) -> SecurityExtension {
     SecurityExtension {
         subject: Some(SubjectExtension {
-            id: Some(id.to_string()),
+            id: Some(id.to_owned()),
             subject_type: Some(SubjectType::User),
             roles: roles.iter().map(|r| r.to_string()).collect::<HashSet<_>>(),
             ..Default::default()

@@ -381,10 +381,10 @@ mod tests {
         let subject = SubjectExtension {
             id: Some("alice".into()),
             subject_type: Some(SubjectType::User),
-            roles: ["admin".to_string(), "hr".to_string()].into(),
-            permissions: ["read_all".to_string()].into(),
-            teams: ["engineering".to_string()].into(),
-            claims: [("iss".to_string(), "auth.example.com".to_string())].into(),
+            roles: ["admin".to_owned(), "hr".to_owned()].into(),
+            permissions: ["read_all".to_owned()].into(),
+            teams: ["engineering".to_owned()].into(),
+            claims: [("iss".to_owned(), "auth.example.com".to_owned())].into(),
         };
         assert_eq!(subject.id.as_deref(), Some("alice"));
         assert_eq!(subject.subject_type, Some(SubjectType::User));

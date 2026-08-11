@@ -422,9 +422,9 @@ async fn main() {
 
     // --- Load config from YAML file ---
     let config_path = "crates/ppe-core/examples/plugin_demo.yaml";
-    println!("--- Loading config from {} ---\n", config_path);
+    println!("--- Loading config from {config_path} ---\n");
     let yaml = std::fs::read_to_string(config_path)
-        .unwrap_or_else(|e| panic!("Failed to read {}: {}", config_path, e));
+        .unwrap_or_else(|e| panic!("Failed to read {config_path}: {e}"));
     let policy_config = praxis_policy_core::config::parse_config(&yaml).unwrap();
 
     let mgr = PluginManager::default();

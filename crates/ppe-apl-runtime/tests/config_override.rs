@@ -146,8 +146,8 @@ fn cmf_payload() -> MessagePayload {
 
 fn meta_for_tool(name: &str) -> MetaExtension {
     let mut meta = MetaExtension::default();
-    meta.entity_type = Some("tool".to_string());
-    meta.entity_name = Some(name.to_string());
+    meta.entity_type = Some("tool".to_owned());
+    meta.entity_name = Some(name.to_owned());
     meta
 }
 
@@ -469,11 +469,11 @@ plugins:
     // plugins to resolve through praxis-policy-core.
     let mut registry = PluginRegistry::new();
     registry.insert(
-        "gate".to_string(),
+        "gate".to_owned(),
         PluginDeclaration {
-            name: "gate".to_string(),
-            kind: "allowlist-gate".to_string(),
-            hooks: vec!["cmf.tool_pre_invoke".to_string()],
+            name: "gate".to_owned(),
+            kind: "allowlist-gate".to_owned(),
+            hooks: vec!["cmf.tool_pre_invoke".to_owned()],
             capabilities: Vec::new(),
             config: None,
             on_error: None,
@@ -493,7 +493,7 @@ plugins:
     override_block.on_error = Some("ignore".into());
     route_override
         .plugin_overrides
-        .insert("gate".to_string(), override_block);
+        .insert("gate".to_owned(), override_block);
     let plan_override: std::sync::Arc<RouteDispatchPlan> =
         cache.get_or_build(&route_override, &registry, &mgr).await;
     let entry_override = plan_override

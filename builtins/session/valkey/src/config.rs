@@ -16,7 +16,7 @@ use crate::error::BuildError;
 /// Default key prefix/namespace for the label keyspace. The `v1` segment
 /// lets a future value-schema change bump the namespace cleanly.
 fn default_key_prefix() -> String {
-    "taint:v1".to_string()
+    "taint:v1".to_owned()
 }
 
 // Committed fail-closed defaults (see plan Key Technical Decisions). They
@@ -137,7 +137,7 @@ impl ValkeyConfig {
             return Err(BuildError::Config(
                 "`username` is set without a `password`; supply a `password` for the ACL \
                  user, or remove `username` to connect as the default user"
-                    .to_string(),
+                    .to_owned(),
             ));
         }
 
@@ -221,12 +221,10 @@ impl ValkeyConfig {
             // set_username/set_password percent-encode and reject hosts
             // that cannot carry userinfo (e.g. cannot-be-a-base URLs).
             url.set_username(self.username.as_deref().unwrap_or(""))
-                .map_err(|()| {
-                    BuildError::Config("endpoint cannot carry credentials".to_string())
-                })?;
+                .map_err(|()| BuildError::Config("endpoint cannot carry credentials".to_owned()))?;
             if let Some(password) = &self.password {
                 url.set_password(Some(password)).map_err(|()| {
-                    BuildError::Config("endpoint cannot carry credentials".to_string())
+                    BuildError::Config("endpoint cannot carry credentials".to_owned())
                 })?;
             }
         }
@@ -241,13 +239,13 @@ fn redact_endpoint(endpoint: &str) -> String {
         if let Some((_userinfo, host)) = after.rsplit_once('@') {
             return format!("{scheme}://***@{host}");
         }
-        return endpoint.to_string();
+        return endpoint.to_owned();
     }
     // Bare host:port may still carry userinfo if misconfigured.
     if let Some((_userinfo, host)) = endpoint.rsplit_once('@') {
         return format!("***@{host}");
     }
-    endpoint.to_string()
+    endpoint.to_owned()
 }
 
 /// Best-effort localhost check for the TLS-required rule. Strips scheme,

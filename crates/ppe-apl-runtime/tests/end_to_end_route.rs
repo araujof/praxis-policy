@@ -196,7 +196,7 @@ impl PluginFactory for DenyPluginFactory {
 async fn manager_with(kind: &str, factory: Box<dyn PluginFactory>) -> Arc<PluginManager> {
     let mgr = PluginManager::default();
     mgr.register_factory(kind, factory);
-    let yaml = format!("plugins:\n  - name: {0}\n    kind: {0}\n", kind);
+    let yaml = format!("plugins:\n  - name: {kind}\n    kind: {kind}\n");
     let cfg = praxis_policy_core::config::parse_config(&yaml).expect("parse_config");
     mgr.load_config(cfg).expect("load_config");
     mgr.initialize().await.expect("initialize");
@@ -330,7 +330,7 @@ routes:
             );
             assert_eq!(rule_source, "policy.forbidden");
         },
-        other => panic!("expected Decision::Deny, got {:?}", other),
+        other => panic!("expected Decision::Deny, got {other:?}"),
     }
 }
 
@@ -473,7 +473,7 @@ routes:
         .load_labels(&session_key)
         .await
         .expect("load_labels");
-    assert_eq!(stored, vec!["PII".to_string()]);
+    assert_eq!(stored, vec!["PII".to_owned()]);
 }
 
 #[tokio::test]
@@ -485,7 +485,7 @@ async fn session_store_hydrates_labels_at_request_start() {
     let (extensions, session_key) = session_ext_and_key("sess-existing", "alice");
     let session_store = Arc::new(MemorySessionStore::new());
     session_store
-        .append_labels(&session_key, &["PRIOR".to_string()])
+        .append_labels(&session_key, &["PRIOR".to_owned()])
         .await
         .expect("append_labels");
 
@@ -550,7 +550,7 @@ routes:
         .await
         .expect("load_labels");
     stored.sort();
-    assert_eq!(stored, vec!["PII".to_string(), "PRIOR".to_string()]);
+    assert_eq!(stored, vec!["PII".to_owned(), "PRIOR".to_owned()]);
 }
 
 /// Proof: an APL `taint(audit, session)` step lands the
@@ -629,7 +629,7 @@ routes:
         .load_labels(&session_key)
         .await
         .expect("load_labels");
-    assert_eq!(stored, vec!["audit".to_string()]);
+    assert_eq!(stored, vec!["audit".to_owned()]);
 }
 
 // ---------------------------------------------------------------------
@@ -690,8 +690,8 @@ routes:
 // request must carry tool meta for the `tool: get_weather` handler to fire.
 fn set_tool_meta(ext: &mut Extensions, tool: &str) {
     let mut meta = praxis_policy_core::extensions::MetaExtension::default();
-    meta.entity_type = Some("tool".to_string());
-    meta.entity_name = Some(tool.to_string());
+    meta.entity_type = Some("tool".to_owned());
+    meta.entity_name = Some(tool.to_owned());
     ext.meta = Some(Arc::new(meta));
 }
 
@@ -976,7 +976,7 @@ struct RecordingSessionStore {
 #[async_trait]
 impl SessionStore for RecordingSessionStore {
     async fn load_labels(&self, session_id: &str) -> Result<Vec<String>, SessionStoreError> {
-        self.loads.lock().unwrap().push(session_id.to_string());
+        self.loads.lock().unwrap().push(session_id.to_owned());
         Ok(Vec::new())
     }
     async fn append_labels(
@@ -987,7 +987,7 @@ impl SessionStore for RecordingSessionStore {
         self.appends
             .lock()
             .unwrap()
-            .push((session_id.to_string(), labels.to_vec()));
+            .push((session_id.to_owned(), labels.to_vec()));
         Ok(())
     }
 }

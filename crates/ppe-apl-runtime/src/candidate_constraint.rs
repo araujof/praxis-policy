@@ -267,42 +267,42 @@ mod tests {
     fn custom_union() {
         let folded = fold(&[
             CandidateConstraint {
-                custom: [("gpu".to_string(), "h100".to_string())].into(),
+                custom: [("gpu".to_owned(), "h100".to_owned())].into(),
                 ..c()
             },
             CandidateConstraint {
-                custom: [("tenancy".to_string(), "dedicated".to_string())].into(),
+                custom: [("tenancy".to_owned(), "dedicated".to_owned())].into(),
                 ..c()
             },
         ]);
-        assert_eq!(folded.custom.get("gpu"), Some(&"h100".to_string()));
-        assert_eq!(folded.custom.get("tenancy"), Some(&"dedicated".to_string()));
+        assert_eq!(folded.custom.get("gpu"), Some(&"h100".to_owned()));
+        assert_eq!(folded.custom.get("tenancy"), Some(&"dedicated".to_owned()));
     }
 
     #[test]
     fn custom_same_key_same_value_ok() {
         let folded = fold(&[
             CandidateConstraint {
-                custom: [("gpu".to_string(), "h100".to_string())].into(),
+                custom: [("gpu".to_owned(), "h100".to_owned())].into(),
                 ..c()
             },
             CandidateConstraint {
-                custom: [("gpu".to_string(), "h100".to_string())].into(),
+                custom: [("gpu".to_owned(), "h100".to_owned())].into(),
                 ..c()
             },
         ]);
-        assert_eq!(folded.custom.get("gpu"), Some(&"h100".to_string()));
+        assert_eq!(folded.custom.get("gpu"), Some(&"h100".to_owned()));
     }
 
     #[test]
     fn custom_conflict_fails_closed() {
         let err = fold_candidate_constraints(&[
             CandidateConstraint {
-                custom: [("gpu".to_string(), "h100".to_string())].into(),
+                custom: [("gpu".to_owned(), "h100".to_owned())].into(),
                 ..c()
             },
             CandidateConstraint {
-                custom: [("gpu".to_string(), "a100".to_string())].into(),
+                custom: [("gpu".to_owned(), "a100".to_owned())].into(),
                 ..c()
             },
         ])

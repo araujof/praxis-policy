@@ -224,7 +224,7 @@ fn has_read_access(policy: &SlotPolicy, capabilities: &HashSet<String>) -> bool 
         let cap_str = serde_json::to_string(read_cap)
             .unwrap_or_default()
             .trim_matches('"')
-            .to_string();
+            .to_owned();
         if capabilities.contains(&cap_str) {
             return true;
         }
@@ -249,7 +249,7 @@ fn has_any_subject_capability(capabilities: &HashSet<String>) -> bool {
         let cap_str = serde_json::to_string(cap)
             .unwrap_or_default()
             .trim_matches('"')
-            .to_string();
+            .to_owned();
         if capabilities.contains(&cap_str) {
             return true;
         }
@@ -262,7 +262,7 @@ fn cap_str(cap: Capability) -> String {
     serde_json::to_string(&cap)
         .unwrap_or_default()
         .trim_matches('"')
-        .to_string()
+        .to_owned()
 }
 
 /// Build a Extensions containing only slots the plugin can access.
@@ -511,10 +511,10 @@ mod tests {
         security.subject = Some(SubjectExtension {
             id: Some("alice".into()),
             subject_type: Some(super::super::security::SubjectType::User),
-            roles: ["admin".to_string()].into(),
-            permissions: ["read_all".to_string()].into(),
-            teams: ["engineering".to_string()].into(),
-            claims: [("iss".to_string(), "example.com".to_string())].into(),
+            roles: ["admin".to_owned()].into(),
+            permissions: ["read_all".to_owned()].into(),
+            teams: ["engineering".to_owned()].into(),
+            claims: [("iss".to_owned(), "example.com".to_owned())].into(),
         });
 
         let mut http = super::super::HttpExtension::default();
@@ -541,7 +541,7 @@ mod tests {
                 ..Default::default()
             })),
             custom: Some(Arc::new(
-                [("key".to_string(), serde_json::json!("value"))].into(),
+                [("key".to_owned(), serde_json::json!("value"))].into(),
             )),
             ..Default::default()
         }
@@ -573,7 +573,7 @@ mod tests {
     #[test]
     fn test_read_headers_capability() {
         let ext = make_full_extensions();
-        let caps: HashSet<String> = ["read_headers".to_string()].into();
+        let caps: HashSet<String> = ["read_headers".to_owned()].into();
         let filtered = filter_extensions(&ext, &caps);
 
         assert!(filtered.http.is_some());
@@ -588,7 +588,7 @@ mod tests {
     #[test]
     fn test_read_agent_capability() {
         let ext = make_full_extensions();
-        let caps: HashSet<String> = ["read_agent".to_string()].into();
+        let caps: HashSet<String> = ["read_agent".to_owned()].into();
         let filtered = filter_extensions(&ext, &caps);
 
         assert!(filtered.agent.is_some());
@@ -599,7 +599,7 @@ mod tests {
     #[test]
     fn test_read_labels_capability() {
         let ext = make_full_extensions();
-        let caps: HashSet<String> = ["read_labels".to_string()].into();
+        let caps: HashSet<String> = ["read_labels".to_owned()].into();
         let filtered = filter_extensions(&ext, &caps);
 
         let sec = filtered.security.as_ref().unwrap();
@@ -611,7 +611,7 @@ mod tests {
     #[test]
     fn test_read_subject_sees_id_and_type_only() {
         let ext = make_full_extensions();
-        let caps: HashSet<String> = ["read_subject".to_string()].into();
+        let caps: HashSet<String> = ["read_subject".to_owned()].into();
         let filtered = filter_extensions(&ext, &caps);
 
         let sec = filtered.security.as_ref().unwrap();
@@ -627,7 +627,7 @@ mod tests {
     #[test]
     fn test_read_roles_implies_subject_access() {
         let ext = make_full_extensions();
-        let caps: HashSet<String> = ["read_roles".to_string()].into();
+        let caps: HashSet<String> = ["read_roles".to_owned()].into();
         let filtered = filter_extensions(&ext, &caps);
 
         let sec = filtered.security.as_ref().unwrap();
@@ -678,7 +678,7 @@ mod tests {
     #[test]
     fn test_read_delegation_capability() {
         let ext = make_full_extensions();
-        let caps: HashSet<String> = ["read_delegation".to_string()].into();
+        let caps: HashSet<String> = ["read_delegation".to_owned()].into();
         let filtered = filter_extensions(&ext, &caps);
 
         assert!(filtered.delegation.is_some());
@@ -750,7 +750,7 @@ mod tests {
     #[test]
     fn read_client_exposes_client_only() {
         let ext = extensions_with_principals();
-        let caps: HashSet<String> = ["read_client".to_string()].into();
+        let caps: HashSet<String> = ["read_client".to_owned()].into();
         let filtered = filter_extensions(&ext, &caps);
         let sec = filtered.security.as_ref().unwrap();
         assert!(sec.client.is_some());
@@ -768,7 +768,7 @@ mod tests {
         // decision; if we ever split them into separate caps this test
         // will catch the regression.
         let ext = extensions_with_principals();
-        let caps: HashSet<String> = ["read_workload".to_string()].into();
+        let caps: HashSet<String> = ["read_workload".to_owned()].into();
         let filtered = filter_extensions(&ext, &caps);
         let sec = filtered.security.as_ref().unwrap();
         assert!(sec.caller_workload.is_some());
@@ -830,7 +830,7 @@ mod tests {
     #[test]
     fn read_inbound_credentials_exposes_inbound_only() {
         let ext = extensions_with_raw_credentials();
-        let caps: HashSet<String> = ["read_inbound_credentials".to_string()].into();
+        let caps: HashSet<String> = ["read_inbound_credentials".to_owned()].into();
         let filtered = filter_extensions(&ext, &caps);
         let raw = filtered.raw_credentials.as_ref().unwrap();
         // Inbound visible.
@@ -843,7 +843,7 @@ mod tests {
     #[test]
     fn read_delegated_tokens_exposes_delegated_only() {
         let ext = extensions_with_raw_credentials();
-        let caps: HashSet<String> = ["read_delegated_tokens".to_string()].into();
+        let caps: HashSet<String> = ["read_delegated_tokens".to_owned()].into();
         let filtered = filter_extensions(&ext, &caps);
         let raw = filtered.raw_credentials.as_ref().unwrap();
         assert!(raw.inbound_tokens.is_empty());
@@ -854,8 +854,8 @@ mod tests {
     fn both_raw_credential_caps_exposes_both_maps() {
         let ext = extensions_with_raw_credentials();
         let caps: HashSet<String> = [
-            "read_inbound_credentials".to_string(),
-            "read_delegated_tokens".to_string(),
+            "read_inbound_credentials".to_owned(),
+            "read_delegated_tokens".to_owned(),
         ]
         .into();
         let filtered = filter_extensions(&ext, &caps);

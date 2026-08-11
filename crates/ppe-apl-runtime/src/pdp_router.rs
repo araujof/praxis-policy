@@ -107,7 +107,7 @@ impl PdpResolver for PdpRouter {
         // the resolver's own declared dialect. The router never claims to
         // be one of the real dialects so a stray equality check can't
         // accidentally pick it.
-        PdpDialect::Custom("router".to_string())
+        PdpDialect::Custom("router".to_owned())
     }
 
     async fn evaluate(&self, call: &PdpCall, bag: &AttributeBag) -> Result<PdpDecision, PdpError> {

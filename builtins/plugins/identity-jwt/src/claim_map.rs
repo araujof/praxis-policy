@@ -103,7 +103,7 @@ impl ClaimMapper for StandardClaimMap {
             .get("client_id")
             .or_else(|| claims.get("azp"))
             .and_then(Value::as_str)?
-            .to_string();
+            .to_owned();
 
         let mut client = ClientExtension {
             client_id,
@@ -111,20 +111,20 @@ impl ClaimMapper for StandardClaimMap {
         };
 
         if let Some(name) = claims.get("client_name").and_then(Value::as_str) {
-            client.client_name = Some(name.to_string());
+            client.client_name = Some(name.to_owned());
         }
 
         // Scopes — array OR space-separated string.
         if let Some(arr) = claims.get("authorized_scopes").and_then(Value::as_array) {
             for v in arr {
                 if let Some(s) = v.as_str() {
-                    client.authorized_scopes.push(s.to_string());
+                    client.authorized_scopes.push(s.to_owned());
                 }
             }
         } else if let Some(s) = claims.get("scope").and_then(Value::as_str) {
             for scope in s.split_whitespace() {
                 if !scope.is_empty() {
-                    client.authorized_scopes.push(scope.to_string());
+                    client.authorized_scopes.push(scope.to_owned());
                 }
             }
         }
@@ -135,7 +135,7 @@ impl ClaimMapper for StandardClaimMap {
             Some(Value::Array(arr)) => {
                 for v in arr {
                     if let Some(s) = v.as_str() {
-                        client.authorized_audiences.push(s.to_string());
+                        client.authorized_audiences.push(s.to_owned());
                     }
                 }
             },
@@ -146,7 +146,7 @@ impl ClaimMapper for StandardClaimMap {
         if let Some(arr) = claims.get("roles").and_then(Value::as_array) {
             for v in arr {
                 if let Some(s) = v.as_str() {
-                    client.roles.push(s.to_string());
+                    client.roles.push(s.to_owned());
                 }
             }
         }
@@ -193,19 +193,19 @@ impl ClaimMapper for StandardClaimMap {
             // `sub`: a non-SPIFFE `sub` must not smuggle in an arbitrary
             // `spiffe_id` claim and be accepted as a workload identity.
             .filter(|s| s.starts_with("spiffe://"))
-            .map(str::to_string)?;
+            .map(str::to_owned)?;
 
         // Trust domain — pull from the SPIFFE-ID host part.
         let trust_domain = spiffe_id
             .strip_prefix("spiffe://")
             .and_then(|rest| rest.split('/').next())
-            .map(str::to_string);
+            .map(str::to_owned);
 
         Some(WorkloadIdentity {
             spiffe_id: Some(spiffe_id),
             trust_domain,
             attested_at: None,
-            attestor: Some("jwt".to_string()),
+            attestor: Some("jwt".to_owned()),
             ..Default::default()
         })
     }
@@ -213,7 +213,7 @@ impl ClaimMapper for StandardClaimMap {
     fn map_subject(&self, claims: &ClaimMap) -> Option<SubjectExtension> {
         // `sub` is required — RFC 7519 §4.1.2 makes it optional in
         // the spec but it's effectively mandatory for identity flows.
-        let sub = claims.get("sub").and_then(Value::as_str)?.to_string();
+        let sub = claims.get("sub").and_then(Value::as_str)?.to_owned();
 
         let mut subject = SubjectExtension {
             id: Some(sub),
@@ -224,7 +224,7 @@ impl ClaimMapper for StandardClaimMap {
         if let Some(arr) = claims.get("roles").and_then(Value::as_array) {
             for v in arr {
                 if let Some(s) = v.as_str() {
-                    subject.roles.insert(s.to_string());
+                    subject.roles.insert(s.to_owned());
                 }
             }
         }
@@ -234,13 +234,13 @@ impl ClaimMapper for StandardClaimMap {
         if let Some(arr) = claims.get("permissions").and_then(Value::as_array) {
             for v in arr {
                 if let Some(s) = v.as_str() {
-                    subject.permissions.insert(s.to_string());
+                    subject.permissions.insert(s.to_owned());
                 }
             }
         } else if let Some(s) = claims.get("scope").and_then(Value::as_str) {
             for scope in s.split_whitespace() {
                 if !scope.is_empty() {
-                    subject.permissions.insert(scope.to_string());
+                    subject.permissions.insert(scope.to_owned());
                 }
             }
         }
@@ -250,13 +250,13 @@ impl ClaimMapper for StandardClaimMap {
         if let Some(arr) = claims.get("teams").and_then(Value::as_array) {
             for v in arr {
                 if let Some(s) = v.as_str() {
-                    subject.teams.insert(s.to_string());
+                    subject.teams.insert(s.to_owned());
                 }
             }
         } else if let Some(arr) = claims.get("groups").and_then(Value::as_array) {
             for v in arr {
                 if let Some(s) = v.as_str() {
-                    subject.teams.insert(s.to_string());
+                    subject.teams.insert(s.to_owned());
                 }
             }
         }
@@ -403,11 +403,11 @@ mod tests {
         let subject = StandardClaimMap.map_subject(&claims).unwrap();
         assert_eq!(
             subject.claims.get("email"),
-            Some(&"alice@corp.com".to_string())
+            Some(&"alice@corp.com".to_owned())
         );
         assert_eq!(
             subject.claims.get("preferred_username"),
-            Some(&"alice".to_string()),
+            Some(&"alice".to_owned()),
         );
         // Reserved JWT claims aren't propagated as policy-visible
         // subject claims.

@@ -584,7 +584,7 @@ mod tests {
                     content: ToolCall {
                         tool_call_id: "tc_001".into(),
                         name: "get_weather".into(),
-                        arguments: [("city".to_string(), serde_json::json!("London"))].into(),
+                        arguments: [("city".to_owned(), serde_json::json!("London"))].into(),
                         namespace: None,
                     },
                 },
@@ -645,8 +645,8 @@ mod tests {
     fn test_view_uri() {
         let msg = make_test_message();
         let views: Vec<_> = msg.iter_views(None, None).collect();
-        assert_eq!(views[2].uri(), Some("tool://_/get_weather".to_string()));
-        assert_eq!(views[3].uri(), Some("file:///data.csv".to_string()));
+        assert_eq!(views[2].uri(), Some("tool://_/get_weather".to_owned()));
+        assert_eq!(views[3].uri(), Some("file:///data.csv".to_owned()));
     }
 
     #[test]
@@ -783,7 +783,7 @@ mod tests {
         security.subject = Some(crate::extensions::security::SubjectExtension {
             id: Some("alice".into()),
             subject_type: Some(crate::extensions::security::SubjectType::User),
-            roles: ["admin".to_string()].into(),
+            roles: ["admin".to_owned()].into(),
             ..Default::default()
         });
 
@@ -806,7 +806,7 @@ mod tests {
             meta: Some(Arc::new(MetaExtension {
                 entity_type: Some("tool".into()),
                 entity_name: Some("get_compensation".into()),
-                tags: ["pii".to_string()].into(),
+                tags: ["pii".to_owned()].into(),
                 ..Default::default()
             })),
             ..Default::default()

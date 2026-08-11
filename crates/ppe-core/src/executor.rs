@@ -241,7 +241,7 @@ impl BackgroundTasks {
             if let Err(e) = handle.await {
                 errors.push(crate::error::PluginError::Execution {
                     plugin_name,
-                    message: format!("background task panicked: {}", e),
+                    message: format!("background task panicked: {e}"),
                     source: None,
                     code: None,
                     details: std::collections::HashMap::new(),
@@ -493,7 +493,7 @@ impl Executor {
                     if let Some(erased) = extract_erased(result_box) {
                         if !erased.continue_processing && can_block {
                             if let Some(mut v) = erased.violation {
-                                v.plugin_name = Some(plugin_name.to_string());
+                                v.plugin_name = Some(plugin_name.to_owned());
                                 return Some(v);
                             }
                         }
@@ -607,9 +607,9 @@ impl Executor {
                         OnError::Fail if can_block => {
                             let mut v = crate::error::PluginViolation::new(
                                 "plugin_error",
-                                format!("Plugin '{}' failed: {}", plugin_name, e),
+                                format!("Plugin '{plugin_name}' failed: {e}"),
                             );
-                            v.plugin_name = Some(plugin_name.to_string());
+                            v.plugin_name = Some(plugin_name.to_owned());
                             return Some(v);
                         },
                         // Any non-halt outcome (Fail-in-non-blocking-phase,
@@ -639,7 +639,7 @@ impl Executor {
                 Err(_) => {
                     error!("{} plugin '{}' timed out", phase_label, plugin_name);
                     let timeout_err = crate::error::PluginError::Timeout {
-                        plugin_name: plugin_name.to_string(),
+                        plugin_name: plugin_name.to_owned(),
                         timeout_ms: u64::try_from(timeout_dur.as_millis()).unwrap_or(u64::MAX),
                         proto_error_code: None,
                     };
@@ -647,9 +647,9 @@ impl Executor {
                         OnError::Fail if can_block => {
                             let mut v = crate::error::PluginViolation::new(
                                 "plugin_timeout",
-                                format!("Plugin '{}' timed out", plugin_name),
+                                format!("Plugin '{plugin_name}' timed out"),
                             );
-                            v.plugin_name = Some(plugin_name.to_string());
+                            v.plugin_name = Some(plugin_name.to_owned());
                             return Some(v);
                         },
                         OnError::Fail => {
@@ -695,7 +695,7 @@ impl Executor {
         errors: &mut Vec<crate::error::PluginErrorRecord>,
     ) {
         for entry in entries {
-            let plugin_name = entry.plugin_ref.name().to_string();
+            let plugin_name = entry.plugin_ref.name().to_owned();
             let plugin_id = entry.plugin_ref.id();
             let on_error = entry.plugin_ref.trusted_config().on_error;
             // Read-only phase — snapshot the plugin's local_state and the
@@ -829,7 +829,7 @@ impl Executor {
             // Snapshot the plugin's local_state and the canonical global_state.
             // Concurrent plugins do not merge back — each task owns its copy.
             let mut ctx = ctx_table.snapshot_context(plugin_id);
-            let plugin_name = entry.plugin_ref.name().to_string();
+            let plugin_name = entry.plugin_ref.name().to_owned();
 
             // Filter per plugin — each may have different capabilities.
             // Read-only, no write tokens. Wrap in Arc for 'static spawn.
@@ -924,9 +924,9 @@ impl Executor {
                     let violation = opt_v.unwrap_or_else(|| {
                         let mut v = crate::error::PluginViolation::new(
                             "concurrent_deny",
-                            format!("Plugin '{}' denied", plugin_name),
+                            format!("Plugin '{plugin_name}' denied"),
                         );
-                        v.plugin_name = Some(plugin_name.to_string());
+                        v.plugin_name = Some(plugin_name.to_owned());
                         v
                     });
                     if first_violation.is_none() {
@@ -938,9 +938,9 @@ impl Executor {
                         if first_violation.is_none() {
                             let mut v = crate::error::PluginViolation::new(
                                 "plugin_error",
-                                format!("Plugin '{}' failed: {}", plugin_name, e),
+                                format!("Plugin '{plugin_name}' failed: {e}"),
                             );
-                            v.plugin_name = Some(plugin_name.to_string());
+                            v.plugin_name = Some(plugin_name.to_owned());
                             first_violation = Some(v);
                         }
                     },
@@ -956,7 +956,7 @@ impl Executor {
                 },
                 BranchOutcome::TimedOut => {
                     let timeout_err = crate::error::PluginError::Timeout {
-                        plugin_name: plugin_name.to_string(),
+                        plugin_name: plugin_name.to_owned(),
                         timeout_ms: u64::try_from(timeout_dur.as_millis()).unwrap_or(u64::MAX),
                         proto_error_code: None,
                     };
@@ -965,9 +965,9 @@ impl Executor {
                             if first_violation.is_none() {
                                 let mut v = crate::error::PluginViolation::new(
                                     "plugin_timeout",
-                                    format!("Plugin '{}' timed out", plugin_name),
+                                    format!("Plugin '{plugin_name}' timed out"),
                                 );
-                                v.plugin_name = Some(plugin_name.to_string());
+                                v.plugin_name = Some(plugin_name.to_owned());
                                 first_violation = Some(v);
                             }
                         },
@@ -985,8 +985,8 @@ impl Executor {
                 BranchOutcome::Panicked(s) => {
                     error!("CONCURRENT plugin '{}' task panicked: {}", plugin_name, s);
                     let panic_err = crate::error::PluginError::Execution {
-                        plugin_name: plugin_name.to_string(),
-                        message: format!("task panicked: {}", s),
+                        plugin_name: plugin_name.to_owned(),
+                        message: format!("task panicked: {s}"),
                         source: None,
                         code: Some("panic".into()),
                         details: std::collections::HashMap::new(),
@@ -997,9 +997,9 @@ impl Executor {
                             if first_violation.is_none() {
                                 let mut v = crate::error::PluginViolation::new(
                                     "plugin_panic",
-                                    format!("Plugin '{}' task panicked: {}", plugin_name, s),
+                                    format!("Plugin '{plugin_name}' task panicked: {s}"),
                                 );
-                                v.plugin_name = Some(plugin_name.to_string());
+                                v.plugin_name = Some(plugin_name.to_owned());
                                 first_violation = Some(v);
                             }
                         },
@@ -1051,7 +1051,7 @@ impl Executor {
         let mut handles = Vec::with_capacity(entries.len());
 
         for entry in entries {
-            let plugin_name = entry.plugin_ref.name().to_string();
+            let plugin_name = entry.plugin_ref.name().to_owned();
             let handler = Arc::clone(&entry.handler);
             let owned_payload = payload.clone_boxed();
             // Snapshot per plugin so fire-and-forget tasks see their stored

@@ -181,8 +181,8 @@ impl PluginFactory for RecordingFactory {
 fn ext_for_tool(tool_name: &str) -> Extensions {
     Extensions {
         meta: Some(Arc::new(MetaExtension {
-            entity_type: Some("tool".to_string()),
-            entity_name: Some(tool_name.to_string()),
+            entity_type: Some("tool".to_owned()),
+            entity_name: Some(tool_name.to_owned()),
             ..Default::default()
         })),
         ..Default::default()
@@ -753,14 +753,14 @@ fn ext_for_tool_with_subject_and_label(
     use praxis_policy_core::extensions::{SecurityExtension, SubjectExtension};
     let mut sec = SecurityExtension::default();
     sec.subject = Some(SubjectExtension {
-        id: Some(subject_id.to_string()),
+        id: Some(subject_id.to_owned()),
         ..Default::default()
     });
     sec.add_label(label);
     Extensions {
         meta: Some(Arc::new(MetaExtension {
-            entity_type: Some("tool".to_string()),
-            entity_name: Some(tool_name.to_string()),
+            entity_type: Some("tool".to_owned()),
+            entity_name: Some(tool_name.to_owned()),
             ..Default::default()
         })),
         security: Some(Arc::new(sec)),

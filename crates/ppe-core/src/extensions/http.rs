@@ -213,7 +213,7 @@ mod tests {
         let mut http = HttpExtension::default();
         http.set_request_header("X-Remove", "value");
         let removed = http.remove_request_header("x-remove");
-        assert_eq!(removed, Some("value".to_string()));
+        assert_eq!(removed, Some("value".to_owned()));
         assert!(!http.has_request_header("X-Remove"));
     }
 

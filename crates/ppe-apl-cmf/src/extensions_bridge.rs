@@ -86,7 +86,7 @@ mod tests {
         ext.security = Some(Arc::new(SecurityExtension {
             subject: Some(SubjectExtension {
                 id: Some("alice".into()),
-                roles: HashSet::from(["hr".to_string()]),
+                roles: HashSet::from(["hr".to_owned()]),
                 ..Default::default()
             }),
             ..Default::default()
@@ -97,7 +97,7 @@ mod tests {
             ..Default::default()
         }));
         ext.meta = Some(Arc::new(MetaExtension {
-            tags: HashSet::from(["pii".to_string()]),
+            tags: HashSet::from(["pii".to_owned()]),
             ..Default::default()
         }));
         ext.llm = Some(Arc::new(LLMExtension {

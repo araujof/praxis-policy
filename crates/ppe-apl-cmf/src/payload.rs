@@ -52,7 +52,7 @@ pub(crate) fn walk(value: &Value, prefix: &str, bag: &mut AttributeBag) {
                 let dotted = if prefix.is_empty() {
                     key.clone()
                 } else {
-                    format!("{}.{}", prefix, key)
+                    format!("{prefix}.{key}")
                 };
                 walk(sub, &dotted, bag);
             }
@@ -64,7 +64,7 @@ pub(crate) fn walk(value: &Value, prefix: &str, bag: &mut AttributeBag) {
             let mut ok = true;
             for item in items {
                 if let Some(s) = item.as_str() {
-                    all_strings.insert(s.to_string());
+                    all_strings.insert(s.to_owned());
                 } else {
                     ok = false;
                     break;

@@ -37,12 +37,12 @@ use praxis_policy_plugin_elicitation_ciba::CibaApprover;
 
 fn approver(server_url: &str) -> CibaApprover {
     let cfg = PluginConfig {
-        name: "manager-approver".to_string(),
-        kind: "elicitation/ciba".to_string(),
+        name: "manager-approver".to_owned(),
+        kind: "elicitation/ciba".to_owned(),
         description: None,
         author: None,
         version: None,
-        hooks: vec!["elicit".to_string()],
+        hooks: vec!["elicit".to_owned()],
         mode: PluginMode::Sequential,
         priority: 10,
         on_error: OnError::Fail,

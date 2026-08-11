@@ -279,7 +279,7 @@ mod tests {
 
     #[test]
     fn unlocked_bag_prefixes_unions_multiple_caps() {
-        let caps = vec![CAP_READ_SUBJECT.to_string(), CAP_READ_ROLES.to_string()];
+        let caps = vec![CAP_READ_SUBJECT.to_owned(), CAP_READ_ROLES.to_owned()];
         let union = unlocked_bag_prefixes(&caps);
         assert!(union.contains(BAG_SUBJECT_ID));
         assert!(union.contains(BAG_ROLE_PREFIX));
@@ -292,7 +292,7 @@ mod tests {
 
     #[test]
     fn unlocked_bag_prefixes_skips_unknown_caps() {
-        let caps = vec![CAP_READ_SUBJECT.to_string(), "read_made_up".to_string()];
+        let caps = vec![CAP_READ_SUBJECT.to_owned(), "read_made_up".to_owned()];
         let union = unlocked_bag_prefixes(&caps);
         assert!(union.contains(BAG_SUBJECT_ID));
         // Unknown cap contributes nothing — no panic, no surprise key.

@@ -79,7 +79,7 @@ impl CibaApprover {
         let raw = cfg
             .config
             .as_ref()
-            .ok_or_else(|| cfg_err(&cfg.name, "requires a `config:` block".to_string()))?;
+            .ok_or_else(|| cfg_err(&cfg.name, "requires a `config:` block".to_owned()))?;
         let typed: CibaConfig = serde_json::from_value(raw.clone())
             .map_err(|e| cfg_err(&cfg.name, format!("config parse failed: {e}")))?;
 
@@ -95,10 +95,7 @@ impl CibaApprover {
             }
         }
         if typed.client_id.trim().is_empty() {
-            return Err(cfg_err(
-                &cfg.name,
-                "client_id must be non-empty".to_string(),
-            ));
+            return Err(cfg_err(&cfg.name, "client_id must be non-empty".to_owned()));
         }
 
         let secret = typed
@@ -210,7 +207,7 @@ impl CibaApprover {
         self.store.put(
             &id,
             Correlation {
-                expected_approver: login_hint.to_string(),
+                expected_approver: login_hint.to_owned(),
                 resolved_approver: None,
             },
         );
@@ -222,7 +219,7 @@ impl CibaApprover {
         let mut out = payload.clone();
         out.id = Some(id);
         out.status = Some(ElicitationStatusKind::Pending);
-        out.approver = Some(login_hint.to_string());
+        out.approver = Some(login_hint.to_owned());
         out.expires_at = expires_at;
         PluginResult::modify_payload(out)
     }
@@ -452,7 +449,7 @@ fn deny(code: &str, reason: impl Into<String>) -> PluginResult<ElicitationPayloa
 fn invalid(payload: &ElicitationPayload, reason: &str) -> PluginResult<ElicitationPayload> {
     let mut out = payload.clone();
     out.valid = Some(false);
-    out.reason = Some(reason.to_string());
+    out.reason = Some(reason.to_owned());
     PluginResult::modify_payload(out)
 }
 
@@ -486,7 +483,7 @@ fn sanitize_binding_message(purpose: &str) -> String {
         // Any other disallowed char is dropped (keeps the cue readable).
     }
     let capped: String = out.chars().take(50).collect();
-    capped.trim_end_matches('-').to_string()
+    capped.trim_end_matches('-').to_owned()
 }
 
 /// Parse a duration string (`"30"`, `"30s"`, `"5m"`, `"24h"`, `"2d"`)
@@ -520,7 +517,7 @@ fn decode_jwt_claim(token: &str, claim: &str) -> Option<String> {
         .decode(payload_b64)
         .ok()?;
     let json: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
-    json.get(claim)?.as_str().map(str::to_string)
+    json.get(claim)?.as_str().map(str::to_owned)
 }
 
 #[cfg(test)]

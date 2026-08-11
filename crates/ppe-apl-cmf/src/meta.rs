@@ -31,7 +31,7 @@ pub fn extract_meta(meta: &MetaExtension, bag: &mut AttributeBag) {
         bag.set("meta.scope", v.clone());
     }
     for (k, v) in &meta.properties {
-        bag.set(format!("meta.properties.{}", k), v.clone());
+        bag.set(format!("meta.properties.{k}"), v.clone());
     }
 }
 
@@ -54,9 +54,9 @@ mod tests {
         let meta = MetaExtension {
             entity_type: Some("tool".into()),
             entity_name: Some("get_compensation".into()),
-            tags: HashSet::from(["pii".to_string(), "sensitive".to_string()]),
+            tags: HashSet::from(["pii".to_owned(), "sensitive".to_owned()]),
             scope: Some("hr".into()),
-            properties: HashMap::from([("owner".to_string(), "compliance".to_string())]),
+            properties: HashMap::from([("owner".to_owned(), "compliance".to_owned())]),
         };
         let mut bag = AttributeBag::new();
         extract_meta(&meta, &mut bag);

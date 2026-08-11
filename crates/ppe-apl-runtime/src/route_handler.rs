@@ -577,11 +577,11 @@ impl AnyHookHandler for AplRouteHandler {
                 rule_source,
             } => {
                 let code = if rule_source.is_empty() {
-                    "policy.deny".to_string()
+                    "policy.deny".to_owned()
                 } else {
                     rule_source
                 };
-                let reason = reason.unwrap_or_else(|| "access denied".to_string());
+                let reason = reason.unwrap_or_else(|| "access denied".to_owned());
                 let mut v = PluginViolation::new(code, reason);
                 decorate_denial_response(&mut v, self.route.response.as_ref());
                 (false, Some(v))
@@ -699,16 +699,16 @@ fn decorate_denial_response(violation: &mut PluginViolation, response: Option<&D
     if let Some(status) = resp.status {
         violation
             .details
-            .insert(DETAIL_HTTP_STATUS.to_string(), serde_json::json!(status));
+            .insert(DETAIL_HTTP_STATUS.to_owned(), serde_json::json!(status));
     }
     if let Some(body) = &resp.body {
         violation
             .details
-            .insert(DETAIL_HTTP_BODY.to_string(), serde_json::json!(body));
+            .insert(DETAIL_HTTP_BODY.to_owned(), serde_json::json!(body));
     }
     if !resp.headers.is_empty() {
         violation.details.insert(
-            DETAIL_HTTP_HEADERS.to_string(),
+            DETAIL_HTTP_HEADERS.to_owned(),
             serde_json::json!(resp.headers),
         );
     }
@@ -754,7 +754,7 @@ fn elicitation_id_from_headers(ext: &Extensions) -> Option<String> {
         .as_ref()
         .and_then(|h| h.get_request_header(ELICITATION_ID_HEADER))
         .filter(|v| !v.is_empty())
-        .map(str::to_string)
+        .map(str::to_owned)
 }
 
 /// True when the agent set `X-Policy-Elicitation-Peek` to a truthy value —
@@ -776,14 +776,14 @@ fn approved_peek_violation(
     use praxis_policy_apl_core::step::elicitation_bag_keys as bk;
     let mut details: std::collections::HashMap<String, Value> = std::collections::HashMap::new();
     if let Some(id) = bag.get_string(bk::ID) {
-        details.insert("elicitation_id".into(), Value::String(id.to_string()));
+        details.insert("elicitation_id".into(), Value::String(id.to_owned()));
     }
     if let Some(approver) = bag.get_string(bk::APPROVER) {
-        details.insert("approver".into(), Value::String(approver.to_string()));
+        details.insert("approver".into(), Value::String(approver.to_owned()));
     }
     PluginViolation::new(
         "elicitation.approved",
-        "approved — confirm to apply (re-send without the peek header)".to_string(),
+        "approved — confirm to apply (re-send without the peek header)".to_owned(),
     )
     .with_proto_error_code(ELICITATION_APPROVED_CODE)
     .with_details(details)
@@ -836,13 +836,13 @@ mod phase5_tests {
 
     fn pending(id: &str) -> praxis_policy_apl_core::step::PendingElicitation {
         praxis_policy_apl_core::step::PendingElicitation {
-            id: id.to_string(),
-            plugin_name: "manager-approver".to_string(),
-            approver: Some("alice".to_string()),
+            id: id.to_owned(),
+            plugin_name: "manager-approver".to_owned(),
+            approver: Some("alice".to_owned()),
             intent_id: None,
-            channel: Some("ciba".to_string()),
-            expires_at: Some("2026-12-31T00:00:00Z".to_string()),
-            source: "route.payroll.policy[0]".to_string(),
+            channel: Some("ciba".to_owned()),
+            expires_at: Some("2026-12-31T00:00:00Z".to_owned()),
+            source: "route.payroll.policy[0]".to_owned(),
         }
     }
 

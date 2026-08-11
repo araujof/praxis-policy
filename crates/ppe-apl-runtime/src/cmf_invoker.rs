@@ -305,7 +305,7 @@ impl PluginInvoker for CmfPluginInvoker {
         let resolved = self
             .plan
             .get(plugin_name)
-            .ok_or_else(|| PluginError::NotFound(plugin_name.to_string()))?;
+            .ok_or_else(|| PluginError::NotFound(plugin_name.to_owned()))?;
 
         // Snapshot extensions to read entity_type — the dispatcher
         // needs it for hook routing. Dropped immediately so we don't
@@ -376,7 +376,7 @@ impl PluginInvoker for CmfPluginInvoker {
         let decision = if result.is_denied() {
             let (reason, rule_source) = match result.violation {
                 Some(v) => (Some(v.reason), v.code),
-                None => (None, "policy.forbidden".to_string()),
+                None => (None, "policy.forbidden".to_owned()),
             };
             Decision::Deny {
                 reason,

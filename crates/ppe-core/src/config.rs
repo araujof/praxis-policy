@@ -278,8 +278,7 @@ where
         serde_yaml::Value::Null => Ok(Vec::new()),
         other => Err(D::Error::custom(format!(
             "`plugins:` must be a sequence (activation list) or a mapping \
-             (APL per-plugin overrides), got {:?}",
-            other
+             (APL per-plugin overrides), got {other:?}"
         ))),
     }
 }
@@ -394,14 +393,14 @@ where
         serde_yaml::Value::Sequence(items) => (false, items),
         serde_yaml::Value::Mapping(map) => {
             let replace_inherited =
-                match map.get(serde_yaml::Value::String("replace_inherited".to_string())) {
+                match map.get(serde_yaml::Value::String("replace_inherited".to_owned())) {
                     Some(v) => v.as_bool().ok_or_else(|| {
                         D::Error::custom("`identity.replace_inherited` must be a boolean")
                     })?,
                     None => false,
                 };
             let steps_val = map
-                .get(serde_yaml::Value::String("steps".to_string()))
+                .get(serde_yaml::Value::String("steps".to_owned()))
                 .ok_or_else(|| {
                     D::Error::custom(
                         "`authentication:` object form requires `steps:` (a list of \
@@ -622,12 +621,12 @@ pub fn parse_config(yaml: &str) -> Result<PolicyConfig, Box<PluginError>> {
     // fields, so a stale `identity:` would otherwise be dropped and its
     // authentication steps never run — a fail-open.
     let raw: serde_yaml::Value = serde_yaml::from_str(yaml).map_err(|e| PluginError::Config {
-        message: format!("failed to parse config YAML: {}", e),
+        message: format!("failed to parse config YAML: {e}"),
     })?;
     reject_renamed_identity_key(&raw)?;
     let mut config: PolicyConfig =
         serde_yaml::from_value(raw).map_err(|e| PluginError::Config {
-            message: format!("failed to parse config YAML: {}", e),
+            message: format!("failed to parse config YAML: {e}"),
         })?;
     merge_groups_into_policies(&mut config);
     validate_config(&config)?;
@@ -731,17 +730,13 @@ pub(crate) fn validate_config(config: &PolicyConfig) -> Result<(), Box<PluginErr
             if count == 0 {
                 return Err(Box::new(PluginError::Config {
                     message: format!(
-                        "route {} has no entity matcher (need tool, resource, prompt, or llm)",
-                        i
+                        "route {i} has no entity matcher (need tool, resource, prompt, or llm)"
                     ),
                 }));
             }
             if count > 1 {
                 return Err(Box::new(PluginError::Config {
-                    message: format!(
-                        "route {} has multiple entity matchers (need exactly one)",
-                        i
-                    ),
+                    message: format!("route {i} has multiple entity matchers (need exactly one)"),
                 }));
             }
 
@@ -1001,7 +996,7 @@ pub fn resolve_identity_plugins_for_route(
             // target. Wrapping like this avoids a special-case path.
             config_overrides: step.config_override.as_ref().map(|cfg| {
                 let mut wrapper = serde_json::Map::new();
-                wrapper.insert("config".to_string(), cfg.clone());
+                wrapper.insert("config".to_owned(), cfg.clone());
                 serde_json::Value::Object(wrapper)
             }),
             when: None,
@@ -1030,7 +1025,7 @@ fn collect_plugin_refs(
 ) {
     for plugin_ref in refs {
         resolved.push(ResolvedPlugin {
-            name: plugin_ref.name().to_string(),
+            name: plugin_ref.name().to_owned(),
             config_overrides: plugin_ref.overrides().cloned(),
             when: route_when.map(String::from),
         });
@@ -1524,14 +1519,9 @@ routes:
             let matcher = StringOrList::Single(Pattern::new(*pattern));
             assert!(
                 matcher.matches("anything"),
-                "pattern {} should match",
-                pattern
+                "pattern {pattern} should match"
             );
-            assert!(
-                matcher.matches(""),
-                "pattern {} should match empty",
-                pattern
-            );
+            assert!(matcher.matches(""), "pattern {pattern} should match empty");
         }
     }
 
@@ -1550,16 +1540,15 @@ routes:
         let back = serde_yaml::to_string(&parsed).unwrap();
         assert!(
             back.contains("*-prod"),
-            "serialized YAML should preserve pattern: {}",
-            back
+            "serialized YAML should preserve pattern: {back}"
         );
     }
 
     #[test]
     fn test_list_matches_any_member() {
         let matcher = StringOrList::List(vec![
-            "get_compensation".to_string(),
-            "get_benefits".to_string(),
+            "get_compensation".to_owned(),
+            "get_benefits".to_owned(),
         ]);
         assert!(matcher.matches("get_compensation"));
         assert!(matcher.matches("get_benefits"));
@@ -1668,7 +1657,7 @@ routes:
 
         // Host provides a runtime tag that matches a policy group
         let mut host_tags = HashSet::new();
-        host_tags.insert("runtime_tag".to_string());
+        host_tags.insert("runtime_tag".to_owned());
 
         let resolved =
             resolve_plugins_for_entity(&config, "tool", "get_compensation", None, &host_tags);

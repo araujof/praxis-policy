@@ -67,10 +67,10 @@ pub fn extract_security(sec: &SecurityExtension, bag: &mut AttributeBag) {
             bag.set(BAG_SUBJECT_TYPE, subject_type_str(st));
         }
         for role in &subject.roles {
-            bag.set(format!("{}{}", BAG_ROLE_PREFIX, role), true);
+            bag.set(format!("{BAG_ROLE_PREFIX}{role}"), true);
         }
         for perm in &subject.permissions {
-            bag.set(format!("{}{}", BAG_PERM_PREFIX, perm), true);
+            bag.set(format!("{BAG_PERM_PREFIX}{perm}"), true);
         }
         if !subject.teams.is_empty() {
             // Clone into a fresh HashSet — AttributeValue::StringSet owns its data.
@@ -80,11 +80,11 @@ pub fn extract_security(sec: &SecurityExtension, bag: &mut AttributeBag) {
             // gate on team membership with the same DSL shape, e.g.
             // `require(team.engineering | team.security)`.
             for team in &subject.teams {
-                bag.set(format!("{}{}", BAG_TEAM_PREFIX, team), true);
+                bag.set(format!("{BAG_TEAM_PREFIX}{team}"), true);
             }
         }
         for (k, v) in &subject.claims {
-            bag.set(format!("{}{}", BAG_CLAIM_PREFIX, k), v.clone());
+            bag.set(format!("{BAG_CLAIM_PREFIX}{k}"), v.clone());
         }
         // Single top-level authenticated marker — DSL idiom is `require(authenticated)`,
         // unprefixed. Only set when truly authenticated (subject + id present).
@@ -131,10 +131,10 @@ pub fn extract_client(client: &ClientExtension, bag: &mut AttributeBag) {
     }
     bag.set("client.trust_level", trust_level_str(&client.trust_level));
     for role in &client.roles {
-        bag.set(format!("client.role.{}", role), true);
+        bag.set(format!("client.role.{role}"), true);
     }
     for perm in &client.permissions {
-        bag.set(format!("client.perm.{}", perm), true);
+        bag.set(format!("client.perm.{perm}"), true);
     }
     if !client.authorized_scopes.is_empty() {
         let scopes: HashSet<String> = client.authorized_scopes.iter().cloned().collect();
@@ -151,7 +151,7 @@ pub fn extract_client(client: &ClientExtension, bag: &mut AttributeBag) {
     for (k, v) in &client.claims {
         // Nested JSON claims flatten through the same walker `custom.*`
         // uses — keeps semantics consistent across bridges.
-        crate::payload::walk(v, &format!("client.claim.{}", k), bag);
+        crate::payload::walk(v, &format!("client.claim.{k}"), bag);
     }
 }
 
@@ -162,20 +162,20 @@ pub fn extract_client(client: &ClientExtension, bag: &mut AttributeBag) {
 /// thing that varies is the namespace.
 pub fn extract_workload(prefix: &str, w: &WorkloadIdentity, bag: &mut AttributeBag) {
     if let Some(s) = &w.spiffe_id {
-        bag.set(format!("{}.spiffe_id", prefix), s.clone());
+        bag.set(format!("{prefix}.spiffe_id"), s.clone());
     }
     if let Some(t) = &w.trust_domain {
-        bag.set(format!("{}.trust_domain", prefix), t.clone());
+        bag.set(format!("{prefix}.trust_domain"), t.clone());
     }
     if let Some(a) = &w.attestor {
-        bag.set(format!("{}.attestor", prefix), a.clone());
+        bag.set(format!("{prefix}.attestor"), a.clone());
     }
     if !w.selectors.is_empty() {
         let selectors: HashSet<String> = w.selectors.iter().cloned().collect();
-        bag.set(format!("{}.selectors", prefix), selectors);
+        bag.set(format!("{prefix}.selectors"), selectors);
     }
     if let Some(id) = &w.client_id {
-        bag.set(format!("{}.client_id", prefix), id.clone());
+        bag.set(format!("{prefix}.client_id"), id.clone());
     }
     // `attested_at` intentionally omitted from the bag at v0 — APL
     // doesn't carry DateTime as a bag value type, and policies that
@@ -193,11 +193,11 @@ pub fn extract_workload(prefix: &str, w: &WorkloadIdentity, bag: &mut AttributeB
 /// silently picking one of the existing strings.
 fn trust_level_str(level: &ClientTrustLevel) -> String {
     match level {
-        ClientTrustLevel::FirstParty => "first_party".to_string(),
-        ClientTrustLevel::ThirdParty => "third_party".to_string(),
-        ClientTrustLevel::Internal => "internal".to_string(),
+        ClientTrustLevel::FirstParty => "first_party".to_owned(),
+        ClientTrustLevel::ThirdParty => "third_party".to_owned(),
+        ClientTrustLevel::Internal => "internal".to_owned(),
         ClientTrustLevel::Custom(s) => s.clone(),
-        _ => "unknown".to_string(),
+        _ => "unknown".to_owned(),
     }
 }
 
@@ -230,10 +230,10 @@ mod tests {
             subject: Some(SubjectExtension {
                 id: Some("alice@corp.com".into()),
                 subject_type: Some(SubjectType::User),
-                roles: HashSet::from(["hr".to_string(), "manager".to_string()]),
-                permissions: HashSet::from(["view_ssn".to_string()]),
-                teams: HashSet::from(["compliance".to_string()]),
-                claims: HashMap::from([("iss".to_string(), "auth.corp".to_string())]),
+                roles: HashSet::from(["hr".to_owned(), "manager".to_owned()]),
+                permissions: HashSet::from(["view_ssn".to_owned()]),
+                teams: HashSet::from(["compliance".to_owned()]),
+                claims: HashMap::from([("iss".to_owned(), "auth.corp".to_owned())]),
             }),
             this_workload: Some(WorkloadIdentity {
                 spiffe_id: Some("spiffe://corp.com/hr-tool".into()),
@@ -356,7 +356,7 @@ mod tests {
         let sec = SecurityExtension {
             subject: Some(SubjectExtension {
                 id: None,
-                roles: HashSet::from(["guest".to_string()]),
+                roles: HashSet::from(["guest".to_owned()]),
                 ..Default::default()
             }),
             ..Default::default()
@@ -379,9 +379,9 @@ mod tests {
             permissions: vec!["call_tool".into()],
             teams: vec!["acme".into()],
             claims: HashMap::from([
-                ("iss".to_string(), serde_json::json!("auth.example.com")),
+                ("iss".to_owned(), serde_json::json!("auth.example.com")),
                 (
-                    "scope_meta".to_string(),
+                    "scope_meta".to_owned(),
                     serde_json::json!({ "max_calls_per_min": 60 }),
                 ),
             ]),

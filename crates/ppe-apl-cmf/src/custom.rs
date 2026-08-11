@@ -19,7 +19,7 @@ use std::collections::HashMap;
 
 pub fn extract_custom(custom: &HashMap<String, Value>, bag: &mut AttributeBag) {
     for (k, v) in custom {
-        crate::payload::walk(v, &format!("custom.{}", k), bag);
+        crate::payload::walk(v, &format!("custom.{k}"), bag);
     }
 }
 

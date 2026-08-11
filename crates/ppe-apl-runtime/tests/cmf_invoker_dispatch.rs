@@ -57,7 +57,7 @@ fn plan_for(
     let entry = RouteDispatchPlan::resolve_plugin(manager, plugin_name)
         .expect("plugin must be registered with the manager");
     let mut plugins = std::collections::HashMap::new();
-    plugins.insert(plugin_name.to_string(), entry);
+    plugins.insert(plugin_name.to_owned(), entry);
     Arc::new(RouteDispatchPlan {
         plugins,
         delegation_entries: Default::default(),
@@ -175,7 +175,7 @@ impl HookHandler<CmfHook> for ModifyPlugin {
             .iter()
             .map(|part| match part {
                 ContentPart::Text { text } => ContentPart::Text {
-                    text: format!("{} [MODIFIED]", text),
+                    text: format!("{text} [MODIFIED]"),
                 },
                 other => other.clone(),
             })
@@ -237,7 +237,7 @@ impl HookHandler<CmfHook> for RedactToolResultPlugin {
             .map(|part| match part {
                 ContentPart::ToolResult { content } => {
                     let mut redacted = content.clone();
-                    redacted.content = serde_json::Value::String("[REDACTED]".to_string());
+                    redacted.content = serde_json::Value::String("[REDACTED]".to_owned());
                     ContentPart::ToolResult { content: redacted }
                 },
                 other => other.clone(),
@@ -289,13 +289,13 @@ fn payload_with_tool_result(text: &str, result: &str) -> MessagePayload {
             Role::Tool,
             vec![
                 ContentPart::Text {
-                    text: text.to_string(),
+                    text: text.to_owned(),
                 },
                 ContentPart::ToolResult {
                     content: praxis_policy_core::cmf::ToolResult {
-                        tool_call_id: "tc_001".to_string(),
-                        tool_name: "get_secret".to_string(),
-                        content: serde_json::Value::String(result.to_string()),
+                        tool_call_id: "tc_001".to_owned(),
+                        tool_name: "get_secret".to_owned(),
+                        content: serde_json::Value::String(result.to_owned()),
                         is_error: false,
                     },
                 },
@@ -322,7 +322,7 @@ async fn build_manager(factory_kind: &str, factory: Box<dyn PluginFactory>) -> A
     let mgr = PluginManager::default();
     mgr.register_factory(factory_kind, factory);
 
-    let yaml = format!("plugins:\n  - name: {0}\n    kind: {0}\n", factory_kind);
+    let yaml = format!("plugins:\n  - name: {factory_kind}\n    kind: {factory_kind}\n");
     let cfg = praxis_policy_core::config::parse_config(&yaml).expect("parse_config");
     mgr.load_config(cfg).expect("load_config");
     mgr.initialize().await.expect("initialize");
@@ -395,7 +395,7 @@ async fn step_invocation_deny_surfaces_violation_reason_and_code() {
             assert_eq!(reason.as_deref(), Some("test-fixture denied this call"));
             assert_eq!(rule_source, "policy.forbidden");
         },
-        other => panic!("expected Decision::Deny, got {:?}", other),
+        other => panic!("expected Decision::Deny, got {other:?}"),
     }
 }
 
@@ -414,7 +414,7 @@ async fn field_invocation_modify_surfaces_modified_value_and_persists_payload() 
     .expect("for_request");
 
     let bag = empty_bag();
-    let value = serde_json::Value::String("hello".to_string());
+    let value = serde_json::Value::String("hello".to_owned());
     let outcome = invoker
         .invoke(
             "modify-plugin",
@@ -431,7 +431,7 @@ async fn field_invocation_modify_surfaces_modified_value_and_persists_payload() 
     assert_eq!(outcome.decision, Decision::Allow);
     assert_eq!(
         outcome.modified_value,
-        Some(serde_json::Value::String("hello [MODIFIED]".to_string()))
+        Some(serde_json::Value::String("hello [MODIFIED]".to_owned()))
     );
 
     // Payload mutation persisted: a second invocation sees the updated
@@ -451,7 +451,7 @@ async fn field_invocation_modify_surfaces_modified_value_and_persists_payload() 
     assert_eq!(
         outcome2.modified_value,
         Some(serde_json::Value::String(
-            "hello [MODIFIED] [MODIFIED]".to_string()
+            "hello [MODIFIED] [MODIFIED]".to_owned()
         ))
     );
 }
@@ -471,7 +471,7 @@ async fn current_payload_reflects_accumulated_mutations() {
     .expect("for_request");
 
     let bag = empty_bag();
-    let value = serde_json::Value::String("ignored".to_string());
+    let value = serde_json::Value::String("ignored".to_owned());
     let _ = invoker
         .invoke(
             "modify-plugin",
@@ -570,7 +570,7 @@ async fn text_mutation_is_reported() {
     .expect("for_request");
 
     let bag = empty_bag();
-    let value = serde_json::Value::String("hello".to_string());
+    let value = serde_json::Value::String("hello".to_owned());
     let _ = invoker
         .invoke(
             "modify-plugin",
@@ -621,7 +621,7 @@ async fn tool_result_only_mutation_is_reported() {
     let final_payload = invoker.current_payload().await;
     assert_eq!(
         tool_result_content(&final_payload),
-        Some(&serde_json::Value::String("[REDACTED]".to_string())),
+        Some(&serde_json::Value::String("[REDACTED]".to_owned())),
         "the redaction must land in the shared payload"
     );
     assert_eq!(
@@ -672,8 +672,8 @@ impl HookHandler<CmfHook> for ArgRewritePlugin {
                 ContentPart::ToolCall { content } => {
                     let mut next = content.clone();
                     next.arguments.insert(
-                        self.arg.to_string(),
-                        serde_json::Value::String("[REDACTED]".to_string()),
+                        self.arg.to_owned(),
+                        serde_json::Value::String("[REDACTED]".to_owned()),
                     );
                     ContentPart::ToolCall { content: next }
                 },
@@ -741,8 +741,8 @@ impl HookHandler<CmfHook> for ResultFieldRewritePlugin {
                     let mut next = content.clone();
                     if let Some(obj) = next.content.as_object_mut() {
                         obj.insert(
-                            self.field.to_string(),
-                            serde_json::Value::String("[REDACTED]".to_string()),
+                            self.field.to_owned(),
+                            serde_json::Value::String("[REDACTED]".to_owned()),
                         );
                     }
                     ContentPart::ToolResult { content: next }
@@ -787,13 +787,13 @@ fn payload_with_tool_call(city: &str, note: &str) -> MessagePayload {
             Role::User,
             vec![
                 ContentPart::Text {
-                    text: note.to_string(),
+                    text: note.to_owned(),
                 },
                 ContentPart::ToolCall {
                     content: praxis_policy_core::cmf::ToolCall {
-                        tool_call_id: "tc_001".to_string(),
-                        name: "get_weather".to_string(),
-                        arguments: [("city".to_string(), serde_json::json!(city))]
+                        tool_call_id: "tc_001".to_owned(),
+                        name: "get_weather".to_owned(),
+                        arguments: [("city".to_owned(), serde_json::json!(city))]
                             .into_iter()
                             .collect(),
                         namespace: None,
@@ -899,8 +899,8 @@ async fn post_phase_field_dispatch_reads_the_result_projection() {
             Role::Tool,
             vec![ContentPart::ToolResult {
                 content: praxis_policy_core::cmf::ToolResult {
-                    tool_call_id: "tc_001".to_string(),
-                    tool_name: "get_employee".to_string(),
+                    tool_call_id: "tc_001".to_owned(),
+                    tool_name: "get_employee".to_owned(),
                     content: serde_json::json!({"name": "Ada", "ssn": "123-45-6789"}),
                     is_error: false,
                 },
@@ -1009,10 +1009,8 @@ async fn build_manager_with_caps(
     } else {
         format!("    capabilities: [{}]\n", policy_caps.join(", "))
     };
-    let yaml = format!(
-        "plugins:\n  - name: {0}\n    kind: {0}\n{1}",
-        factory_kind, caps_yaml,
-    );
+    let yaml =
+        format!("plugins:\n  - name: {factory_kind}\n    kind: {factory_kind}\n{caps_yaml}",);
     let cfg = praxis_policy_core::config::parse_config(&yaml).expect("parse_config");
     mgr.load_config(cfg).expect("load_config");
     mgr.initialize().await.expect("initialize");
@@ -1060,11 +1058,11 @@ fn plan_with_narrowed_caps(
     };
     let mut plugins = std::collections::HashMap::new();
     let mut entries_by_hook = std::collections::HashMap::new();
-    entries_by_hook.insert("cmf.tool_pre_invoke".to_string(), entry);
+    entries_by_hook.insert("cmf.tool_pre_invoke".to_owned(), entry);
     plugins.insert(
-        plugin_name.to_string(),
+        plugin_name.to_owned(),
         praxis_policy_apl_runtime::RoutePluginEntry {
-            plugin_name: plugin_name.to_string(),
+            plugin_name: plugin_name.to_owned(),
             entries_by_hook,
         },
     );

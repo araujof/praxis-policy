@@ -58,8 +58,8 @@ pub fn bag_to_context(bag: &AttributeBag, extra_args: &serde_yaml::Value) -> Con
             if name == "expr" {
                 continue;
             }
-            extra_names.insert(name.to_string());
-            ctx.add_variable_from_value(name.to_string(), yaml_to_value(v));
+            extra_names.insert(name.to_owned());
+            ctx.add_variable_from_value(name.to_owned(), yaml_to_value(v));
         }
     }
 
@@ -109,7 +109,7 @@ fn insert(level: &mut BTreeMap<String, Node>, full_key: &str, segments: &[&str],
     let Some((head, rest)) = segments.split_first() else {
         return;
     };
-    let head = (*head).to_string();
+    let head = (*head).to_owned();
 
     if rest.is_empty() {
         // Terminal segment — place the leaf, unless a namespace already
@@ -239,7 +239,7 @@ fn yaml_to_value(v: &serde_yaml::Value) -> Value {
             let mut out: HashMap<String, Value> = HashMap::new();
             for (k, val) in map {
                 if let Some(name) = k.as_str() {
-                    out.insert(name.to_string(), yaml_to_value(val));
+                    out.insert(name.to_owned(), yaml_to_value(val));
                 }
             }
             Value::from(out)
@@ -305,7 +305,7 @@ mod tests {
         let mut bag = AttributeBag::new();
         bag.set(
             "session.labels",
-            HashSet::from(["PII".to_string(), "compensation".to_string()]),
+            HashSet::from(["PII".to_owned(), "compensation".to_owned()]),
         );
         assert!(truthy("'PII' in session.labels", &bag));
         assert!(truthy("'compensation' in session.labels", &bag));
@@ -343,7 +343,7 @@ mod tests {
         let mut bag = AttributeBag::new();
         bag.set(
             "session.labels",
-            HashSet::from(["zeta".to_string(), "alpha".to_string(), "mu".to_string()]),
+            HashSet::from(["zeta".to_owned(), "alpha".to_owned(), "mu".to_owned()]),
         );
         assert!(truthy("session.labels[0] == 'alpha'", &bag));
         assert!(truthy("session.labels[1] == 'mu'", &bag));

@@ -543,12 +543,12 @@ impl PluginManager {
         // saves a second tokenize/lex pass vs parsing the string twice.
         let raw: serde_yaml::Value = serde_yaml::from_str(yaml).map_err(|e| {
             Box::new(PluginError::Config {
-                message: format!("YAML parse error: {}", e),
+                message: format!("YAML parse error: {e}"),
             })
         })?;
         let mut policy_config: PolicyConfig = serde_yaml::from_value(raw.clone()).map_err(|e| {
             Box::new(PluginError::Config {
-                message: format!("PolicyConfig deserialize error: {}", e),
+                message: format!("PolicyConfig deserialize error: {e}"),
             })
         })?;
 
@@ -858,7 +858,7 @@ impl PluginManager {
 
                     return Err(Box::new(PluginError::Execution {
                         plugin_name,
-                        message: format!("initialization failed: {}", e),
+                        message: format!("initialization failed: {e}"),
                         source: Some(Box::new(e)),
                         code: None,
                         details: std::collections::HashMap::new(),
@@ -1267,10 +1267,10 @@ impl PluginManager {
         hook_name: &str,
     ) {
         let key = AnnotationKey {
-            entity_type: entity_type.to_string(),
-            entity_name: entity_name.to_string(),
-            scope: scope.map(str::to_string),
-            hook_name: hook_name.to_string(),
+            entity_type: entity_type.to_owned(),
+            entity_name: entity_name.to_owned(),
+            scope: scope.map(str::to_owned),
+            hook_name: hook_name.to_owned(),
         };
         self.mutate_runtime(|snap| {
             snap.route_annotations.remove(&key);
@@ -1315,7 +1315,7 @@ impl PluginManager {
                             entity_type: et.clone(),
                             entity_name: en.clone(),
                             scope: Some(s.clone()),
-                            hook_name: hook_name.to_string(),
+                            hook_name: hook_name.to_owned(),
                         })
                     });
                     let candidate = scoped.or_else(|| {
@@ -1323,7 +1323,7 @@ impl PluginManager {
                             entity_type: et.clone(),
                             entity_name: en.clone(),
                             scope: None,
-                            hook_name: hook_name.to_string(),
+                            hook_name: hook_name.to_owned(),
                         })
                     });
                     if let Some(entry) = candidate {
@@ -1445,9 +1445,9 @@ impl PluginManager {
         // the freshly resolved Vec but skip memoization, bounding memory
         // growth from attacker-controlled entity names.
         let cache_key = RouteCacheKey {
-            entity_type: entity_type.to_string(),
-            entity_name: entity_name.to_string(),
-            hook_name: hook_name.to_string(),
+            entity_type: entity_type.to_owned(),
+            entity_name: entity_name.to_owned(),
+            hook_name: hook_name.to_owned(),
             scope: meta.scope.clone(),
         };
         // Decide under the lock; log outside it so I/O doesn't block readers.
@@ -1644,7 +1644,7 @@ impl PluginManager {
             .into_iter()
             .map(|(hook_name, handler)| {
                 (
-                    hook_name.to_string(),
+                    hook_name.to_owned(),
                     crate::registry::HookEntry {
                         plugin_ref: Arc::clone(&new_ref),
                         handler,
@@ -1993,12 +1993,12 @@ mod tests {
         on_error: OnError,
     ) -> PluginConfig {
         PluginConfig {
-            name: name.to_string(),
-            kind: "test".to_string(),
+            name: name.to_owned(),
+            kind: "test".to_owned(),
             description: None,
             author: None,
             version: None,
-            hooks: vec!["test_hook".to_string()],
+            hooks: vec!["test_hook".to_owned()],
             mode,
             priority,
             on_error,
@@ -2244,7 +2244,7 @@ mod tests {
 
         // Plugin A: condition requires tool == "wanted_tool" — fires for matching requests.
         let mut tools = std::collections::HashSet::new();
-        tools.insert("wanted_tool".to_string());
+        tools.insert("wanted_tool".to_owned());
         let cfg_a = make_config_with_conditions(
             "plugin_a",
             vec![crate::plugin::PluginCondition {
@@ -2348,7 +2348,7 @@ mod tests {
         let cfg = make_config_with_conditions(
             "admin_only",
             vec![crate::plugin::PluginCondition {
-                user_patterns: Some(vec!["admin-*".to_string()]),
+                user_patterns: Some(vec!["admin-*".to_owned()]),
                 ..Default::default()
             }],
         );
@@ -2360,7 +2360,7 @@ mod tests {
         let ext_with_user = |id: &str| Extensions {
             security: Some(std::sync::Arc::new(crate::extensions::SecurityExtension {
                 subject: Some(crate::extensions::security::SubjectExtension {
-                    id: Some(id.to_string()),
+                    id: Some(id.to_owned()),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -2451,7 +2451,7 @@ mod tests {
             let mgr = Arc::clone(&mgr);
             handles.push(tokio::spawn(async move {
                 let payload: Box<dyn PluginPayload> = Box::new(TestPayload {
-                    value: format!("call-{}", i),
+                    value: format!("call-{i}"),
                 });
                 let (result, _) = mgr
                     .invoke_by_name("test_hook", payload, Extensions::default(), None)
@@ -3341,11 +3341,7 @@ mod tests {
 
         // Wait for background tasks using wait_for_background_tasks()
         let errors = bg.wait_for_background_tasks().await;
-        assert!(
-            errors.is_empty(),
-            "background task had errors: {:?}",
-            errors
-        );
+        assert!(errors.is_empty(), "background task had errors: {errors:?}");
         assert!(
             TASK_COMPLETED.load(Ordering::SeqCst),
             "fire-and-forget task never completed"
@@ -3958,12 +3954,7 @@ routes:
             assert_eq!(
                 counter.load(Ordering::SeqCst),
                 expected,
-                "entity_type={} route_field={} route_value={} request_name={} expected fire={}",
-                entity_type,
-                route_field,
-                route_value,
-                request_name,
-                should_match,
+                "entity_type={entity_type} route_field={route_field} route_value={route_value} request_name={request_name} expected fire={should_match}",
             );
         }
     }
@@ -4078,10 +4069,7 @@ routes:
             let s = shutdown.load(Ordering::SeqCst);
             assert!(
                 (i == 0 && s == 0) || (i == 1 && s == 1),
-                "{}: init/shutdown should be paired (both 0 or both 1), got init={} shutdown={}",
-                tag,
-                i,
-                s,
+                "{tag}: init/shutdown should be paired (both 0 or both 1), got init={i} shutdown={s}",
             );
         };
         assert_pair_invariant(&init_count_a, &shutdown_count_a, "A");
@@ -4218,11 +4206,7 @@ plugins:
 
         let result = PluginManager::from_config(policy_config, &factories);
         match result {
-            Err(e) => assert!(
-                e.to_string().contains("no factory registered"),
-                "got: {}",
-                e
-            ),
+            Err(e) => assert!(e.to_string().contains("no factory registered"), "got: {e}"),
             Ok(_) => panic!("expected error for unknown kind"),
         }
     }
@@ -4399,7 +4383,7 @@ routes:
                 tag: &str,
                 _yaml: &serde_yaml::Value,
             ) -> Result<(), VisitorError> {
-                self.bundles.lock().unwrap().push(tag.to_string());
+                self.bundles.lock().unwrap().push(tag.to_owned());
                 Ok(())
             }
         }
@@ -5467,7 +5451,7 @@ routes:
     async fn test_executor_accepts_valid_label_addition() {
         let mgr = PluginManager::default();
         let mut config = make_config("label-adder", 10, PluginMode::Sequential);
-        config.capabilities = ["append_labels".to_string(), "read_labels".to_string()].into();
+        config.capabilities = ["append_labels".to_owned(), "read_labels".to_owned()].into();
         let plugin = Arc::new(AllowPlugin {
             cfg: config.clone(),
         });

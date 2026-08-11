@@ -89,27 +89,27 @@ impl HookHandler<ElicitationHook> for FakeApprover {
     ) -> PluginResult<ElicitationPayload> {
         self.ledger.lock().unwrap().push(OpRecord {
             op: payload.operation(),
-            kind: payload.kind().to_string(),
-            from: payload.from().to_string(),
-            elicitation_id: payload.elicitation_id().map(str::to_string),
-            purpose: payload.purpose().map(str::to_string),
+            kind: payload.kind().to_owned(),
+            from: payload.from().to_owned(),
+            elicitation_id: payload.elicitation_id().map(str::to_owned),
+            purpose: payload.purpose().map(str::to_owned),
         });
 
         if let Some(code) = &self.deny_code {
             return PluginResult::deny(PluginViolation::new(
                 code.clone(),
-                "fake-approver denied".to_string(),
+                "fake-approver denied".to_owned(),
             ));
         }
 
         let mut out = payload.clone();
         match payload.operation() {
             ElicitationOp::Dispatch => {
-                out.id = Some("elic-abc".to_string());
+                out.id = Some("elic-abc".to_owned());
                 out.status = Some(ElicitationStatusKind::Pending);
-                out.approver = Some(payload.from().to_string());
-                out.intent_id = Some("intent-77".to_string());
-                out.expires_at = Some("2026-12-31T00:00:00Z".to_string());
+                out.approver = Some(payload.from().to_owned());
+                out.intent_id = Some("intent-77".to_owned());
+                out.expires_at = Some("2026-12-31T00:00:00Z".to_owned());
             },
             ElicitationOp::Check => {
                 out.status = Some(self.check_status);
@@ -117,8 +117,8 @@ impl HookHandler<ElicitationHook> for FakeApprover {
             },
             ElicitationOp::Validate => {
                 out.valid = Some(self.validate_valid);
-                out.approver = Some("alice@example.com".to_string());
-                out.intent_id = Some("intent-77".to_string());
+                out.approver = Some("alice@example.com".to_owned());
+                out.intent_id = Some("intent-77".to_owned());
             },
         }
         PluginResult::modify_payload(out)
@@ -127,12 +127,12 @@ impl HookHandler<ElicitationHook> for FakeApprover {
 
 fn approver_cfg(name: &str) -> PluginConfig {
     PluginConfig {
-        name: name.to_string(),
-        kind: "test".to_string(),
+        name: name.to_owned(),
+        kind: "test".to_owned(),
         description: None,
         author: None,
         version: None,
-        hooks: vec![HOOK_ELICIT.to_string()],
+        hooks: vec![HOOK_ELICIT.to_owned()],
         mode: PluginMode::Sequential,
         priority: 10,
         on_error: OnError::Fail,
@@ -173,15 +173,15 @@ routes:
 fn elicit_step() -> ElicitStep {
     ElicitStep {
         kind: ElicitKind::Approval,
-        plugin_name: "manager-approver".to_string(),
-        channel: Some("ciba".to_string()),
-        from: "claim.manager".to_string(),
-        purpose: Some("Approve raise".to_string()),
-        scope: Some("args.amount <= 25000".to_string()),
+        plugin_name: "manager-approver".to_owned(),
+        channel: Some("ciba".to_owned()),
+        from: "claim.manager".to_owned(),
+        purpose: Some("Approve raise".to_owned()),
+        scope: Some("args.amount <= 25000".to_owned()),
         timeout: None,
         config_override: None,
         on_error: None,
-        source: "payroll_adjust.policy[0]".to_string(),
+        source: "payroll_adjust.policy[0]".to_owned(),
     }
 }
 
@@ -322,7 +322,7 @@ async fn handler_deny_surfaces_as_error() {
         check_status: ElicitationStatusKind::Pending,
         check_outcome: None,
         validate_valid: false,
-        deny_code: Some("channel.unavailable".to_string()),
+        deny_code: Some("channel.unavailable".to_owned()),
     });
     let (mgr, plan) = setup(Arc::clone(&plugin), approver_cfg("manager-approver")).await;
     let inv = invoker(mgr, plan);
@@ -350,7 +350,7 @@ async fn unregistered_plugin_is_not_found() {
     let inv = invoker(mgr, plan);
 
     let mut step = elicit_step();
-    step.plugin_name = "nonexistent".to_string();
+    step.plugin_name = "nonexistent".to_owned();
     let err = inv
         .dispatch(&step, "alice@example.com")
         .await

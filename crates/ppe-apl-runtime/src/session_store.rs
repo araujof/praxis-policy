@@ -154,7 +154,7 @@ impl SessionStore for MemorySessionStore {
             return Ok(());
         }
         let mut w = self.inner.write().unwrap_or_else(|p| p.into_inner());
-        let entry = w.entry(session_id.to_string()).or_default();
+        let entry = w.entry(session_id.to_owned()).or_default();
         for l in labels {
             entry.insert(l.clone());
         }
@@ -187,23 +187,23 @@ mod tests {
     async fn append_then_load_roundtrips() {
         let store = MemorySessionStore::new();
         store
-            .append_labels("sess-1", &["PII".to_string(), "INTERNAL".to_string()])
+            .append_labels("sess-1", &["PII".to_owned(), "INTERNAL".to_owned()])
             .await
             .unwrap();
         let mut labels = store.load_labels("sess-1").await.unwrap();
         labels.sort();
-        assert_eq!(labels, vec!["INTERNAL".to_string(), "PII".to_string()]);
+        assert_eq!(labels, vec!["INTERNAL".to_owned(), "PII".to_owned()]);
     }
 
     #[tokio::test]
     async fn append_is_monotonic_dedupes() {
         let store = MemorySessionStore::new();
         store
-            .append_labels("sess-1", &["PII".to_string()])
+            .append_labels("sess-1", &["PII".to_owned()])
             .await
             .unwrap();
         store
-            .append_labels("sess-1", &["PII".to_string(), "PII".to_string()])
+            .append_labels("sess-1", &["PII".to_owned(), "PII".to_owned()])
             .await
             .unwrap();
         let labels = store.load_labels("sess-1").await.unwrap();
@@ -214,10 +214,10 @@ mod tests {
     #[tokio::test]
     async fn sessions_are_isolated() {
         let store = MemorySessionStore::new();
-        store.append_labels("a", &["X".to_string()]).await.unwrap();
-        store.append_labels("b", &["Y".to_string()]).await.unwrap();
-        assert_eq!(store.load_labels("a").await.unwrap(), vec!["X".to_string()]);
-        assert_eq!(store.load_labels("b").await.unwrap(), vec!["Y".to_string()]);
+        store.append_labels("a", &["X".to_owned()]).await.unwrap();
+        store.append_labels("b", &["Y".to_owned()]).await.unwrap();
+        assert_eq!(store.load_labels("a").await.unwrap(), vec!["X".to_owned()]);
+        assert_eq!(store.load_labels("b").await.unwrap(), vec!["Y".to_owned()]);
     }
 
     #[tokio::test]
@@ -225,7 +225,7 @@ mod tests {
         let store: Arc<dyn SessionStore> = Arc::new(MemorySessionStore::new());
         let c1 = Arc::clone(&store);
         let c2 = Arc::clone(&store);
-        c1.append_labels("sess", &["Z".to_string()]).await.unwrap();
-        assert_eq!(c2.load_labels("sess").await.unwrap(), vec!["Z".to_string()]);
+        c1.append_labels("sess", &["Z".to_owned()]).await.unwrap();
+        assert_eq!(c2.load_labels("sess").await.unwrap(), vec!["Z".to_owned()]);
     }
 }

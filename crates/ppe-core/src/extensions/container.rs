@@ -671,7 +671,7 @@ mod tests {
 
     fn a_constraint(region: &str) -> CandidateConstraintExtension {
         CandidateConstraintExtension {
-            allow_regions: Some(vec![region.to_string()]),
+            allow_regions: Some(vec![region.to_owned()]),
             ..Default::default()
         }
     }
@@ -767,7 +767,7 @@ mod tests {
             http: Some(Arc::new(http)),
             delegation: Some(Arc::new(DelegationExtension::default())),
             custom: Some(Arc::new(
-                [("existing".to_string(), serde_json::json!("value"))].into(),
+                [("existing".to_owned(), serde_json::json!("value"))].into(),
             )),
             meta: Some(Arc::new(MetaExtension {
                 entity_type: Some("tool".into()),
@@ -1017,7 +1017,7 @@ mod tests {
 
         let mut cow = ext.cow_copy();
         cow.security.as_mut().unwrap().labels = crate::extensions::MonotonicSet::new();
-        cow.custom = Some([("verdict".to_string(), serde_json::json!("clean"))].into());
+        cow.custom = Some([("verdict".to_owned(), serde_json::json!("clean"))].into());
 
         ext.merge_owned(cow);
 
@@ -1093,8 +1093,8 @@ mod tests {
         let mut cow = ext.cow_copy();
         // Drop HIPAA and add something — a laundered declassification.
         let mut shrunk = std::collections::HashSet::new();
-        shrunk.insert("PII".to_string());
-        shrunk.insert("CLEAN".to_string());
+        shrunk.insert("PII".to_owned());
+        shrunk.insert("CLEAN".to_owned());
         cow.security.as_mut().unwrap().labels = crate::extensions::MonotonicSet::from_set(shrunk);
 
         ext.merge_owned(cow);
@@ -1215,7 +1215,7 @@ mod tests {
         ext.merge_owned(cow);
         assert_eq!(
             ext.delegation.as_ref().unwrap().chain[0].scopes_granted,
-            vec!["read_hr".to_string()],
+            vec!["read_hr".to_owned()],
             "an existing hop's granted scopes cannot be widened"
         );
     }

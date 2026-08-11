@@ -90,7 +90,7 @@ impl ValkeySessionStore {
             Ok(Ok(conn)) => Ok(conn),
             Ok(Err(e)) => Err(backend(e)),
             Err(_) => Err(SessionStoreError::Backend(
-                "valkey connection acquire timed out".to_string(),
+                "valkey connection acquire timed out".to_owned(),
             )),
         }
     }
@@ -115,7 +115,7 @@ impl SessionStore for ValkeySessionStore {
                 Ok(res) => res.map_err(backend)?,
                 Err(_) => {
                     return Err(SessionStoreError::Backend(
-                        "valkey SMEMBERS timed out".to_string(),
+                        "valkey SMEMBERS timed out".to_owned(),
                     ));
                 },
             };
@@ -171,7 +171,7 @@ impl SessionStore for ValkeySessionStore {
             Ok(res) => res.map_err(backend)?,
             Err(_) => {
                 return Err(SessionStoreError::Backend(
-                    "valkey append (SADD+EXPIRE) timed out".to_string(),
+                    "valkey append (SADD+EXPIRE) timed out".to_owned(),
                 ));
             },
         }

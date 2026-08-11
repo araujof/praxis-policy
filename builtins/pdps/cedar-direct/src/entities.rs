@@ -48,7 +48,7 @@ pub fn build(
     let principal = build_principal(bag, schema, entity_namespace)?;
     let resource = build_resource(resource_args, schema)?;
     Entities::from_entities([principal, resource], schema)
-        .map_err(|e| PdpError::Dispatch(format!("failed to assemble Cedar entity set: {}", e)))
+        .map_err(|e| PdpError::Dispatch(format!("failed to assemble Cedar entity set: {e}")))
 }
 
 /// Build the principal `Entity` from the bag. Reads:
@@ -75,10 +75,10 @@ pub fn build_principal(
             PdpError::Dispatch(
                 "Cedar request needs a principal but bag has no `subject.id` — \
                  install an identity-hook plugin upstream of APL policy"
-                    .to_string(),
+                    .to_owned(),
             )
         })?
-        .to_string();
+        .to_owned();
 
     let kind = bag.get_string("subject.type").unwrap_or("User");
     let entity_type = qualify_type(kind, entity_namespace);
@@ -96,8 +96,8 @@ pub fn build_principal(
     // empty-set semantics. Populating empty sets / records by default
     // gives clean "attribute exists, just empty" behavior.
     let mut attrs = Map::new();
-    attrs.insert(ATTR_ID.to_string(), json!(id));
-    attrs.insert(ATTR_TYPE.to_string(), json!(kind));
+    attrs.insert(ATTR_ID.to_owned(), json!(id));
+    attrs.insert(ATTR_TYPE.to_owned(), json!(kind));
 
     // TODO(vocab consolidation, Phase C): `"role."`, `"perm."`, and
     // `"subject.teams"` are praxis-policy-apl-cmf bag-key conventions. The cedar
@@ -106,33 +106,32 @@ pub fn build_principal(
     // reference them by symbol here. Left literal for now — the gap is
     // tracked in the `project_vocab_consolidation` memory.
     let roles = collect_prefixed_bools(bag, "role.");
-    attrs.insert(ATTR_ROLES.to_string(), json!(roles));
+    attrs.insert(ATTR_ROLES.to_owned(), json!(roles));
 
     let permissions = collect_prefixed_bools(bag, "perm.");
-    attrs.insert(ATTR_PERMISSIONS.to_string(), json!(permissions));
+    attrs.insert(ATTR_PERMISSIONS.to_owned(), json!(permissions));
 
     let teams: Vec<String> = bag
         .get_string_set("subject.teams")
         .map(|s| s.iter().cloned().collect())
         .unwrap_or_default();
-    attrs.insert(ATTR_TEAMS.to_string(), json!(teams));
+    attrs.insert(ATTR_TEAMS.to_owned(), json!(teams));
 
     let claims = collect_claims(bag);
-    attrs.insert(ATTR_CLAIMS.to_string(), Value::Object(claims));
+    attrs.insert(ATTR_CLAIMS.to_owned(), Value::Object(claims));
 
     let mut uid_obj = Map::new();
-    uid_obj.insert(ATTR_TYPE.to_string(), json!(entity_type));
-    uid_obj.insert(ATTR_ID.to_string(), json!(id));
+    uid_obj.insert(ATTR_TYPE.to_owned(), json!(entity_type));
+    uid_obj.insert(ATTR_ID.to_owned(), json!(id));
     let mut entity_obj = Map::new();
-    entity_obj.insert(KEY_UID.to_string(), Value::Object(uid_obj));
-    entity_obj.insert(KEY_ATTRS.to_string(), Value::Object(attrs));
-    entity_obj.insert(KEY_PARENTS.to_string(), Value::Array(vec![]));
+    entity_obj.insert(KEY_UID.to_owned(), Value::Object(uid_obj));
+    entity_obj.insert(KEY_ATTRS.to_owned(), Value::Object(attrs));
+    entity_obj.insert(KEY_PARENTS.to_owned(), Value::Array(vec![]));
     let entity_json = Value::Object(entity_obj);
 
     Entity::from_json_value(entity_json, schema).map_err(|e| {
         PdpError::Dispatch(format!(
-            "failed to construct principal entity '{}::\"{}\"': {}",
-            entity_type, id, e
+            "failed to construct principal entity '{entity_type}::\"{id}\"': {e}"
         ))
     })
 }
@@ -154,41 +153,39 @@ pub fn build_resource(
 ) -> Result<Entity, PdpError> {
     let map = resource_args.as_mapping().ok_or_else(|| {
         PdpError::Dispatch(
-            "cedar:() `resource` must be a mapping with `type` and `id` keys".to_string(),
+            "cedar:() `resource` must be a mapping with `type` and `id` keys".to_owned(),
         )
     })?;
 
     let entity_type = yaml_string(map, "type").ok_or_else(|| {
-        PdpError::Dispatch("cedar:() `resource.type` missing or not a string".to_string())
+        PdpError::Dispatch("cedar:() `resource.type` missing or not a string".to_owned())
     })?;
     let id = yaml_string(map, "id").ok_or_else(|| {
-        PdpError::Dispatch("cedar:() `resource.id` missing or not a string".to_string())
+        PdpError::Dispatch("cedar:() `resource.id` missing or not a string".to_owned())
     })?;
 
     let attrs_value = map
-        .get(serde_yaml::Value::String("attributes".to_string()))
+        .get(serde_yaml::Value::String("attributes".to_owned()))
         .cloned()
         .unwrap_or(serde_yaml::Value::Mapping(Default::default()));
     let attrs_json: Value = serde_json::to_value(&attrs_value).map_err(|e| {
         PdpError::Dispatch(format!(
-            "cedar:() `resource.attributes` not JSON-representable: {}",
-            e
+            "cedar:() `resource.attributes` not JSON-representable: {e}"
         ))
     })?;
 
     let mut uid_obj = Map::new();
-    uid_obj.insert(ATTR_TYPE.to_string(), json!(entity_type));
-    uid_obj.insert(ATTR_ID.to_string(), json!(id));
+    uid_obj.insert(ATTR_TYPE.to_owned(), json!(entity_type));
+    uid_obj.insert(ATTR_ID.to_owned(), json!(id));
     let mut entity_obj = Map::new();
-    entity_obj.insert(KEY_UID.to_string(), Value::Object(uid_obj));
-    entity_obj.insert(KEY_ATTRS.to_string(), attrs_json);
-    entity_obj.insert(KEY_PARENTS.to_string(), Value::Array(vec![]));
+    entity_obj.insert(KEY_UID.to_owned(), Value::Object(uid_obj));
+    entity_obj.insert(KEY_ATTRS.to_owned(), attrs_json);
+    entity_obj.insert(KEY_PARENTS.to_owned(), Value::Array(vec![]));
     let entity_json = Value::Object(entity_obj);
 
     Entity::from_json_value(entity_json, schema).map_err(|e| {
         PdpError::Dispatch(format!(
-            "failed to construct resource entity '{}::\"{}\"': {}",
-            entity_type, id, e
+            "failed to construct resource entity '{entity_type}::\"{id}\"': {e}"
         ))
     })
 }
@@ -199,8 +196,8 @@ pub fn build_resource(
 /// each policy author having to hand-prefix everywhere.
 fn qualify_type(bare: &str, namespace: Option<&str>) -> String {
     match namespace {
-        Some(ns) if !ns.is_empty() => format!("{}::{}", ns, bare),
-        _ => bare.to_string(),
+        Some(ns) if !ns.is_empty() => format!("{ns}::{bare}"),
+        _ => bare.to_owned(),
     }
 }
 
@@ -212,7 +209,7 @@ fn collect_prefixed_bools(bag: &AttributeBag, prefix: &str) -> Vec<String> {
     for (key, value) in bag.iter() {
         if let Some(name) = key.strip_prefix(prefix) {
             if matches!(value, AttributeValue::Bool(true)) {
-                out.insert(name.to_string());
+                out.insert(name.to_owned());
             }
         }
     }
@@ -235,14 +232,14 @@ fn collect_claims(bag: &AttributeBag) -> Map<String, Value> {
                 AttributeValue::String(s) => json!(s),
                 AttributeValue::StringSet(set) => json!(set.iter().collect::<Vec<_>>()),
             };
-            out.insert(name.to_string(), v);
+            out.insert(name.to_owned(), v);
         }
     }
     out
 }
 
 fn yaml_string(map: &serde_yaml::Mapping, key: &str) -> Option<String> {
-    map.get(serde_yaml::Value::String(key.to_string()))?
+    map.get(serde_yaml::Value::String(key.to_owned()))?
         .as_str()
-        .map(|s| s.to_string())
+        .map(|s| s.to_owned())
 }

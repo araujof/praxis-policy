@@ -214,8 +214,8 @@ mod tests {
         let eff = EffectivePlugin::resolve("rate_limiter", &registry, &overrides).unwrap();
         assert_eq!(eff.name, "rate_limiter");
         assert_eq!(eff.kind, "native");
-        assert_eq!(eff.hooks, &["tool_pre_invoke".to_string()]);
-        assert_eq!(eff.capabilities.as_slice(), &["read_subject".to_string()]);
+        assert_eq!(eff.hooks, &["tool_pre_invoke".to_owned()]);
+        assert_eq!(eff.capabilities.as_slice(), &["read_subject".to_owned()]);
         assert_eq!(eff.on_error, Some("fail"));
         assert!(matches!(eff.capabilities, CapsView::Global(_)));
     }
@@ -233,7 +233,7 @@ mod tests {
         });
         let mut overrides = HashMap::new();
         overrides.insert(
-            "rate_limiter".to_string(),
+            "rate_limiter".to_owned(),
             PluginOverride {
                 config: Some(yaml("max_requests: 10")),
                 capabilities: Some(vec!["read_subject".into(), "read_labels".into()]),
@@ -243,11 +243,11 @@ mod tests {
 
         let eff = EffectivePlugin::resolve("rate_limiter", &registry, &overrides).unwrap();
         // Hooks NOT overridable — still the global value.
-        assert_eq!(eff.hooks, &["tool_pre_invoke".to_string()]);
+        assert_eq!(eff.hooks, &["tool_pre_invoke".to_owned()]);
         // Capabilities/config/on_error — overridden.
         assert_eq!(
             eff.capabilities.as_slice(),
-            &["read_subject".to_string(), "read_labels".to_string()]
+            &["read_subject".to_owned(), "read_labels".to_owned()]
         );
         assert!(matches!(eff.capabilities, CapsView::Override(_)));
         assert_eq!(eff.on_error, Some("ignore"));
@@ -271,7 +271,7 @@ mod tests {
         });
         let mut overrides = HashMap::new();
         overrides.insert(
-            "audit".to_string(),
+            "audit".to_owned(),
             PluginOverride {
                 config: None,
                 capabilities: None,
@@ -281,7 +281,7 @@ mod tests {
 
         let eff = EffectivePlugin::resolve("audit", &registry, &overrides).unwrap();
         assert_eq!(eff.on_error, Some("fail")); // overridden
-        assert_eq!(eff.capabilities.as_slice(), &["read_labels".to_string()]); // inherited
+        assert_eq!(eff.capabilities.as_slice(), &["read_labels".to_owned()]); // inherited
         let cfg = eff.config.expect("config inherited");
         assert_eq!(cfg["log_level"], yaml("info")); // inherited
     }

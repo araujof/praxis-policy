@@ -37,8 +37,8 @@ fn cmf_payload(text: &str) -> MessagePayload {
 
 fn meta_for_tool(name: &str) -> MetaExtension {
     let mut meta = MetaExtension::default();
-    meta.entity_type = Some("tool".to_string());
-    meta.entity_name = Some(name.to_string());
+    meta.entity_type = Some("tool".to_owned());
+    meta.entity_name = Some(name.to_owned());
     meta
 }
 
@@ -98,7 +98,7 @@ routes:
         .modified_extensions
         .expect("restrict must surface a constraint via modified_extensions");
     let c = constraint(&merged).expect("candidate_constraint slot must be set");
-    assert_eq!(c.allow_regions.as_deref(), Some(&["eu".to_string()][..]));
+    assert_eq!(c.allow_regions.as_deref(), Some(&["eu".to_owned()][..]));
     assert_eq!(c.on_empty, OnEmpty::Deny);
 }
 
@@ -129,9 +129,9 @@ routes:
     let c = constraint(&merged).expect("candidate_constraint slot");
     assert_eq!(
         c.allow_models.as_deref(),
-        Some(&["anthropic/*".to_string()][..])
+        Some(&["anthropic/*".to_owned()][..])
     ); // intersection
-    assert_eq!(c.deny_models, vec!["openai/*".to_string()]); // union
+    assert_eq!(c.deny_models, vec!["openai/*".to_owned()]); // union
     assert_eq!(c.on_empty, OnEmpty::Deny);
 }
 
@@ -236,6 +236,6 @@ routes:
         .clone()
         .expect("allow_regions from branch A");
     regions.sort();
-    assert_eq!(regions, vec!["eu".to_string(), "us".to_string()]);
-    assert_eq!(c.deny_models, vec!["openai/*".to_string()]);
+    assert_eq!(regions, vec!["eu".to_owned(), "us".to_owned()]);
+    assert_eq!(c.deny_models, vec!["openai/*".to_owned()]);
 }

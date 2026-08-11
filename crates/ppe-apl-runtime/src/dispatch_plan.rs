@@ -298,7 +298,7 @@ impl RouteDispatchPlan {
             entries_by_hook.insert(hook_name, entry);
         }
         Some(RoutePluginEntry {
-            plugin_name: plugin_name.to_string(),
+            plugin_name: plugin_name.to_owned(),
             entries_by_hook,
         })
     }
@@ -471,7 +471,7 @@ pub(crate) fn route_capability_union(
     // it, the `http` extension is stripped before the handler reads it and
     // every retry re-dispatches a fresh elicitation instead of checking.
     if !elicit_plugins.is_empty() {
-        caps.insert("read_headers".to_string());
+        caps.insert("read_headers".to_owned());
     }
     caps
 }

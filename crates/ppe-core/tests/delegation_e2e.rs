@@ -97,7 +97,7 @@ impl HookHandler<TokenDelegateHook> for StubExchanger {
         let audience = payload
             .target_audience()
             .unwrap_or("https://example.com/default")
-            .to_string();
+            .to_owned();
         // Effective scopes: combine route-attenuation capabilities
         // with required_permissions. Real exchangers may narrow
         // further based on the IdP's response.
@@ -193,7 +193,7 @@ impl HookHandler<TokenDelegateHook> for FallbackMinter {
             payload
                 .target_audience()
                 .unwrap_or("https://fallback.example.com")
-                .to_string(),
+                .to_owned(),
             vec!["read".into()],
             Utc::now() + ChronoDuration::seconds(60),
         ));
@@ -234,12 +234,12 @@ impl HookHandler<TokenDelegateHook> for RejectingHandler {
 
 fn config(name: &str, priority: i32) -> PluginConfig {
     PluginConfig {
-        name: name.to_string(),
-        kind: "test".to_string(),
+        name: name.to_owned(),
+        kind: "test".to_owned(),
         description: None,
         author: None,
         version: None,
-        hooks: vec![HOOK_TOKEN_DELEGATE.to_string()],
+        hooks: vec![HOOK_TOKEN_DELEGATE.to_owned()],
         mode: PluginMode::Sequential,
         priority,
         on_error: OnError::Fail,
@@ -308,16 +308,15 @@ async fn single_handler_mints_token() {
 
     assert_eq!(token.audience, "https://hr.example.com");
     assert_eq!(token.outbound_header, "Authorization");
-    assert!(token.scopes.contains(&"read:compensation".to_string()));
+    assert!(token.scopes.contains(&"read:compensation".to_owned()));
     // Route attenuation contributed `audit` capability.
-    assert!(token.scopes.contains(&"audit".to_string()));
+    assert!(token.scopes.contains(&"audit".to_owned()));
     // TTL respects the route hint (120s) — token must expire in
     // roughly 120s, not 300s default.
     let ttl_left = (token.expires_at - Utc::now()).num_seconds();
     assert!(
         ttl_left <= 120 && ttl_left > 100,
-        "token TTL should reflect route hint (~120s); got {}s",
-        ttl_left,
+        "token TTL should reflect route hint (~120s); got {ttl_left}s",
     );
     // Input fields preserved through clone.
     assert_eq!(final_payload.bearer_token(), "eyJ.caller.tok");

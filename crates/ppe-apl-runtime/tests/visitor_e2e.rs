@@ -167,8 +167,8 @@ fn cmf_payload(text: &str) -> MessagePayload {
 
 fn meta_for_tool(name: &str) -> MetaExtension {
     let mut meta = MetaExtension::default();
-    meta.entity_type = Some("tool".to_string());
-    meta.entity_name = Some(name.to_string());
+    meta.entity_type = Some("tool".to_owned());
+    meta.entity_name = Some(name.to_owned());
     meta
 }
 
@@ -388,7 +388,7 @@ routes:
 
     // Scope vs-a → scoped annotation → deny.
     let mut meta_a = meta_for_tool("get_weather");
-    meta_a.scope = Some("vs-a".to_string());
+    meta_a.scope = Some("vs-a".to_owned());
     let ext_a = Extensions {
         meta: Some(Arc::new(meta_a)),
         ..Default::default()
@@ -401,7 +401,7 @@ routes:
 
     // Scope vs-b → no scoped match → fall back to unscoped annotation → allow.
     let mut meta_b = meta_for_tool("get_weather");
-    meta_b.scope = Some("vs-b".to_string());
+    meta_b.scope = Some("vs-b".to_owned());
     let ext_b = Extensions {
         meta: Some(Arc::new(meta_b)),
         ..Default::default()
@@ -499,8 +499,8 @@ routes:
 
 fn meta_for_entity(entity_type: &str, entity_name: &str) -> MetaExtension {
     let mut meta = MetaExtension::default();
-    meta.entity_type = Some(entity_type.to_string());
-    meta.entity_name = Some(entity_name.to_string());
+    meta.entity_type = Some(entity_type.to_owned());
+    meta.entity_name = Some(entity_name.to_owned());
     meta
 }
 
@@ -710,11 +710,10 @@ routes:
     let err = mgr
         .load_config_yaml(YAML)
         .expect_err("malformed APL block must error");
-    let msg = format!("{}", err);
+    let msg = format!("{err}");
     assert!(
         msg.contains("visitor 'apl'"),
-        "expected visitor error context, got: {}",
-        msg
+        "expected visitor error context, got: {msg}"
     );
 }
 

@@ -128,7 +128,7 @@ impl PiiScanner {
                 },
                 ContentPart::Text { text } => {
                     if self.match_str(text).is_some() {
-                        *text = "[PII]".to_string();
+                        *text = "[PII]".to_owned();
                     }
                 },
                 _ => {},
@@ -139,7 +139,7 @@ impl PiiScanner {
     fn redact_value(&self, v: &mut Value) {
         if let Value::String(s) = v {
             if self.match_str(s).is_some() {
-                *v = Value::String("[PII]".to_string());
+                *v = Value::String("[PII]".to_owned());
             }
         }
     }
@@ -152,17 +152,17 @@ fn compile_patterns(
     let mut out = Vec::with_capacity(patterns.len());
     for p in patterns {
         let (name, re_str) = match p {
-            PiiPattern::Ssn => ("ssn", r"\b\d{3}-\d{2}-\d{4}\b".to_string()),
+            PiiPattern::Ssn => ("ssn", r"\b\d{3}-\d{2}-\d{4}\b".to_owned()),
             PiiPattern::CreditCard => (
                 "credit_card",
                 // 13-19 digit sequences with optional spaces / hyphens
                 // every 4 digits. Liberal — Luhn validation would
                 // tighten this but isn't needed for the demo signal.
-                r"\b(?:\d[ -]?){13,19}\b".to_string(),
+                r"\b(?:\d[ -]?){13,19}\b".to_owned(),
             ),
             PiiPattern::Email => (
                 "email",
-                r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b".to_string(),
+                r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b".to_owned(),
             ),
             PiiPattern::Custom { name, regex } => (name.as_str(), regex.clone()),
         };
@@ -174,7 +174,7 @@ fn compile_patterns(
                 ),
             })
         })?;
-        out.push((name.to_string(), re));
+        out.push((name.to_owned(), re));
     }
     Ok(out)
 }
@@ -268,7 +268,7 @@ mod tests {
     async fn ssn_in_args_denied() {
         let p = PiiScanner::new(cfg(vec![PiiPattern::Ssn], PiiScanMode::Deny)).unwrap();
         let payload = message_with_args(HashMap::from([(
-            "body".to_string(),
+            "body".to_owned(),
             json!("Her SSN is 555-12-3456"),
         )]));
         let mut ctx = PluginContext::default();
@@ -283,7 +283,7 @@ mod tests {
     async fn clean_args_allowed() {
         let p = PiiScanner::new(cfg(vec![PiiPattern::Ssn], PiiScanMode::Deny)).unwrap();
         let payload = message_with_args(HashMap::from([(
-            "body".to_string(),
+            "body".to_owned(),
             json!("Quarterly compensation review summary."),
         )]));
         let mut ctx = PluginContext::default();
@@ -296,8 +296,8 @@ mod tests {
     async fn redact_mode_rewrites_value() {
         let p = PiiScanner::new(cfg(vec![PiiPattern::Ssn], PiiScanMode::Redact)).unwrap();
         let payload = message_with_args(HashMap::from([
-            ("body".to_string(), json!("555-12-3456")),
-            ("subject".to_string(), json!("payroll question")),
+            ("body".to_owned(), json!("555-12-3456")),
+            ("subject".to_owned(), json!("payroll question")),
         ]));
         let mut ctx = PluginContext::default();
         let r = p.handle(&payload, &Extensions::default(), &mut ctx).await;
@@ -322,7 +322,7 @@ mod tests {
             PiiScanMode::Deny,
         ))
         .unwrap();
-        let payload = message_with_args(HashMap::from([("ref".to_string(), json!("INT-ABC123"))]));
+        let payload = message_with_args(HashMap::from([("ref".to_owned(), json!("INT-ABC123"))]));
         let mut ctx = PluginContext::default();
         let r = p.handle(&payload, &Extensions::default(), &mut ctx).await;
         assert!(!r.continue_processing);

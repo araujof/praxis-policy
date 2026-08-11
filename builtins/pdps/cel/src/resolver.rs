@@ -285,7 +285,7 @@ impl CelResolver {
             if cache.len() >= self.max_cache_entries && !cache.contains_key(expr) {
                 true
             } else {
-                cache.insert(expr.to_string(), Arc::clone(&program));
+                cache.insert(expr.to_owned(), Arc::clone(&program));
                 false
             }
         };
@@ -327,7 +327,7 @@ impl CelResolver {
             OnError::Deny => PdpDecision {
                 decision: Decision::Deny {
                     reason: Some(cause.clone()),
-                    rule_source: "cel".to_string(),
+                    rule_source: "cel".to_owned(),
                 },
                 diagnostics: vec![cause],
             },
@@ -347,7 +347,7 @@ impl CelResolver {
         PdpDecision {
             decision: Decision::Deny {
                 reason: Some(cause.clone()),
-                rule_source: "cel".to_string(),
+                rule_source: "cel".to_owned(),
             },
             diagnostics: vec![cause],
         }
@@ -397,7 +397,7 @@ impl PdpResolver for CelResolver {
             .and_then(|m| m.get(serde_yaml::Value::String("expr".into())))
             .and_then(|v| v.as_str())
             .ok_or_else(|| {
-                PdpError::Dispatch("cel:() step requires a string `expr` argument".to_string())
+                PdpError::Dispatch("cel:() step requires a string `expr` argument".to_owned())
             })?;
 
         // 2. Compile (cached). Compile errors always Deny (an author
@@ -439,8 +439,8 @@ impl PdpResolver for CelResolver {
                 diagnostics.extend(snapshot_referenced_bag_values(&program, bag));
                 Ok(PdpDecision {
                     decision: Decision::Deny {
-                        reason: Some("CEL expression evaluated to false".to_string()),
-                        rule_source: "cel".to_string(),
+                        reason: Some("CEL expression evaluated to false".to_owned()),
+                        rule_source: "cel".to_owned(),
                     },
                     diagnostics,
                 })
@@ -518,9 +518,9 @@ fn bag_namespace_present(bag: &AttributeBag, name: &str) -> bool {
 
 /// Read a string field from a YAML mapping (mirrors the cedar-direct helper).
 fn read_yaml_string(map: &serde_yaml::Mapping, key: &str) -> Option<String> {
-    map.get(serde_yaml::Value::String(key.to_string()))?
+    map.get(serde_yaml::Value::String(key.to_owned()))?
         .as_str()
-        .map(|s| s.to_string())
+        .map(|s| s.to_owned())
 }
 
 #[cfg(test)]

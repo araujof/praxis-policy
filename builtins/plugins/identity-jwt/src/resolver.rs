@@ -425,8 +425,8 @@ impl HookHandler<IdentityHook> for JwtIdentityResolver {
         let header_lc = self.header.to_ascii_lowercase();
         let header_value = payload.headers().get(header_lc.as_str());
         let raw_token: String = match header_value {
-            Some(v) => v.strip_prefix("Bearer ").unwrap_or(v).to_string(),
-            None if !payload.raw_token().is_empty() => payload.raw_token().to_string(),
+            Some(v) => v.strip_prefix("Bearer ").unwrap_or(v).to_owned(),
+            None if !payload.raw_token().is_empty() => payload.raw_token().to_owned(),
             None => {
                 return PluginResult::deny(PluginViolation::new(
                     "auth.malformed_header",
@@ -501,7 +501,7 @@ impl HookHandler<IdentityHook> for JwtIdentityResolver {
                         "token's header `kid` = '{k}' did not match any key in issuer's JWKS"
                     ),
                     None => "token has no `kid` header; issuer's JWKS keys all require kid match"
-                        .to_string(),
+                        .to_owned(),
                 };
                 return PluginResult::deny(PluginViolation::new("auth.unknown_kid", reason));
             },
@@ -873,7 +873,7 @@ mod tests {
         let token = jwt_with_payload(r#"{"sub":"alice","iss":"https://idp.example.com"}"#);
         assert_eq!(
             peek_issuer(&token),
-            Some("https://idp.example.com".to_string()),
+            Some("https://idp.example.com".to_owned()),
         );
     }
 

@@ -123,11 +123,11 @@ impl HookHandler<IdentityHook> for WorkloadResolver {
             .headers()
             .get("x-spiffe-id")
             .cloned()
-            .unwrap_or_else(|| "spiffe://example.com/unknown".to_string());
+            .unwrap_or_else(|| "spiffe://example.com/unknown".to_owned());
         let mut updated = payload.clone();
         updated.caller_workload = Some(WorkloadIdentity {
             spiffe_id: Some(spiffe_id),
-            trust_domain: Some("example.com".to_string()),
+            trust_domain: Some("example.com".to_owned()),
             ..Default::default()
         });
         PluginResult::modify_payload(updated)
@@ -168,12 +168,12 @@ impl HookHandler<IdentityHook> for RejectingResolver {
 
 fn config(name: &str, priority: i32) -> PluginConfig {
     PluginConfig {
-        name: name.to_string(),
-        kind: "test".to_string(),
+        name: name.to_owned(),
+        kind: "test".to_owned(),
         description: None,
         author: None,
         version: None,
-        hooks: vec![HOOK_IDENTITY_RESOLVE.to_string()],
+        hooks: vec![HOOK_IDENTITY_RESOLVE.to_owned()],
         mode: PluginMode::Sequential,
         priority,
         on_error: OnError::Fail,
@@ -189,10 +189,10 @@ fn config(name: &str, priority: i32) -> PluginConfig {
 /// downstream read these via the public accessors.
 fn build_payload(token: &str) -> IdentityPayload {
     let mut headers = std::collections::HashMap::new();
-    headers.insert("authorization".to_string(), format!("Bearer {}", token));
+    headers.insert("authorization".to_owned(), format!("Bearer {token}"));
     headers.insert(
-        "x-spiffe-id".to_string(),
-        "spiffe://example.com/agent-1".to_string(),
+        "x-spiffe-id".to_owned(),
+        "spiffe://example.com/agent-1".to_owned(),
     );
     IdentityPayload::new(token, TokenSource::Bearer)
         .with_source_header("Authorization")
@@ -219,7 +219,7 @@ async fn single_resolver_populates_subject() {
     let cfg = config("subject-resolver", 10);
     let plugin = Arc::new(SubjectResolver {
         cfg: cfg.clone(),
-        subject_id: "alice@corp.com".to_string(),
+        subject_id: "alice@corp.com".to_owned(),
     });
     mgr.register_handler::<IdentityHook, _>(plugin, cfg)
         .unwrap();
@@ -264,7 +264,7 @@ async fn two_resolvers_chain_populates_both_slots() {
     let subject_cfg = config("subject-resolver", 10);
     let subject = Arc::new(SubjectResolver {
         cfg: subject_cfg.clone(),
-        subject_id: "alice@corp.com".to_string(),
+        subject_id: "alice@corp.com".to_owned(),
     });
     mgr.register_handler::<IdentityHook, _>(subject, subject_cfg)
         .unwrap();
@@ -373,7 +373,7 @@ async fn apply_to_extensions_populates_security_and_preserves_existing_fields() 
             _ext: &Extensions,
             _ctx: &mut PluginContext,
         ) -> PluginResult<IdentityPayload> {
-            let token_bytes = payload.raw_token().to_string();
+            let token_bytes = payload.raw_token().to_owned();
             let mut updated = payload.clone();
             updated.subject = Some(SubjectExtension {
                 id: Some("alice@corp.com".into()),
@@ -535,7 +535,7 @@ async fn cap_gating_post_apply_through_cmf_dispatch() {
             _ext: &Extensions,
             _ctx: &mut PluginContext,
         ) -> PluginResult<IdentityPayload> {
-            let token = payload.raw_token().to_string();
+            let token = payload.raw_token().to_owned();
             let mut updated = payload.clone();
             updated.subject = Some(SubjectExtension {
                 id: Some("alice@corp.com".into()),

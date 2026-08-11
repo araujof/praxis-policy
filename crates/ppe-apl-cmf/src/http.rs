@@ -24,16 +24,16 @@ use crate::constants::{BAG_HTTP_HOST, BAG_HTTP_METHOD, BAG_HTTP_PATH, BAG_HTTP_S
 
 pub fn extract_http(http: &HttpExtension, bag: &mut AttributeBag) {
     if let Some(method) = &http.method {
-        bag.set(BAG_HTTP_METHOD.to_string(), method.clone());
+        bag.set(BAG_HTTP_METHOD.to_owned(), method.clone());
     }
     if let Some(path) = &http.path {
-        bag.set(BAG_HTTP_PATH.to_string(), path.clone());
+        bag.set(BAG_HTTP_PATH.to_owned(), path.clone());
     }
     if let Some(host) = &http.host {
-        bag.set(BAG_HTTP_HOST.to_string(), host.clone());
+        bag.set(BAG_HTTP_HOST.to_owned(), host.clone());
     }
     if let Some(scheme) = &http.scheme {
-        bag.set(BAG_HTTP_SCHEME.to_string(), scheme.clone());
+        bag.set(BAG_HTTP_SCHEME.to_owned(), scheme.clone());
     }
     for (k, v) in &http.request_headers {
         bag.set(
@@ -65,10 +65,10 @@ mod tests {
     #[test]
     fn request_line_surfaced_in_bag() {
         let http = HttpExtension {
-            method: Some("POST".to_string()),
-            path: Some("/api/widgets".to_string()),
-            host: Some("api.example.com".to_string()),
-            scheme: Some("https".to_string()),
+            method: Some("POST".to_owned()),
+            path: Some("/api/widgets".to_owned()),
+            host: Some("api.example.com".to_owned()),
+            scheme: Some("https".to_owned()),
             ..Default::default()
         };
         let mut bag = AttributeBag::new();

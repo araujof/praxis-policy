@@ -252,7 +252,7 @@ fn registry() -> &'static RwLock<HashMap<String, HookMetadata>> {
     REGISTRY.get_or_init(|| {
         let mut map: HashMap<String, HookMetadata> = HashMap::new();
         for (name, meta) in BUILTIN_METADATA {
-            map.insert((*name).to_string(), *meta);
+            map.insert((*name).to_owned(), *meta);
         }
         RwLock::new(map)
     })

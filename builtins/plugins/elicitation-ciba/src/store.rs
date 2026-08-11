@@ -73,7 +73,7 @@ impl CorrelationStore for InMemoryCorrelationStore {
         self.inner
             .lock()
             .unwrap_or_else(|p| p.into_inner())
-            .insert(id.to_string(), correlation);
+            .insert(id.to_owned(), correlation);
     }
 
     fn get(&self, id: &str) -> Option<Correlation> {

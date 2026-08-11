@@ -214,11 +214,10 @@ async fn deep_delegation_denies_at_policy() {
         Decision::Deny { rule_source, .. } => {
             assert!(
                 rule_source.contains("pre_invocation"),
-                "got source: {}",
-                rule_source
+                "got source: {rule_source}"
             );
         },
-        d => panic!("expected policy deny, got {:?}", d),
+        d => panic!("expected policy deny, got {d:?}"),
     }
     // Result phase never ran → no result mutation.
     assert!(!r.result_modified);
@@ -287,11 +286,10 @@ async fn args_validator_rejects_wrong_type() {
         Decision::Deny { rule_source, .. } => {
             assert!(
                 rule_source.contains("employee_id"),
-                "expected args field source, got {}",
-                rule_source,
+                "expected args field source, got {rule_source}",
             );
         },
-        d => panic!("expected args-phase deny, got {:?}", d),
+        d => panic!("expected args-phase deny, got {d:?}"),
     }
     // Result phase didn't run.
     assert!(!r.result_modified);

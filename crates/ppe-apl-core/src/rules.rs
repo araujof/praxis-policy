@@ -61,7 +61,7 @@ impl From<f64> for Literal {
 }
 impl From<&str> for Literal {
     fn from(v: &str) -> Self {
-        Literal::String(v.to_string())
+        Literal::String(v.to_owned())
     }
 }
 impl From<String> for Literal {
@@ -301,9 +301,8 @@ impl Effect {
                 for e in effects {
                     if e.contains_mutation() {
                         return Err(format!(
-                            "`parallel:` contains a mutation effect ({:?}); \
-                             use `sequential:` for ordered mutations",
-                            e
+                            "`parallel:` contains a mutation effect ({e:?}); \
+                             use `sequential:` for ordered mutations"
                         ));
                     }
                     // Still validate nested parallels even if this one
@@ -600,7 +599,7 @@ mod tests {
         let mut layer = CompiledRoute::new("tool:x");
         layer.response = Some(DenyResponse {
             status: Some(403),
-            body: Some("forbidden".to_string()),
+            body: Some("forbidden".to_owned()),
             ..Default::default()
         });
         base.apply_layer(layer);
@@ -941,8 +940,8 @@ mod tests {
             },
         ]);
         let err = effect.validate_parallel_purity().unwrap_err();
-        assert!(err.contains("mutation"), "got: {}", err);
-        assert!(err.contains("FieldOp"), "should name the offender: {}", err);
+        assert!(err.contains("mutation"), "got: {err}");
+        assert!(err.contains("FieldOp"), "should name the offender: {err}");
     }
 
     #[test]

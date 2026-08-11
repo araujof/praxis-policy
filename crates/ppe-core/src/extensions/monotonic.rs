@@ -135,9 +135,9 @@ mod tests {
     #[test]
     fn test_monotonic_insert_only() {
         let mut set = MonotonicSet::new();
-        set.insert("PII".to_string());
-        set.insert("CONFIDENTIAL".to_string());
-        assert!(set.contains(&"PII".to_string()));
+        set.insert("PII".to_owned());
+        set.insert("CONFIDENTIAL".to_owned());
+        assert!(set.contains(&"PII".to_owned()));
         assert_eq!(set.len(), 2);
         // No remove() method available — this is the key guarantee
     }
@@ -145,10 +145,10 @@ mod tests {
     #[test]
     fn test_monotonic_superset() {
         let mut before = MonotonicSet::new();
-        before.insert("PII".to_string());
+        before.insert("PII".to_owned());
 
         let mut after = before.clone();
-        after.insert("HIPAA".to_string());
+        after.insert("HIPAA".to_owned());
 
         assert!(after.is_superset(&before));
         assert!(!before.is_superset(&after));
@@ -157,12 +157,12 @@ mod tests {
     #[test]
     fn test_monotonic_declassifier() {
         let mut set = MonotonicSet::new();
-        set.insert("PII".to_string());
+        set.insert("PII".to_owned());
 
         // Only works with the token
         let token = DeclassifierToken::new();
-        assert!(set.remove_with_declassifier(&"PII".to_string(), &token));
-        assert!(!set.contains(&"PII".to_string()));
+        assert!(set.remove_with_declassifier(&"PII".to_owned(), &token));
+        assert!(!set.contains(&"PII".to_owned()));
     }
 
     #[test]
@@ -177,12 +177,12 @@ mod tests {
     #[test]
     fn test_monotonic_serde_roundtrip() {
         let mut set = MonotonicSet::new();
-        set.insert("PII".to_string());
-        set.insert("HIPAA".to_string());
+        set.insert("PII".to_owned());
+        set.insert("HIPAA".to_owned());
 
         let json = serde_json::to_string(&set).unwrap();
         let deserialized: MonotonicSet<String> = serde_json::from_str(&json).unwrap();
-        assert!(deserialized.contains(&"PII".to_string()));
-        assert!(deserialized.contains(&"HIPAA".to_string()));
+        assert!(deserialized.contains(&"PII".to_owned()));
+        assert!(deserialized.contains(&"HIPAA".to_owned()));
     }
 }
