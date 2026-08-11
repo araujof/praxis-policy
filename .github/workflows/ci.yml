@@ -1,5 +1,19 @@
 name: CI
 
+# Every `uses:` is SHA-pinned and GitHub-owned. This repository sets
+# `sha_pinning_required` and restricts allowed actions to GitHub-owned, verified
+# creators, and `dtolnay/rust-toolchain@*`. A tag reference such as `@v4`, or a
+# third-party action outside that list, fails the run before any job starts, and
+# it presents as a workflow file problem rather than a build failure.
+#
+# The consequence is that helper actions are replaced by the commands underneath
+# them: caching uses actions/cache directly, and cargo tools install themselves
+# through the Makefile, which already does that locally.
+#
+# No toolchain action is needed. rust-toolchain.toml pins the channel and its
+# components, and rustup installs from that file on the first cargo invocation,
+# so the toolchain stays declared in exactly one place.
+
 on:
   push:
     branches: [main]
@@ -18,24 +32,49 @@ jobs:
     name: fmt and clippy
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      # The toolchain, its components, and the MSRV all come from
-      # rust-toolchain.toml, so nothing is pinned twice.
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ runner.os }}-cargo-lint-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: ${{ runner.os }}-cargo-lint-
       - run: make lint
 
   test:
     name: test
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: ${{ runner.os }}-cargo-test-
       - run: make test
 
   doc:
     name: docs build
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ runner.os }}-cargo-doc-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: ${{ runner.os }}-cargo-doc-
       - run: make doc
