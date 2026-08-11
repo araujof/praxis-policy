@@ -52,7 +52,7 @@ pub struct DelegationHop {
     #[serde(default)]
     pub scopes_granted: Vec<String>,
 
-    /// RFC 9396 authorization_details carried alongside scopes.
+    /// RFC 9396 `authorization_details` carried alongside scopes.
     /// Each hop's details must be structurally narrowed from the previous.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub authorization_details: Vec<AuthorizationDetail>,

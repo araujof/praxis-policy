@@ -93,7 +93,7 @@ fn short_hash(raw: &str) -> String {
 
 /// Bind a client/upstream-supplied raw session value to the authenticated
 /// subject: `sha256(subject_id : raw)`. This is the subject-bound shape the
-/// module doc prescribes for the (previously raw) Agent and TokenClaim tiers,
+/// module doc prescribes for the (previously raw) Agent and `TokenClaim` tiers,
 /// so a session id chosen by one principal cannot address another principal's
 /// session bucket. Returns `None` when there is no authenticated subject — a
 /// bare client value has no safe scope, consistent with the identity tier,
@@ -111,7 +111,7 @@ fn subject_scoped(subject_id: Option<&str>, raw: &str) -> Option<String> {
 /// Identity-tier (2) requires at minimum `security.subject.id` to be
 /// populated — without an end-user identifier there's no meaningful
 /// session boundary to hash against. The other two identity-triple
-/// components (caller_workload, this_workload) fall back to the
+/// components (`caller_workload`, `this_workload`) fall back to the
 /// `"-"` sentinel when absent, which keeps the hash defined but
 /// degrades to a (sub, *, *) session — usually fine for demos with
 /// a single gateway and single agent.

@@ -42,10 +42,10 @@ use crate::error::BuildError;
 use crate::request::parse as parse_call;
 
 /// Grow the cedar evaluation stack when the current thread has less than this
-/// much headroom. cedar-policy-core's own guard is 100 KiB
+/// much headroom. cedar-policy-core's own guard is 100 `KiB`
 /// (`REQUIRED_STACK_SPACE`); we grow at 10x that so the guard never fires
 /// mid-descent. On glibc (8 MiB thread stacks) there is always more than this
-/// available, so `maybe_grow` is a cheap no-op; on musl (128 KiB default) we
+/// available, so `maybe_grow` is a cheap no-op; on musl (128 `KiB` default) we
 /// fall below it and grow onto a fresh segment.
 const CEDAR_STACK_RED_ZONE: usize = 1024 * 1024;
 /// Size of the fresh stack segment to run cedar on when we grow. Matches
@@ -53,7 +53,7 @@ const CEDAR_STACK_RED_ZONE: usize = 1024 * 1024;
 /// against. Allocated only on small-stack hosts, freed when evaluation returns.
 const CEDAR_STACK_GROW_SIZE: usize = 8 * 1024 * 1024;
 
-/// PdpResolver wrapping a bare `cedar-policy` engine. Constructed from
+/// `PdpResolver` wrapping a bare `cedar-policy` engine. Constructed from
 /// policy text / file / config block at startup; evaluates each call
 /// against the loaded `PolicySet`.
 pub struct CedarDirectResolver {
@@ -62,7 +62,7 @@ pub struct CedarDirectResolver {
     authorizer: Authorizer,
     dialect: PdpDialect,
     /// Optional namespace applied to subject types: `Some("Acme")`
-    /// turns "User" into "Acme::User" when building the principal
+    /// turns "User" into "`Acme::User`" when building the principal
     /// entity. Lets schemas that namespace their entity types work
     /// without policy authors having to hand-prefix every reference.
     entity_namespace: Option<String>,

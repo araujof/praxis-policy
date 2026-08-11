@@ -558,8 +558,8 @@ routes:
 
 /// Proof: an APL `taint(audit, session)` step lands the
 /// label in `security.labels` (via `apply_session_taints`) AND the
-/// SessionStore (via `persist_session`). No plugin is involved — the
-/// taint comes from the YAML, not from any handler's modify_extensions.
+/// `SessionStore` (via `persist_session`). No plugin is involved — the
+/// taint comes from the YAML, not from any handler's `modify_extensions`.
 /// This is the load-bearing end-to-end test for the
 /// "policy with side-effects" pitch: writing `taint(...)` in YAML
 /// actually causes the session to be permanently labelled.
@@ -940,7 +940,7 @@ routes:
     );
 }
 
-/// Sessionless/anonymous traffic carries no session_id, so it never
+/// Sessionless/anonymous traffic carries no `session_id`, so it never
 /// touches the store and is unaffected by a store outage.
 #[tokio::test]
 async fn sessionless_request_unaffected_by_store_failure() {
@@ -1075,7 +1075,7 @@ routes:
     );
 }
 
-/// Unknown `kind` in a session_store block fails config load loudly.
+/// Unknown `kind` in a `session_store` block fails config load loudly.
 #[tokio::test]
 async fn unknown_session_store_kind_fails_config_load() {
     const YAML: &str = r#"

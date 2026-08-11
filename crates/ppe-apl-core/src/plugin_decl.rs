@@ -44,7 +44,7 @@ pub struct PluginDeclaration {
     /// PPE hook names this plugin implements. Invokers pick which
     /// hook to dispatch based on this list; v0 uses the first entry,
     /// future versions will choose by invocation context (policy vs
-    /// post_policy vs pipe-chain).
+    /// `post_policy` vs pipe-chain).
     ///
     /// NOT overridable per-route.
     #[serde(default)]
@@ -113,7 +113,7 @@ pub struct EffectivePlugin<'a> {
     /// Config: route override wins if present, else global. Borrowed
     /// directly; callers that need to own it call `.cloned()`.
     pub config: Option<&'a serde_yaml::Value>,
-    /// on_error: route override wins if present, else global.
+    /// `on_error`: route override wins if present, else global.
     pub on_error: Option<&'a str>,
 }
 
@@ -143,7 +143,7 @@ impl<'a> EffectivePlugin<'a> {
     /// Route-level override precedence:
     ///   - Override `config` replaces the global `config` entirely.
     ///   - Override `capabilities` replaces global capabilities.
-    ///   - Override `on_error` replaces global on_error.
+    ///   - Override `on_error` replaces global `on_error`.
     ///   - Everything else inherits unchanged from the global.
     pub fn resolve(
         name: &str,

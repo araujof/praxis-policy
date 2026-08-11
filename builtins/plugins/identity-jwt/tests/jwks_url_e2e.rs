@@ -318,7 +318,7 @@ fn mint_jwt_with_kid(private_pem: &str, kid: &str, claims: Value) -> String {
 /// JWKS publishes two keys with distinct kids. A token signed by
 /// key B with header `kid=key-b` must validate against key B, not
 /// against the first-listed key A. Pre-Slice-A code would pick the
-/// first key (A) and reject the valid token as signature_invalid.
+/// first key (A) and reject the valid token as `signature_invalid`.
 #[tokio::test(flavor = "multi_thread")]
 async fn kid_selects_correct_key_when_jwks_has_multiple() {
     let mut rng = rand::thread_rng();
@@ -453,7 +453,7 @@ async fn unknown_kid_yields_unknown_kid_violation() {
 
 /// JWKS endpoint accepts the TCP connection but stalls indefinitely
 /// on the HTTP response — the kind of slow-loris pattern a hostile
-/// or simply broken IdP could exhibit. The fetch must time out
+/// or simply broken `IdP` could exhibit. The fetch must time out
 /// rather than hanging `initialize()` forever.
 #[tokio::test(flavor = "multi_thread")]
 async fn jwks_fetch_times_out_when_endpoint_stalls() {
@@ -523,10 +523,10 @@ async fn jwks_fetch_times_out_when_endpoint_stalls() {
 
 /// JWKS endpoint is unreachable at gateway boot. The plugin must
 /// `initialize()` cleanly (no Err — soft-fail) so the gateway
-/// doesn't crash on a transient IdP outage. Subsequent verify
+/// doesn't crash on a transient `IdP` outage. Subsequent verify
 /// calls against tokens for that issuer must surface
 /// `auth.jwks_unavailable` — a clear, distinct code so operators
-/// see "JWKS issue at IdP X" rather than the alarming
+/// see "JWKS issue at `IdP` X" rather than the alarming
 /// `auth.signature_invalid` they'd see if we silently used an
 /// empty key.
 #[tokio::test(flavor = "multi_thread")]
@@ -593,8 +593,8 @@ async fn jwks_unreachable_at_initialize_soft_fails() {
 
 /// Initial JWKS publishes key A; the mock then rotates to key B.
 /// A token signed by B with `kid=key-b` is initially rejected
-/// (KeyStore only knows A). After the refresh interval ticks,
-/// the resolver's KeyStore swaps in B and the same token
+/// (`KeyStore` only knows A). After the refresh interval ticks,
+/// the resolver's `KeyStore` swaps in B and the same token
 /// validates. Pins both:
 ///   - that refresh runs without restart
 ///   - that whole-store replacement actually swaps (not merges,

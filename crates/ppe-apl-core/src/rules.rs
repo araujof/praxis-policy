@@ -29,7 +29,7 @@ pub enum CompareOp {
     GtEq,
     Lt,
     LtEq,
-    /// `<set_key> contains <literal>` — left is a StringSet attribute,
+    /// `<set_key> contains <literal>` — left is a `StringSet` attribute,
     /// right is a string literal.
     Contains,
 }
@@ -94,14 +94,14 @@ pub enum Condition {
         key: String,
     },
     /// DSL `exists(key)` — true iff the key is present in the
-    /// AttributeBag, regardless of its value. Distinct from `IsTrue`
+    /// `AttributeBag`, regardless of its value. Distinct from `IsTrue`
     /// (which only succeeds for truthy values).
     Exists {
         key: String,
     },
     /// DSL `value_key in set_key` (negate=false) / `value_key not in set_key`
     /// (negate=true). Both operands are attribute keys, not literals — the
-    /// scalar at `value_key` is checked for membership in the StringSet at
+    /// scalar at `value_key` is checked for membership in the `StringSet` at
     /// `set_key`. Returns `false` if either key is missing or
     /// the types don't match (scalar must resolve to a string).
     InSet {
@@ -201,7 +201,7 @@ pub enum Effect {
     ///
     /// `path` must start with `args.` or `result.` — the evaluator
     /// dispatches the lookup against `RoutePayload.args` or
-    /// `RoutePayload.result`. A FieldOp inside a Pre-phase route's
+    /// `RoutePayload.result`. A `FieldOp` inside a Pre-phase route's
     /// `do:` that targets `result.X` is a no-op (the result hasn't
     /// been produced yet); same goes for a Post-phase rule that
     /// targets `args.X` (the args are already on the wire). The
@@ -372,7 +372,7 @@ impl Rule {
 /// and the test fixtures) drop a `.into()` instead of re-spelling all
 /// three fields. Bridges the few remaining producers while the migration
 /// completes; will probably stay long-term because the parser still
-/// builds Rule incrementally before deciding it's an Effect::When.
+/// builds Rule incrementally before deciding it's an `Effect::When`.
 impl From<Rule> for Effect {
     fn from(r: Rule) -> Effect {
         Effect::When {
@@ -449,7 +449,7 @@ pub struct DenyResponse {
 
 /// Compiler output for a single route.
 ///
-/// One `CompiledRoute` per route_key. The compiler merges global / default /
+/// One `CompiledRoute` per `route_key`. The compiler merges global / default /
 /// tag / route-specific rules from the config hierarchy down into these four
 /// phase lists before the evaluator sees them — the IR has no notion of
 /// "tag rules" or "route overrides," only "steps that fire in phase P."
@@ -532,10 +532,10 @@ impl CompiledRoute {
     /// - **`args` / `result`**: per-field; if both layers declare the
     ///   same field, `more_specific`'s rule replaces self's. Fields
     ///   only in self stay; fields only in `more_specific` are added.
-    /// - **`plugin_overrides`**: HashMap merge; `more_specific` wins
+    /// - **`plugin_overrides`**: `HashMap` merge; `more_specific` wins
     ///   on key collisions, otherwise prefix's entries fill gaps.
     ///
-    /// `self.route_key` is preserved — apply_layer doesn't overwrite
+    /// `self.route_key` is preserved — `apply_layer` doesn't overwrite
     /// identity, just policy content.
     pub fn apply_layer(&mut self, more_specific: CompiledRoute) {
         // policy / post_policy: more_specific's steps append AFTER self.

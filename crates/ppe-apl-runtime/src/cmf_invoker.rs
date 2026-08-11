@@ -120,7 +120,7 @@ pub struct CmfPluginInvoker {
     /// `SessionStore` hydration but before any plugins have run. Used
     /// by `persist_session` to diff against final labels and append only
     /// the additions to the session store. Empty when there was no
-    /// session_id (so no hydration happened).
+    /// `session_id` (so no hydration happened).
     initial_labels: HashSet<String>,
 }
 
@@ -514,7 +514,7 @@ fn snapshot_labels(extensions: &Extensions) -> HashSet<String> {
 
 /// Add `labels` to `extensions.security.labels` (monotonic union).
 /// Creates a security extension if absent. Used at hydration time —
-/// merges the SessionStore's accumulated labels into the request view
+/// merges the `SessionStore`'s accumulated labels into the request view
 /// so the first plugin sees the full picture.
 fn hydrate_labels(mut extensions: Extensions, labels: &[String]) -> Extensions {
     // Clone the Arc'd security into an owned struct so we can mutate.

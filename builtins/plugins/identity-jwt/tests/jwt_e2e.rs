@@ -134,7 +134,7 @@ fn resolver_plugin_config_for(role: &str, header: &str) -> PluginConfig {
     cfg
 }
 
-/// Build the PluginManager + register the resolver + initialize.
+/// Build the `PluginManager` + register the resolver + initialize.
 /// All four scenarios share this skeleton.
 async fn build_manager() -> Arc<PluginManager> {
     build_manager_with(resolver_plugin_config()).await
@@ -339,7 +339,7 @@ async fn workload_role_rejects_a_non_spiffe_token() {
 /// The `spiffe_id` fallback must be prefix-checked too: a non-SPIFFE
 /// `sub` combined with an arbitrary `spiffe_id` claim must NOT be
 /// accepted as a workload. Without the guard on the fallback, this token
-/// would be mislabeled `TokenKind::SpiffeJwt` and land in caller_workload.
+/// would be mislabeled `TokenKind::SpiffeJwt` and land in `caller_workload`.
 #[tokio::test]
 async fn workload_role_rejects_non_spiffe_sub_with_bogus_spiffe_id_claim() {
     let jwt = mint_jwt(json!({

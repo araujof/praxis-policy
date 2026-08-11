@@ -36,7 +36,7 @@ use praxis_policy_core::plugin::{Plugin, PluginConfig};
 // Step 1: Define a payload and hook type
 // ---------------------------------------------------------------------------
 
-/// The payload carried through the tool_pre_invoke hook.
+/// The payload carried through the `tool_pre_invoke` hook.
 #[derive(Debug, Clone)]
 struct ToolInvokePayload {
     tool_name: String,
@@ -45,7 +45,7 @@ struct ToolInvokePayload {
 }
 praxis_policy_core::impl_plugin_payload!(ToolInvokePayload);
 
-/// Hook type for tool_pre_invoke — runs before a tool executes.
+/// Hook type for `tool_pre_invoke` — runs before a tool executes.
 struct ToolPreInvoke;
 impl HookTypeDef for ToolPreInvoke {
     type Payload = ToolInvokePayload;
@@ -53,7 +53,7 @@ impl HookTypeDef for ToolPreInvoke {
     const NAME: &'static str = "tool_pre_invoke";
 }
 
-/// Hook type for tool_post_invoke — runs after a tool executes.
+/// Hook type for `tool_post_invoke` — runs after a tool executes.
 struct ToolPostInvoke;
 impl HookTypeDef for ToolPostInvoke {
     type Payload = ToolInvokePayload;
@@ -233,7 +233,7 @@ impl HookHandler<ToolPostInvoke> for AuditLogger {
 //      `register_factory` call. There is no separate async path.
 struct RemoteAuthz {
     cfg: PluginConfig,
-    /// ACL "fetched" at init. Populated in Plugin::initialize.
+    /// ACL "fetched" at init. Populated in `Plugin::initialize`.
     allowed_users: tokio::sync::RwLock<std::collections::HashSet<String>>,
 }
 

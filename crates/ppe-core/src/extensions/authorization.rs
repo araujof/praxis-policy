@@ -13,7 +13,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-/// A single RFC 9396 authorization_details entry.
+/// A single RFC 9396 `authorization_details` entry.
 ///
 /// `type` is required (renamed `detail_type` here to avoid the Rust
 /// keyword). The remaining fields are optional per the RFC. API-specific

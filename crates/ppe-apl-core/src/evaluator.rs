@@ -417,7 +417,7 @@ impl StepsEvaluation {
 /// Outcome of dispatching one effect. Internal control-flow signal —
 /// never serialized, never exposed in the IR. Sits between the per-
 /// effect dispatch (When / Pdp / Plugin / Delegate / Taint / Allow /
-/// Deny / FieldOp / Sequential / Parallel) and the caller's "do I keep
+/// Deny / `FieldOp` / Sequential / Parallel) and the caller's "do I keep
 /// walking the effects list or halt?" loop.
 enum EffectOutcome {
     /// Effect completed without producing a Deny — caller moves on to
@@ -982,9 +982,9 @@ async fn dispatch_elicitation(
 ///
 /// # Concurrency model
 ///
-/// Built on [`praxis_policy_orchestration::run_branches`] — the same JoinSet
-/// + abort-on-deny primitive `praxis-policy-core`'s executor uses for its
-/// concurrent phase. Each branch is `tokio::spawn`ed onto the
+/// Built on [`praxis_policy_orchestration::run_branches`], the same
+/// `JoinSet` and abort-on-deny primitive `praxis-policy-core`'s executor uses
+/// for its concurrent phase. Each branch is `tokio::spawn`ed onto the
 /// runtime, so branches get true OS-thread parallelism (vs. the v1
 /// implementation's `join_all`, which only interleaved on one
 /// task). To meet the `'static + Send` bounds for spawning, the
@@ -1151,7 +1151,7 @@ fn dispatch_parallel<'a>(
 /// same `when:`/`do:` rule body can be reused across phases without
 /// the author needing to branch on phase.
 ///
-/// Missing fields skip silently too (same as the args:/result: phase
+/// Missing fields skip silently too (same as the <args:/result>: phase
 /// pipelines) — a pipeline can't transform what isn't there. If the
 /// author needs presence semantics, that's a `require(exists(args.X))`
 /// upstream of the `do:` body.
@@ -1261,7 +1261,7 @@ pub enum FieldOutcome {
 ///
 /// `taint(...)` stages, plugin invocations, and `scan(...)` stages can all
 /// emit taints; the evaluator collects them here and hands them to the host
-/// (praxis-policy-apl-runtime) for SessionStore writes. Taints accumulate even on `Replace`
+/// (praxis-policy-apl-runtime) for `SessionStore` writes. Taints accumulate even on `Replace`
 /// and `Omit` outcomes; they do not accumulate past a `Deny` (the pipeline
 /// halts at the failing stage).
 #[derive(Debug, Clone, PartialEq)]
@@ -1621,7 +1621,7 @@ fn value_kind(v: &serde_json::Value) -> &'static str {
     }
 }
 
-/// Stable byte representation of a value for hashing — serde_json's
+/// Stable byte representation of a value for hashing — `serde_json`'s
 /// `to_string` is canonical enough for our use.
 fn value_for_hash(v: &serde_json::Value) -> String {
     serde_json::to_string(v).unwrap_or_default()
@@ -1728,7 +1728,7 @@ mod tests {
         }
     }
 
-    /// Build an `Effect::Elicit` with the given scope / on_error for the
+    /// Build an `Effect::Elicit` with the given scope / `on_error` for the
     /// elicitation-arm tests. Channel/kind are fixed — the arm doesn't
     /// branch on them (that's the plugin's job, which the fakes stub).
     fn elicit_effect(scope: Option<&str>, on_error: Option<&str>) -> Effect {

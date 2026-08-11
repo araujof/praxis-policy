@@ -67,7 +67,7 @@ use praxis_policy_apl_core::rules::{CompiledRoute, Effect};
 pub struct RoutePluginEntry {
     pub plugin_name: String,
     /// All hook entries the plugin registered, keyed by hook name.
-    /// Per-call overrides (route-level config / caps / on_error) are
+    /// Per-call overrides (route-level config / caps / `on_error`) are
     /// already applied via `build_override_entries` before being
     /// stored here.
     pub entries_by_hook: HashMap<String, HookEntry>,
@@ -81,7 +81,7 @@ impl RoutePluginEntry {
     ///
     /// `requested_entity_type` comes from the request's
     /// `MetaExtension.entity_type` (or `None` if the dispatcher
-    /// doesn't have one — in which case any hook's entity_type
+    /// doesn't have one — in which case any hook's `entity_type`
     /// matches). `requested_phase` comes from the APL invocation
     /// context — `Pre` for `args:` / `pre_invocation:`, `Post` for
     /// `result:` / `post_invocation:`, `Unphased` for unphased
@@ -315,8 +315,8 @@ fn parse_on_error(s: &str) -> Option<OnError> {
 /// `visit` on each. Used by `collect_*_names` below to find Plugin /
 /// Delegate references that may be nested inside `Effect::When`,
 /// `Effect::Sequential`, `Effect::Parallel`, or `Effect::Pdp` reaction
-/// lists. Previously these were flat — Step::Plugin lived directly under
-/// policy: — so a simple iter() was enough; now the IR is tree-
+/// lists. Previously these were flat — `Step::Plugin` lived directly under
+/// policy: — so a simple `iter()` was enough; now the IR is tree-
 /// shaped and the same scan needs recursion.
 fn walk_effects<F: FnMut(&Effect)>(effects: &[Effect], visit: &mut F) {
     for e in effects {
@@ -481,7 +481,7 @@ pub(crate) fn route_capability_union(
 /// Cache key is the APL `route_key`. Entries pair with the praxis-policy-core
 /// snapshot generation observed at build time; a mismatch on lookup
 /// triggers eviction and rebuild. v0 keys on `route_key` only —
-/// entity-aware caching (entity_type/entity_name from `MetaExtension`)
+/// entity-aware caching (`entity_type/entity_name` from `MetaExtension`)
 /// is a follow-up when per-tenant lineup variation lands.
 #[derive(Default)]
 pub struct DispatchCache {

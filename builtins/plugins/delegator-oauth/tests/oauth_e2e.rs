@@ -129,7 +129,7 @@ async fn invoke(
 // Scenarios
 // =====================================================================
 
-/// Happy path: mock IdP responds with a fresh access_token; the
+/// Happy path: mock `IdP` responds with a fresh `access_token`; the
 /// delegator translates it into a `RawDelegatedToken` populated
 /// with the requested audience, the effective scopes, and an
 /// expiry derived from `expires_in`.
@@ -213,9 +213,9 @@ async fn happy_path_mints_delegated_token() {
     mock.assert_async().await;
 }
 
-/// IdP returns a 400 with the standard `error` / `error_description`
+/// `IdP` returns a 400 with the standard `error` / `error_description`
 /// shape — delegator surfaces `delegation.idp_rejected` carrying the
-/// IdP's machine-readable code.
+/// `IdP`'s machine-readable code.
 #[tokio::test]
 async fn idp_rejection_surfaces_error_code() {
     let mut server = Server::new_async().await;
@@ -252,7 +252,7 @@ async fn idp_rejection_surfaces_error_code() {
     );
 }
 
-/// IdP unreachable (mockito server stopped) — delegator surfaces
+/// `IdP` unreachable (mockito server stopped) — delegator surfaces
 /// `delegation.idp_unreachable` rather than panicking.
 #[tokio::test]
 async fn idp_unreachable_surfaces_violation() {
@@ -305,7 +305,7 @@ async fn missing_audience_rejects_without_network() {
     assert!(violation.reason.contains("target_audience"));
 }
 
-/// IdP grants narrower scopes than requested — delegator emits the
+/// `IdP` grants narrower scopes than requested — delegator emits the
 /// documented `delegation.scope_too_broad` code rather than silently
 /// proceeding. Without this check, a route that requested
 /// `read+write` and got back only `read` would mint a token the
@@ -350,9 +350,9 @@ async fn idp_narrower_scope_surfaces_scope_too_broad() {
     mock.assert_async().await;
 }
 
-/// Sanity check: when the IdP grants exactly the requested set, the
+/// Sanity check: when the `IdP` grants exactly the requested set, the
 /// scope check passes. Pins the "no false positive" half of the
-/// scope_too_broad behaviour.
+/// `scope_too_broad` behaviour.
 #[tokio::test]
 async fn idp_exact_scope_match_succeeds() {
     let mut server = Server::new_async().await;
@@ -458,7 +458,7 @@ async fn actor_token_reaches_the_idp_when_the_payload_carries_one() {
 /// The negative half: a payload with no actor must produce a plain
 /// single-token exchange. Asserted by rejecting any request whose body
 /// mentions `actor_token` at all — a stray empty `actor_token=` field
-/// would confuse strict IdPs, so "absent" has to mean absent.
+/// would confuse strict `IdPs`, so "absent" has to mean absent.
 #[tokio::test]
 async fn absent_actor_leaves_no_actor_fields_on_the_wire() {
     let mut server = Server::new_async().await;
@@ -548,7 +548,7 @@ async fn this_workload_subject_uses_client_credentials_not_token_exchange() {
 
 /// An empty bearer token is still an error for every subject that
 /// *does* have an inbound credential. Pins the boundary: the
-/// this_workload's exemption must not silently swallow a genuinely missing
+/// `this_workload`'s exemption must not silently swallow a genuinely missing
 /// workload or user token.
 #[tokio::test]
 async fn empty_bearer_still_rejected_for_non_this_workload_subjects() {
@@ -570,7 +570,7 @@ async fn empty_bearer_still_rejected_for_non_this_workload_subjects() {
 
 /// `actor_token` is a token-exchange parameter with no meaning under
 /// `client_credentials`, so a this_workload-subject call must not send it
-/// even when the payload carries one — an IdP receiving both would be
+/// even when the payload carries one — an `IdP` receiving both would be
 /// getting a malformed request.
 #[tokio::test]
 async fn this_workload_subject_never_sends_actor_token() {
@@ -604,10 +604,10 @@ async fn this_workload_subject_never_sends_actor_token() {
 }
 
 /// Mode A — the calling agent acts as itself. Its SVID is a *client
-/// credential*, not a subject_token, so the delegator runs two legs:
+/// credential*, not a `subject_token`, so the delegator runs two legs:
 ///
 ///   leg 1  present the SVID as an RFC 7523 `client_assertion`
-///          (client_credentials) → the agent's base IdP token;
+///          (`client_credentials`) → the agent's base `IdP` token;
 ///   leg 2  the ordinary exchange, run on that BASE token, scopes it
 ///          to the target audience.
 ///
@@ -619,7 +619,7 @@ async fn this_workload_subject_never_sends_actor_token() {
 ///
 /// Both legs are asserted: proving the SVID went out as a
 /// `client_assertion` in leg 1 and that leg 2 exchanged the base token
-/// — never the raw SVID as a subject_token.
+/// — never the raw SVID as a `subject_token`.
 #[tokio::test]
 async fn workload_subject_authenticates_by_svid_then_exchanges() {
     let mut server = Server::new_async().await;
@@ -698,7 +698,7 @@ async fn workload_subject_authenticates_by_svid_then_exchanges() {
 }
 
 /// A leg-1 rejection must not echo submitted credential material. Even
-/// when the IdP hostilely parrots the SVID back in `error_description`, the
+/// when the `IdP` hostilely parrots the SVID back in `error_description`, the
 /// caller-visible violation carries only the OAuth error code — never the
 /// `client_assertion` bytes.
 #[tokio::test]

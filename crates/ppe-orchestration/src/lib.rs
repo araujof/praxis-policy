@@ -76,7 +76,7 @@ pub enum BranchOutcome<T> {
     Aborted,
     /// Branch's spawned task panicked. Carries the panic payload's
     /// `Display` representation for logging — the typed payload is
-    /// dropped (JoinError doesn't preserve it across boxing).
+    /// dropped (`JoinError` doesn't preserve it across boxing).
     Panicked(String),
 }
 

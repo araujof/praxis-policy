@@ -25,10 +25,10 @@ use jsonwebtoken::{Algorithm, DecodingKey};
 ///     looks here first using the inbound token's header `kid`.
 ///   - `fallback`: a single key for the kid-less case. Populated
 ///     for inline sources (`Pem`/`PemFile`/`Jwk`/`Secret`) which
-///     have no JWKS context. JWKS-sourced KeyStores leave this
+///     have no JWKS context. JWKS-sourced `KeyStores` leave this
 ///     `None` — every JWKS key carries a `kid` by spec.
 ///
-/// A KeyStore with no entries at all (`by_kid.is_empty() && fallback.is_none()`)
+/// A `KeyStore` with no entries at all (`by_kid.is_empty() && fallback.is_none()`)
 /// is a valid runtime state — it represents "JWKS fetch failed,
 /// retry pending" in the soft-fail design. Today every
 /// construction path populates at least one slot before the store
@@ -41,10 +41,10 @@ use jsonwebtoken::{Algorithm, DecodingKey};
 /// builds a new `KeyStore`, and replaces the old one atomically
 /// (`*shared.write().await = new_store`). Do **not** merge new
 /// keys into the existing `by_kid` map: that grows unbounded as
-/// the IdP rotates kids in and out over the deployment's lifetime
-/// (every kid the IdP ever published stays in our map forever).
+/// the `IdP` rotates kids in and out over the deployment's lifetime
+/// (every kid the `IdP` ever published stays in our map forever).
 /// Whole-store replacement bounds the live key count to the
-/// IdP's current JWKS size and lets dropped DecodingKeys release.
+/// `IdP`'s current JWKS size and lets dropped `DecodingKeys` release.
 /// `RwLock` semantics make this race-free: in-flight verifies
 /// holding `&DecodingKey` keep the old store alive until they
 /// release, at which point the swap completes and the old store
@@ -65,7 +65,7 @@ impl KeyStore {
     }
 
     /// Single-key store with no `kid`. Used by inline sources (Pem,
-    /// PemFile, Jwk, Secret) — they have no JWKS context to provide
+    /// `PemFile`, Jwk, Secret) — they have no JWKS context to provide
     /// a kid, so the key serves every token regardless of header.
     pub fn single_fallback(key: DecodingKey) -> Self {
         Self {
@@ -77,7 +77,7 @@ impl KeyStore {
     /// Construct from a JWKS — every key gets indexed by its `kid`.
     /// JWKS entries without a `kid` are silently dropped (the OIDC
     /// spec requires them to carry one; an entry missing `kid` is
-    /// an IdP misconfiguration we'd rather surface as
+    /// an `IdP` misconfiguration we'd rather surface as
     /// `auth.unknown_kid` at verify time than as a silent
     /// fallback-wins behaviour).
     pub fn from_jwks_entries<I>(entries: I) -> Self
@@ -136,7 +136,7 @@ impl std::fmt::Debug for KeyStore {
 /// One issuer's trust config — `iss` value to match against,
 /// audience to require, decoding key(s), and acceptable algorithms.
 ///
-/// Deployments with multiple IdPs construct one of these per IdP
+/// Deployments with multiple `IdPs` construct one of these per `IdP`
 /// and hand the list to `JwtIdentityResolver::new`. The resolver
 /// picks the matching issuer based on the inbound token's `iss`
 /// claim.
@@ -158,7 +158,7 @@ pub struct TrustedIssuer {
     /// inbound token's header.
     ///
     /// Wrapped in `Arc<RwLock<...>>` so the background JWKS
-    /// refresh task can atomically swap in a fresh KeyStore
+    /// refresh task can atomically swap in a fresh `KeyStore`
     /// without blocking concurrent verifies (read guards are held
     /// for the duration of one `decode()`, which is sync — no
     /// `.await` between acquisition and release, so no deadlock
@@ -172,7 +172,7 @@ pub struct TrustedIssuer {
 
     /// Algorithms accepted for signature verification. Most
     /// deployments stick to one (RS256 most commonly), but
-    /// supporting multiple lets the IdP rotate to a new algo
+    /// supporting multiple lets the `IdP` rotate to a new algo
     /// without us redeploying.
     pub algorithms: Vec<Algorithm>,
 

@@ -204,7 +204,7 @@ impl OAuthDelegator {
     /// RFC 7523 client assertion, and return the IdP-issued base token.
     ///
     /// There is no Basic auth and no `client_id` — the assertion *is*
-    /// the client credential, and the IdP resolves which client from
+    /// the client credential, and the `IdP` resolves which client from
     /// the SVID's `sub` (draft-ietf-oauth-spiffe-client-auth). The base
     /// token this returns then becomes the `subject_token` of the
     /// ordinary exchange (leg 2), which is where the downstream
@@ -284,10 +284,10 @@ struct TokenExchangeResponse {
     /// Optional per RFC — defaults to `access_token` issued type.
     #[serde(default)]
     issued_token_type: Option<String>,
-    /// Optional in RFC; many IdPs send it.
+    /// Optional in RFC; many `IdPs` send it.
     #[serde(default)]
     expires_in: Option<i64>,
-    /// Space-separated effective scopes the IdP actually granted.
+    /// Space-separated effective scopes the `IdP` actually granted.
     /// May be narrower than what we requested.
     #[serde(default)]
     scope: Option<String>,
@@ -600,7 +600,7 @@ impl HookHandler<TokenDelegateHook> for OAuthDelegator {
 /// so a caller using this to warn never fires on a token it couldn't read.
 ///
 /// The signature is deliberately not verified: this token just came back
-/// from our own trusted IdP roundtrip, and we're only reading a claim to
+/// from our own trusted `IdP` roundtrip, and we're only reading a claim to
 /// decide whether to log, not making a trust decision.
 fn jwt_payload_omits_act(access_token: &str) -> bool {
     use base64::Engine as _;

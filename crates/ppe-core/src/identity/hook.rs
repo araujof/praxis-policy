@@ -31,7 +31,7 @@ use crate::hooks::trait_def::PluginResult;
 
 use super::payload::IdentityPayload;
 
-/// Primary hook name for IdentityResolve handlers. Used as the
+/// Primary hook name for `IdentityResolve` handlers. Used as the
 /// registry key when a host registers the handler via the standard
 /// `register_handler` path.
 pub const HOOK_IDENTITY_RESOLVE: &str = "identity.resolve";

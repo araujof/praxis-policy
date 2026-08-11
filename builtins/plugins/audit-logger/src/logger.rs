@@ -18,7 +18,7 @@ use praxis_policy_core::plugin::{Plugin, PluginConfig};
 use crate::config::{AuditDestination, AuditLoggerConfig};
 
 /// Observation-only CMF plugin. Builds a structured audit record
-/// from the request's MessagePayload + Extensions, emits to the
+/// from the request's `MessagePayload` + Extensions, emits to the
 /// configured destination, returns `Allow`. Never blocks.
 #[derive(Debug)]
 pub struct AuditLogger {

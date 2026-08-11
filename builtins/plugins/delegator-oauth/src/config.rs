@@ -22,27 +22,27 @@ use serde::{Deserialize, Serialize};
 /// `plugins[<name>].config:` in unified-config YAML.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OAuthDelegatorConfig {
-    /// IdP's token endpoint URL — where the token-exchange POST
+    /// `IdP`'s token endpoint URL — where the token-exchange POST
     /// lands (e.g., `https://auth.example.com/oauth/token`).
     pub token_endpoint: String,
 
-    /// OAuth `client_id` identifying our gateway to the IdP. The
-    /// IdP authenticates us with `(client_id, client_secret)` over
+    /// OAuth `client_id` identifying our gateway to the `IdP`. The
+    /// `IdP` authenticates us with `(client_id, client_secret)` over
     /// HTTP Basic / form-body before honoring the exchange request.
     pub client_id: String,
 
     /// Where to load the client secret from. See [`ClientSecretSource`].
     pub client_secret_source: ClientSecretSource,
 
-    /// What `subject_token_type` we tell the IdP the inbound token
+    /// What `subject_token_type` we tell the `IdP` the inbound token
     /// is. RFC 8693 defines `access_token`, `refresh_token`,
     /// `id_token`, `jwt`, `saml1`, `saml2`. Most deployments use
-    /// access_token — that's the default.
+    /// `access_token` — that's the default.
     #[serde(default = "default_subject_token_type")]
     pub subject_token_type: String,
 
     /// Request timeout. The exchange is on the request hot path —
-    /// a 5s default keeps requests bounded if the IdP is slow.
+    /// a 5s default keeps requests bounded if the `IdP` is slow.
     #[serde(default = "default_timeout_seconds")]
     pub timeout_seconds: u64,
 
@@ -58,12 +58,12 @@ pub struct OAuthDelegatorConfig {
     /// token-exchange POST sends `client_id:client_secret` and the
     /// inbound user JWT — leaking either over plaintext defeats the
     /// whole exchange. Set to `true` ONLY for `http://localhost`
-    /// development against a docker-compose IdP. Production
+    /// development against a docker-compose `IdP`. Production
     /// deployments must leave this at the default (`false`).
     #[serde(default)]
     pub insecure_http: bool,
 
-    /// The `actor_token_type` we tell the IdP the RFC 8693
+    /// The `actor_token_type` we tell the `IdP` the RFC 8693
     /// `actor_token` is — a token-type URN. Defaults to
     /// `...:token-type:jwt` because the actor is almost always a
     /// JWT-SVID. Only consulted when the `DelegationPayload` carries a

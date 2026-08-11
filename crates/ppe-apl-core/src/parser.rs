@@ -431,7 +431,7 @@ impl<'a> PredParser<'a> {
     }
 
     /// `exists(<identifier>)`. Returns true if the key is present
-    /// in the AttributeBag, regardless of value (distinct from truthiness).
+    /// in the `AttributeBag`, regardless of value (distinct from truthiness).
     fn parse_exists(&mut self) -> Result<Expression, ParseError> {
         self.bump(); // exists
         match self.bump() {
@@ -458,7 +458,7 @@ impl<'a> PredParser<'a> {
     }
 
     /// Parse a predicate that begins with an identifier:
-    ///   - bare identifier:    `authenticated`  → IsTrue
+    ///   - bare identifier:    `authenticated`  → `IsTrue`
     ///   - comparison:         `delegation.depth > 2`
     ///   - contains:           `session.labels contains "PII"`
     ///   - set membership:     `subject.type in allowed_types`
@@ -557,11 +557,11 @@ pub fn parse_predicate(src: &str) -> Result<Expression, ParseError> {
 /// Parse a single rule line into a `Rule`.
 ///
 /// Accepted forms:
-///   1. `"require(...)"`           →  rule-level shorthand, desugars to
-///                                    `when: <negated condition> do: deny`
-///   2. `"<predicate>: <action>"`  →  Rule { condition, action }
-///   3. `"<predicate>"`            →  Rule { condition, action: Deny } (default)
-///   4. `"<action>"` (action only) →  treated as form 3 (always-true predicate)
+/// 1. `"require(...)"` is rule-level shorthand, desugaring to
+///    `when: <negated condition> do: deny`
+/// 2. `"<predicate>: <action>"` becomes `Rule { condition, action }`
+/// 3. `"<predicate>"` becomes `Rule { condition, action: Deny }`
+/// 4. `"<action>"` alone is form 3 with an always-true predicate
 ///
 /// **Step kinds** (`plugin(...)`, `taint(...)`, `cedar:`, `opa(...)` etc.)
 /// are handled by `parse_step`, not here. This function specifically parses
@@ -2041,7 +2041,7 @@ fn is_valid_field_path(s: &str) -> bool {
 /// Anything else (`Pdp`) is rejected — nested PDP calls inside `do:`
 /// are out of scope.
 /// Recursively map a top-level `Step` (as produced by `parse_step`) into
-/// an `Effect`. Used at compile_apl_blocks — keeps `parse_step`'s
+/// an `Effect`. Used at `compile_apl_blocks` — keeps `parse_step`'s
 /// internal shape for the moment while the public IR collapses to Effect.
 /// All five Step variants map cleanly: Rule → When, Pdp → Pdp (recursive
 /// on reactions), Plugin/Delegate/Taint pass-through.
@@ -2196,7 +2196,7 @@ fn parse_delegate_step(body_val: &serde_yaml::Value, source: &str) -> Result<Ste
     }))
 }
 
-/// Split a PDP body into (args, on_deny, on_allow).
+/// Split a PDP body into (args, `on_deny`, `on_allow`).
 ///
 /// If `paren_args` is `Some`, the call's args are the string inside the
 /// parens (OPA-style) and the body map only carries reactions. If `None`,
@@ -2516,7 +2516,7 @@ fn parse_range_inner(s: &str) -> Option<(Option<i64>, Option<i64>)> {
     Some((min, max))
 }
 
-/// Parse a number with optional `k/K` (×1000) or `m/M` (×1_000_000) suffix.
+/// Parse a number with optional `k/K` (×1000) or `m/M` (×`1_000_000`) suffix.
 fn parse_numeric_with_suffix(s: &str) -> Option<i64> {
     let s = s.trim();
     if s.is_empty() {
@@ -2674,7 +2674,7 @@ pub struct RouteYaml {
     pub result: HashMap<String, String>,
 
     /// Per-route plugin overrides — only the spec-overridable keys
-    /// (config / capabilities / on_error). Merged on top of the root
+    /// (config / capabilities / `on_error`). Merged on top of the root
     /// `plugins:` declaration at dispatch time.
     #[serde(default)]
     pub plugins: HashMap<String, PluginOverride>,
@@ -2802,7 +2802,7 @@ fn compile_route(route_key: &str, raw: RouteYaml) -> Result<Option<CompiledRoute
 
 /// Compile the APL bodies (authorization/args/result/plugins) of a
 /// single block into a `CompiledRoute`. Doesn't gate on "has any APL
-/// fields" — callers that need the gate (compile_config) check first.
+/// fields" — callers that need the gate (`compile_config`) check first.
 /// `source` is the path prefix baked into rule/pipeline diagnostics
 /// (e.g. `"global.policy.all"`, `"route.get_compensation"`).
 ///

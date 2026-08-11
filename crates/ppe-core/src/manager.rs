@@ -48,7 +48,7 @@ use crate::registry::{AnyHookHandler, PluginRef, PluginRegistry};
 /// attacker-controlled entity names without forcing operators to tune.
 pub const DEFAULT_ROUTE_CACHE_MAX_ENTRIES: usize = 10_000;
 
-/// Configuration for the PluginManager.
+/// Configuration for the `PluginManager`.
 #[derive(Debug, Clone)]
 pub struct ManagerConfig {
     /// Executor configuration (timeout, short-circuit behavior).
@@ -73,7 +73,7 @@ impl Default for ManagerConfig {
 /// Central plugin lifecycle and dispatch manager.
 ///
 /// Owns the plugin registry and executor. Provides the public API
-/// that host systems (ContextForge, Kagenti, etc.) call to register
+/// that host systems (`ContextForge`, Kagenti, etc.) call to register
 /// plugins and invoke hooks.
 ///
 /// # Lifecycle
@@ -90,7 +90,7 @@ impl Default for ManagerConfig {
 ///
 /// - **`invoke_by_name()`** — dynamic dispatch. The hook name is a
 ///   string. Payload is `Box<dyn PluginPayload>`. Used by Python/Go/WASM
-///   callers via the FFI or PyO3 bindings.
+///   callers via the FFI or `PyO3` bindings.
 ///
 /// Both paths use the same registry, executor, and 5-phase pipeline.
 ///
@@ -150,7 +150,7 @@ impl Eq for RouteCacheKey {}
 /// `AnyHookHandler`) is `Arc`-counted — only the `HashMap` shells duplicate.
 #[derive(Clone)]
 struct RuntimeSnapshot {
-    /// Plugin registry — stores PluginRefs and hook-to-handler mappings.
+    /// Plugin registry — stores `PluginRefs` and hook-to-handler mappings.
     registry: PluginRegistry,
 
     /// Executor — stateless 5-phase pipeline engine.
@@ -224,15 +224,15 @@ pub struct PluginManager {
     /// Uses Arc so cache reads are refcount bumps (~1ns), not data copies.
     route_cache: RwLock<HashMap<RouteCacheKey, Arc<Vec<crate::registry::HookEntry>>>>,
 
-    /// Hasher builder for zero-allocation cache lookups via raw_entry.
+    /// Hasher builder for zero-allocation cache lookups via `raw_entry`.
     cache_hasher: hashbrown::DefaultHashBuilder,
 
     /// Set to true after the first time the cache rejects an insert in a
     /// given fill cycle, so the warn log fires once per cycle rather than
-    /// on every miss under DoS. Reset by `clear_routing_cache()`.
+    /// on every miss under `DoS`. Reset by `clear_routing_cache()`.
     route_cache_full_warned: AtomicBool,
 
-    /// Whether initialize() has been called. Atomic so lifecycle methods
+    /// Whether `initialize()` has been called. Atomic so lifecycle methods
     /// can be `&self` and the manager itself can sit behind `Arc`.
     initialized: AtomicBool,
 
@@ -301,8 +301,8 @@ fn warn_on_inactive_settings(cfg: &PolicyConfig) {
 ///
 /// Returns on the first failure (factory missing, factory.create error, or
 /// duplicate-name registration). On error, `target_registry` is in a
-/// partial state — both callers discard it on failure (load_config builds
-/// the new registry on a clone and only swaps on Ok; from_config bails
+/// partial state — both callers discard it on failure (`load_config` builds
+/// the new registry on a clone and only swaps on Ok; `from_config` bails
 /// before publishing the snapshot).
 fn instantiate_plugins_into(
     target_registry: &mut PluginRegistry,
@@ -353,7 +353,7 @@ fn snapshot_from_config(registry: PluginRegistry, policy_config: PolicyConfig) -
 }
 
 impl PluginManager {
-    /// Create a new PluginManager with the given configuration.
+    /// Create a new `PluginManager` with the given configuration.
     pub fn new(config: ManagerConfig) -> Self {
         let cache_hasher = hashbrown::DefaultHashBuilder::default();
         let snapshot = RuntimeSnapshot {
@@ -422,7 +422,7 @@ impl PluginManager {
     /// (e.g. praxis-policy-apl-runtime's dispatch-plan cache) pair their cached values
     /// with the generation seen at build time; a mismatch on lookup
     /// signals "evict + rebuild." `Acquire` pairs with the `Release`
-    /// fetch_add in `mutate_runtime` / `try_mutate_runtime` so observing
+    /// `fetch_add` in `mutate_runtime` / `try_mutate_runtime` so observing
     /// a higher generation guarantees visibility of the new snapshot.
     pub fn config_generation(&self) -> u64 {
         self.generation.load(Ordering::Acquire)
@@ -701,7 +701,7 @@ impl PluginManager {
         Ok(())
     }
 
-    /// Create a PluginManager from a parsed config (convenience).
+    /// Create a `PluginManager` from a parsed config (convenience).
     ///
     /// Uses the passed factory registry for initial instantiation.
     /// Note: for route-level config overrides to create new instances
@@ -805,10 +805,10 @@ impl PluginManager {
         Ok(())
     }
 
-    /// Register with an explicit AnyHookHandler (advanced use).
+    /// Register with an explicit `AnyHookHandler` (advanced use).
     ///
     /// For cases where the automatic adapter doesn't fit — e.g.,
-    /// Python/WASM bridge hosts that implement AnyHookHandler directly.
+    /// Python/WASM bridge hosts that implement `AnyHookHandler` directly.
     /// Most callers should use `register_handler` instead.
     pub fn register_raw<H: HookTypeDef>(
         &self,
@@ -928,7 +928,7 @@ impl PluginManager {
     /// Invoke a hook by name with a type-erased payload.
     ///
     /// This is the dynamic dispatch path used by Python/Go/WASM
-    /// callers via FFI or PyO3 bindings. The hook name is resolved
+    /// callers via FFI or `PyO3` bindings. The hook name is resolved
     /// from the registry and dispatched through the 5-phase executor.
     ///
     /// # Arguments
@@ -1009,7 +1009,7 @@ impl PluginManager {
     /// as `invoke_by_name()`.
     ///
     /// When routing is enabled, the entity is identified from
-    /// `extensions.meta` (entity_type + entity_name). Only plugins
+    /// `extensions.meta` (`entity_type` + `entity_name`). Only plugins
     /// matching the resolved route fire. When routing is disabled
     /// or meta is absent, all registered plugins fire.
     ///
@@ -1149,12 +1149,12 @@ impl PluginManager {
             .await
     }
 
-    /// Find every (hook_name, HookEntry) pair belonging to the named
+    /// Find every (`hook_name`, `HookEntry`) pair belonging to the named
     /// plugin. Returns an empty `Vec` if the plugin isn't registered.
     ///
     /// Used by external orchestrators (notably praxis-policy-apl-runtime) that decide
     /// the per-route plugin lineup themselves and need handler refs +
-    /// trusted_config to build pre-resolved dispatch plans. Cheaper than
+    /// `trusted_config` to build pre-resolved dispatch plans. Cheaper than
     /// going through `invoke_named` per request because the caller can
     /// cache the resulting entries — pair the result with
     /// [`config_generation`](Self::config_generation) to invalidate the
@@ -1172,9 +1172,9 @@ impl PluginManager {
         snapshot.registry.entries_for_plugin(plugin_name)
     }
 
-    /// Dispatch a caller-supplied slice of HookEntries through the
+    /// Dispatch a caller-supplied slice of `HookEntries` through the
     /// executor's full 5-phase pipeline (sequential, transform, audit,
-    /// concurrent, fire-and-forget). All on_error / timeout / mode /
+    /// concurrent, fire-and-forget). All `on_error` / timeout / mode /
     /// write-token machinery applies.
     ///
     /// Bypasses hook-name lookup and route/entity filtering — caller has
@@ -1228,7 +1228,7 @@ impl PluginManager {
     /// chain. Bumps the config generation so cached dispatch plans in
     /// downstream caches invalidate.
     ///
-    /// `config` provides the trusted_config for the synthetic plugin —
+    /// `config` provides the `trusted_config` for the synthetic plugin —
     /// the executor reads `mode`, `on_error`, `capabilities`, etc. from
     /// it the same way it does for any other registered plugin. Capabilities
     /// should be a *superset* of what the orchestrator needs to read from
@@ -1497,7 +1497,7 @@ impl PluginManager {
     /// - **Only `capabilities_override` / `on_error_override` set
     ///   (`config_override` is `None`):** builds new `PluginRef`s
     ///   sharing the *base plugin `Arc`* with a merged `TrustedConfig`
-    ///   (override caps / on_error replace base values) and an
+    ///   (override caps / `on_error` replace base values) and an
     ///   independent circuit breaker. Cheap — no factory call.
     /// - **`config_override` set:** invokes the registered factory for
     ///   the plugin's `kind` with a merged `PluginConfig` (override
@@ -1968,7 +1968,7 @@ mod tests {
         }
     }
 
-    /// Handler that always returns an error (for testing on_error behavior).
+    /// Handler that always returns an error (for testing `on_error` behavior).
     struct ErrorHandler;
 
     #[async_trait]
@@ -2813,10 +2813,10 @@ mod tests {
         assert!(!result.payload_modified);
     }
 
-    /// Transform phase is documented `can_block: No` (plugin.rs PluginMode
+    /// Transform phase is documented `can_block: No` (plugin.rs `PluginMode`
     /// table). An `on_error: Fail` plugin error or timeout in Transform must
     /// NOT halt the pipeline — non-blocking is non-blocking, regardless of
-    /// the plugin's stated on_error preference. Disable still works.
+    /// the plugin's stated `on_error` preference. Disable still works.
     #[tokio::test]
     async fn test_transform_on_error_fail_does_not_halt_pipeline() {
         let mgr = PluginManager::default();
@@ -2942,7 +2942,7 @@ mod tests {
     /// A deny on one concurrent plugin should short-circuit the pipeline
     /// AND cancel the slow plugin still running in another task. Previously
     /// `join_all` waited for every task before noticing the deny, so
-    /// short_circuit_on_deny was a no-op in wall-clock terms and the slow
+    /// `short_circuit_on_deny` was a no-op in wall-clock terms and the slow
     /// plugin completed its side effects after the pipeline returned.
     #[tokio::test]
     async fn test_concurrent_short_circuit_aborts_slow_plugin() {
@@ -3043,7 +3043,7 @@ mod tests {
         );
     }
 
-    /// short_circuit_on_deny=false: every concurrent plugin must run to
+    /// `short_circuit_on_deny=false`: every concurrent plugin must run to
     /// completion (no abort), and the earliest deny is returned at the end.
     #[tokio::test]
     async fn test_concurrent_no_short_circuit_runs_every_plugin() {
@@ -3132,8 +3132,8 @@ mod tests {
         assert_eq!(ALLOW_RAN.load(Ordering::SeqCst), 1);
     }
 
-    /// Plugin handler that panics inside its async invoke. With tokio::spawn,
-    /// the panic surfaces as a JoinError on the task's JoinHandle.
+    /// Plugin handler that panics inside its async invoke. With `tokio::spawn`,
+    /// the panic surfaces as a `JoinError` on the task's `JoinHandle`.
     struct PanicHandler;
 
     #[async_trait]
@@ -3152,7 +3152,7 @@ mod tests {
     }
 
     /// A panicking concurrent plugin with `on_error: Fail` must halt the
-    /// pipeline with a violation. Previously the JoinError was just logged
+    /// pipeline with a violation. Previously the `JoinError` was just logged
     /// and the panic was silently swallowed.
     ///
     /// Note: this test prints "thread 'tokio-runtime-worker' panicked at..."
@@ -3587,14 +3587,14 @@ mod tests {
         assert_eq!(local2.get("call_count").unwrap().as_u64().unwrap(), 2);
     }
 
-    /// global_state writes by an earlier plugin must be visible to a later
+    /// `global_state` writes by an earlier plugin must be visible to a later
     /// plugin in the same serial phase, and the canonical state on the
-    /// returned context_table must reflect every plugin's contribution in
+    /// returned `context_table` must reflect every plugin's contribution in
     /// priority order. Previously this relied on `ctx_table.values().last()`
-    /// (HashMap iteration order — non-deterministic).
+    /// (`HashMap` iteration order — non-deterministic).
     #[tokio::test]
     async fn test_global_state_propagates_in_priority_order() {
-        /// Handler that appends `tag` to global_state["chain"] (creating
+        /// Handler that appends `tag` to `global_state`["chain"] (creating
         /// an array if absent). After running, the array reveals the
         /// observed run order from each plugin's perspective.
         struct GlobalChainHandler {
@@ -3663,7 +3663,7 @@ mod tests {
     }
 
     /// All five phases (Sequential, Transform, Audit, Concurrent,
-    /// FireAndForget) execute in the documented order, with payload
+    /// `FireAndForget`) execute in the documented order, with payload
     /// modifications from earlier phases visible in later ones. Closes
     /// the review's "no multi-phase combination test" gap.
     #[tokio::test]
@@ -3976,7 +3976,7 @@ routes:
     /// `initialize()` must roll back already-initialized plugins by
     /// calling `shutdown()` on each, in reverse order, when a later
     /// plugin's `initialize()` fails. Closes the review's "no test for
-    /// initialize() rollback path" gap.
+    /// `initialize()` rollback path" gap.
     #[tokio::test]
     async fn test_initialize_rollback_on_failure() {
         use std::sync::Arc as StdArc;
@@ -4107,7 +4107,7 @@ routes:
 
     // -- Factory-based tests --
 
-    /// A test factory that creates AllowPlugin instances.
+    /// A test factory that creates `AllowPlugin` instances.
     struct AllowPluginFactory;
 
     impl crate::factory::PluginFactory for AllowPluginFactory {
@@ -4129,7 +4129,7 @@ routes:
         }
     }
 
-    /// A test factory that creates DenyPlugin instances.
+    /// A test factory that creates `DenyPlugin` instances.
     struct DenyPluginFactory;
 
     impl crate::factory::PluginFactory for DenyPluginFactory {
@@ -5411,7 +5411,7 @@ routes:
 
     // -- Executor tier validation tests --
 
-    /// Handler that modifies extensions via cow_copy — adds a label.
+    /// Handler that modifies extensions via `cow_copy` — adds a label.
     struct LabelAdderHandler;
 
     #[async_trait]
@@ -5666,8 +5666,8 @@ routes:
         );
     }
 
-    /// A handler with no `.await` (AllowPlugin) and a handler that
-    /// genuinely awaits (AsyncCounterPlugin) co-register on the same
+    /// A handler with no `.await` (`AllowPlugin`) and a handler that
+    /// genuinely awaits (`AsyncCounterPlugin`) co-register on the same
     /// hook via the same `register_handler` call. Both run in priority
     /// order.
     #[tokio::test]

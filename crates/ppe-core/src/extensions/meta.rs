@@ -25,7 +25,7 @@ pub struct MetaExtension {
     #[serde(default)]
     pub entity_type: Option<String>,
 
-    /// Entity name: "get_compensation", "hr://employees/*", etc.
+    /// Entity name: "`get_compensation`", "<hr://employees>/*", etc.
     /// Used by the manager for route resolution.
     #[serde(default)]
     pub entity_name: Option<String>,

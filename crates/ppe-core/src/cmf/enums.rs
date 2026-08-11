@@ -38,7 +38,7 @@ pub enum Channel {
     Final,
 }
 
-/// Discriminator for the typed ContentPart hierarchy.
+/// Discriminator for the typed `ContentPart` hierarchy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ContentType {

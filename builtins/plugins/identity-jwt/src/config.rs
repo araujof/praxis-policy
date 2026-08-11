@@ -70,7 +70,7 @@ fn default_role() -> TokenRole {
 }
 
 /// Default JWKS refresh interval — 10 minutes. High enough that a
-/// fleet of gateways isn't constantly hammering the IdP; low enough
+/// fleet of gateways isn't constantly hammering the `IdP`; low enough
 /// that a routine key rotation propagates within a normal change
 /// window. Operators with stricter or laxer needs override per
 /// `JwksUrl` via the `refresh_secs` field.
@@ -126,10 +126,10 @@ pub enum DecodingKeySource {
     /// Inline JWK (JSON Web Key) — full JWK structure as JSON.
     Jwk { jwk: serde_json::Value },
 
-    /// OIDC JWKS endpoint — the standard way to wire to a real IdP
+    /// OIDC JWKS endpoint — the standard way to wire to a real `IdP`
     /// (Keycloak / Auth0 / Cognito / Okta / Authentik …). Fetched
     /// at plugin `initialize()` and re-fetched every `refresh_secs`
-    /// thereafter so IdP key rolls don't require a gateway
+    /// thereafter so `IdP` key rolls don't require a gateway
     /// restart. Each fetched signature-use key is indexed by its
     /// `kid` so the verify path can select the right one per
     /// token (overlapping rotation windows work).
@@ -143,9 +143,9 @@ pub enum DecodingKeySource {
     /// **`refresh_secs`** controls how often the background
     /// refresh task re-fetches the JWKS. Default 600 (10 minutes)
     /// — high enough that a fleet of gateways doesn't hammer the
-    /// IdP, low enough that a routine key roll propagates within
+    /// `IdP`, low enough that a routine key roll propagates within
     /// the same business hour. A failed refresh logs a warning
-    /// and keeps the previous KeyStore — verification continues
+    /// and keeps the previous `KeyStore` — verification continues
     /// to work as long as one of the previously-fetched keys
     /// matches the inbound token's `kid`.
     JwksUrl {
@@ -217,11 +217,11 @@ impl DecodingKeySource {
 
     /// Asynchronously resolve the source into a [`KeyStore`] —
     /// handles every variant including `JwksUrl` (which does an
-    /// async HTTP GET against the IdP's JWKS endpoint and indexes
+    /// async HTTP GET against the `IdP`'s JWKS endpoint and indexes
     /// every signature-use key by its `kid`).
     ///
     /// Called from `JwtIdentityResolver::initialize()` so the host's
-    /// PluginManager can drive multiple resolvers' JWKS fetches
+    /// `PluginManager` can drive multiple resolvers' JWKS fetches
     /// concurrently via `futures::join_all`.
     ///
     /// The fetch is bounded by `JWKS_FETCH_TIMEOUT` to prevent a
@@ -232,7 +232,7 @@ impl DecodingKeySource {
     /// **v0 caveat:**
     ///
     /// * No automatic rotation — the store is bound at initialize
-    ///   time. A background refresh task keeps IdP key
+    ///   time. A background refresh task keeps `IdP` key
     ///   rolls from requiring a gateway restart.
     pub async fn build_async(&self) -> Result<KeyStore, String> {
         match self {
@@ -323,7 +323,7 @@ impl DecodingKeySource {
 
 /// Overall request timeout on the JWKS HTTP GET (includes connect +
 /// TLS + response body). 5s is a forgiving upper bound for a healthy
-/// IdP; anything slower than that is operationally indistinguishable
+/// `IdP`; anything slower than that is operationally indistinguishable
 /// from "JWKS is down."
 const JWKS_FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
@@ -333,7 +333,7 @@ const JWKS_FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5
 const JWKS_CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// PEM helper used by both `Pem` and `PemFile`. Tries RSA, then EC,
-/// then EdDSA — covers the algorithms `jsonwebtoken` supports.
+/// then `EdDSA` — covers the algorithms `jsonwebtoken` supports.
 fn build_from_pem_bytes(bytes: &[u8], origin: &str) -> Result<DecodingKey, String> {
     DecodingKey::from_rsa_pem(bytes)
         .or_else(|_| DecodingKey::from_ec_pem(bytes))

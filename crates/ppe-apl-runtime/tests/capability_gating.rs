@@ -303,7 +303,7 @@ routes:
 /// Plugin declares `append_labels` and emits a new label via
 /// `modify_extensions`. The synthetic `AplRouteHandler` must also be
 /// granted `append_labels` (from the per-route union) so its outer
-/// modify_extensions write doesn't get rejected on the way back out.
+/// `modify_extensions` write doesn't get rejected on the way back out.
 /// After the invoke, the appended label must be visible in the final
 /// extensions.
 #[tokio::test]

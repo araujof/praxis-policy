@@ -19,7 +19,7 @@ use crate::hooks::trait_def::PluginResult;
 
 use super::payload::DelegationPayload;
 
-/// Primary hook name for TokenDelegate handlers.
+/// Primary hook name for `TokenDelegate` handlers.
 pub const HOOK_TOKEN_DELEGATE: &str = "token.delegate";
 
 crate::define_hook! {
@@ -46,7 +46,7 @@ crate::define_hook! {
     /// handler N's `modified_payload` into handler N+1's input, so
     /// the chain's natural behavior is "each handler sees the prior
     /// handler's contributions in the running payload." Most
-    /// deployments will register exactly one TokenDelegate handler
+    /// deployments will register exactly one `TokenDelegate` handler
     /// (RFC 8693 exchanger, UCAN minter, …), but chaining works for
     /// hybrid setups — e.g. a passthrough fallback that fires only
     /// when the primary exchanger declined.

@@ -254,7 +254,7 @@ routes:
     );
 }
 
-/// Run tool_b twice. The dispatch cache must memoize the override
+/// Run `tool_b` twice. The dispatch cache must memoize the override
 /// instance built on the first call so the second call doesn't trigger
 /// another factory invocation. Two routes with overrides should still
 /// produce exactly 1 + N instances (base + one per overriding route),
@@ -358,7 +358,7 @@ routes:
 /// two independent instances, one per route, each carrying its own
 /// override config — proves the cache key (`route_key`) keeps the
 /// instances separate. Verified by the per-route runtime behavior
-/// AND by the factory-call count: base + override_a + override_b = 3.
+/// AND by the factory-call count: base + `override_a` + `override_b` = 3.
 #[tokio::test]
 async fn two_routes_with_distinct_overrides_produce_distinct_instances() {
     const YAML: &str = r#"
@@ -432,13 +432,13 @@ routes:
 }
 
 /// Override changes `on_error` only — sanity-check that the override
-/// VALUE actually lands on the per-route plugin entry's trusted_config,
+/// VALUE actually lands on the per-route plugin entry's `trusted_config`,
 /// not just that the factory wasn't re-invoked.
 ///
 /// Counterpart to `caps_only_override_does_not_reinstantiate` (which
 /// only checks the perf optimization). This test verifies the
-/// PLUMBING: build the plan with and without an on_error override,
-/// then read the resolved entry's trusted_config to confirm the
+/// PLUMBING: build the plan with and without an `on_error` override,
+/// then read the resolved entry's `trusted_config` to confirm the
 /// override actually flowed through (`Ignore`) vs the base default
 /// (`Fail`).
 #[tokio::test]

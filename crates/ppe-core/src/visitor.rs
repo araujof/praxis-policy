@@ -73,7 +73,7 @@ pub trait ConfigVisitor: Send + Sync {
     /// block. Called once per visitor, immediately after praxis-policy-core's
     /// own plugin instantiation completes and before any hierarchy
     /// section is walked. Visitors that need a per-name registry of
-    /// hook / capability / on_error metadata can populate it here
+    /// hook / capability / `on_error` metadata can populate it here
     /// without re-parsing the YAML — praxis-policy-core has already validated
     /// the block (no duplicate names, etc.) by this point.
     fn visit_plugins(

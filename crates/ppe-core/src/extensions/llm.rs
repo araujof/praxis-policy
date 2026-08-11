@@ -21,7 +21,7 @@ pub struct LLMExtension {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
 
-    /// Model capabilities (e.g., "tool_use", "vision", "streaming").
+    /// Model capabilities (e.g., "`tool_use`", "vision", "streaming").
     #[serde(default)]
     pub capabilities: Vec<String>,
 }

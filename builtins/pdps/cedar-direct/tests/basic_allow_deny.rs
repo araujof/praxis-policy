@@ -222,7 +222,7 @@ policy_text: |
 }
 
 /// Operators can register the resolver under a custom dialect to
-/// coexist with another Cedar engine on the same PdpRouter.
+/// coexist with another Cedar engine on the same `PdpRouter`.
 #[tokio::test]
 async fn with_dialect_overrides_default() {
     let resolver = CedarDirectResolver::from_policy_text("permit(principal, action, resource);")

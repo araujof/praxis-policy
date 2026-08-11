@@ -54,8 +54,8 @@ pub fn build(
 /// Build the principal `Entity` from the bag. Reads:
 ///
 ///   - `subject.id`        → entity id (required)
-///   - `subject.type`      → entity type ("User" | "Agent" | "Service" |
-///                            "System"); defaults to "User" when absent
+///   - `subject.type`      → entity type (`User`, `Agent`, `Service`, or
+///     `System`), defaulting to `User` when absent
 ///   - `role.<name>=true`  → `attrs.roles : Set<String>`
 ///   - `perm.<name>=true`  → `attrs.permissions : Set<String>`
 ///   - `claim.<name>=v`    → `attrs.claims.<name>` (record)

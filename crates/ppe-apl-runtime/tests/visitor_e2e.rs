@@ -244,7 +244,7 @@ routes:
 
 /// Same shape but with `deny-gate`. The visitor compiles the route,
 /// annotates the manager, dispatch goes through the handler, the handler
-/// calls into deny-gate via CmfPluginInvoker, the violation propagates
+/// calls into deny-gate via `CmfPluginInvoker`, the violation propagates
 /// out as `PipelineResult.violation` with the original code + reason.
 #[tokio::test]
 async fn visitor_route_with_deny_plugin_propagates_violation() {
@@ -281,7 +281,7 @@ routes:
 }
 
 /// Hierarchy: global APL policy step runs FIRST, then route APL policy.
-/// Tests apply_layer ordering — global's `plugin(allow-gate)` runs and
+/// Tests `apply_layer` ordering — global's `plugin(allow-gate)` runs and
 /// passes, then route's `plugin(deny-gate)` fires and denies. If the
 /// global layer had been appended after instead of before, the deny
 /// would have run first and we'd see the deny path; the order assertion
@@ -510,7 +510,7 @@ fn meta_for_entity(entity_type: &str, entity_name: &str) -> MetaExtension {
 
 /// `llm:` route → annotation lands on `cmf.llm_input`. Host calling
 /// `invoke_named::<CmfHook>("cmf.llm_input", ...)` with matching meta
-/// fires the AplRouteHandler.
+/// fires the `AplRouteHandler`.
 #[tokio::test]
 async fn llm_route_annotates_on_llm_input_hook() {
     const YAML: &str = r#"

@@ -16,7 +16,7 @@ use std::hash::Hash;
 
 use serde::{Deserialize, Serialize};
 
-/// A set that only allows additions. No remove() in the public API.
+/// A set that only allows additions. No `remove()` in the public API.
 ///
 /// Plugins can call `insert()` but not `remove()`. Declassification
 /// (removal) requires a `DeclassifierToken` that only the security
@@ -38,7 +38,7 @@ impl<T: Eq + Hash> MonotonicSet<T> {
         }
     }
 
-    /// Create from an existing HashSet.
+    /// Create from an existing `HashSet`.
     pub fn from_set(set: HashSet<T>) -> Self {
         Self { inner: set }
     }
@@ -73,12 +73,12 @@ impl<T: Eq + Hash> MonotonicSet<T> {
         self.inner.is_superset(&other.inner)
     }
 
-    /// Get a reference to the inner HashSet (read-only).
+    /// Get a reference to the inner `HashSet` (read-only).
     pub fn as_set(&self) -> &HashSet<T> {
         &self.inner
     }
 
-    /// Removal requires a DeclassifierToken — privileged, audited operation.
+    /// Removal requires a `DeclassifierToken` — privileged, audited operation.
     /// Only the security subsystem can construct the token.
     pub fn remove_with_declassifier(&mut self, value: &T, _token: &DeclassifierToken) -> bool {
         self.inner.remove(value)

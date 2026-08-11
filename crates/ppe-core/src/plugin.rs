@@ -132,7 +132,7 @@ pub struct PluginConfig {
     /// - `"builtin"` — compiled into the runtime
     /// - `"native://path/to/lib.so"` — dlopen'd shared library
     /// - `"wasm://path/to/plugin.wasm"` — wasmtime sandbox
-    /// - `"python://module.path.ClassName"` — PyO3 bridge
+    /// - `"python://module.path.ClassName"` — `PyO3` bridge
     /// - `"external"` — MCP/gRPC/Unix socket transport
     pub kind: String,
 

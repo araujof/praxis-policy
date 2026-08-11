@@ -46,8 +46,8 @@ use praxis_policy_apl_core::step::{PluginInvocation, PluginInvoker as _};
 
 use praxis_policy_apl_runtime::{CmfPluginInvoker, MemorySessionStore, RouteDispatchPlan};
 
-/// Build a single-plugin RouteDispatchPlan straight off the praxis-policy-core
-/// registry — no APL CompiledRoute involved. Used by the invoker-primitive
+/// Build a single-plugin `RouteDispatchPlan` straight off the praxis-policy-core
+/// registry — no APL `CompiledRoute` involved. Used by the invoker-primitive
 /// tests below to exercise the plan-based dispatch path without standing
 /// up a full route.
 fn plan_for(
@@ -1030,8 +1030,8 @@ fn extensions_with_subject_and_labels() -> Extensions {
     }
 }
 
-/// Build a RoutePluginEntry that wraps the base plugin's handler with a
-/// derived PluginRef carrying narrower caps — same plugin Arc, fresh
+/// Build a `RoutePluginEntry` that wraps the base plugin's handler with a
+/// derived `PluginRef` carrying narrower caps — same plugin Arc, fresh
 /// circuit breaker, smaller cap set. Mirrors what
 /// `RouteDispatchPlan::build` does when APL declares a route-level
 /// `plugins.<name>.capabilities:` override.
@@ -1197,7 +1197,7 @@ impl HookHandler<CmfHook> for PostSideHandler {
     }
 }
 
-/// Marker plugin held by the PluginInstance (handlers are
+/// Marker plugin held by the `PluginInstance` (handlers are
 /// independent structs — the marker satisfies the
 /// `PluginInstance.plugin` field).
 struct MultiHookMarker {

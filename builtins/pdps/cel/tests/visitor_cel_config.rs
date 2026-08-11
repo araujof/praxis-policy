@@ -296,10 +296,10 @@ routes:
 }
 
 /// A `cel:` predicate that reads the `meta` namespace
-/// (`meta.entity_name`) proves the cmf BagBuilder lifts `MetaExtension`
+/// (`meta.entity_name`) proves the cmf `BagBuilder` lifts `MetaExtension`
 /// into the bag and the activation exposes it to CEL — the other
 /// integration cases only exercise `subject.*` / `role.*` from the
-/// SecurityExtension. Gates the tool by name end-to-end.
+/// `SecurityExtension`. Gates the tool by name end-to-end.
 #[tokio::test]
 async fn cel_reads_meta_entity_name_from_bag() {
     const META_YAML: &str = r#"

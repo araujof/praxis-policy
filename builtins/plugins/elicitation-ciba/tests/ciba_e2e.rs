@@ -75,7 +75,7 @@ async fn run(approver: &CibaApprover, payload: ElicitationPayload) -> Elicitatio
         .expect("handler returned an ElicitationPayload")
 }
 
-/// Build a fake id_token whose payload carries `preferred_username`.
+/// Build a fake `id_token` whose payload carries `preferred_username`.
 fn fake_id_token(username: &str) -> String {
     let payload = json!({ "preferred_username": username, "sub": "u-1" });
     let b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD

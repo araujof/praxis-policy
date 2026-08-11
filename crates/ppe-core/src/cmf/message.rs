@@ -29,7 +29,7 @@ use crate::hooks::trait_def::PluginResult;
 
 /// Canonical CMF message representing a single turn in a conversation.
 ///
-/// All content is carried as typed ContentPart variants. Extensions
+/// All content is carried as typed `ContentPart` variants. Extensions
 /// (identity, security, HTTP, agent context) are passed separately
 /// to handlers — not inside the message.
 ///
@@ -218,7 +218,7 @@ impl Message {
     }
 }
 
-/// CMF Message wrapped as a PluginPayload for hook dispatch.
+/// CMF Message wrapped as a `PluginPayload` for hook dispatch.
 ///
 /// This is the payload type for all `cmf.*` hooks. Plugins that
 /// handle CMF hooks implement `HookHandler<CmfHook>` and receive

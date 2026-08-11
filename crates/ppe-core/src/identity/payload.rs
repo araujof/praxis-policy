@@ -97,7 +97,7 @@ pub enum TokenSource {
     Custom(String),
 }
 
-/// State threaded through the IdentityResolve hook chain.
+/// State threaded through the `IdentityResolve` hook chain.
 ///
 /// See the module-level docs for the input/output split. In short:
 /// **input fields are private** (set once via the constructor +
@@ -300,8 +300,8 @@ impl IdentityPayload {
     ///
     /// - **`security.subject` / `.client` / `.caller_workload`** —
     ///   `Some` values on the payload overwrite the existing slot;
-    ///   other security fields (labels, classification, this_workload,
-    ///   auth_method, objects, data) are preserved from the input
+    ///   other security fields (labels, classification, `this_workload`,
+    ///   `auth_method`, objects, data) are preserved from the input
     ///   Extensions.
     /// - **`raw_credentials`** — replaced wholesale when populated on
     ///   the payload. Wholesale rather than merged because handlers

@@ -359,9 +359,9 @@ collapsible_if = "deny"
 # closing, but it is a writing task rather than a code change: satisfying these
 # by generating filler would hide where documentation is actually missing.
 # docs/lints.md carries the item counts.
-doc_lazy_continuation = "allow"
-doc_markdown = "allow"
-doc_overindented_list_items = "allow"
+doc_lazy_continuation = "deny"
+doc_markdown = "deny"
+doc_overindented_list_items = "deny"
 missing_docs_in_private_items = "allow"
 missing_errors_doc = "allow"
 #

@@ -56,7 +56,7 @@ pub enum ViewAction {
 }
 
 impl ViewKind {
-    /// Map ContentType to ViewKind.
+    /// Map `ContentType` to `ViewKind`.
     pub fn from_content_type(ct: ContentType) -> Self {
         match ct {
             ContentType::Text => ViewKind::Text,
@@ -140,7 +140,7 @@ pub struct MessageView<'a> {
     kind: ViewKind,
     /// The parent message role.
     role: Role,
-    /// Optional hook location (e.g., "tool_pre_invoke").
+    /// Optional hook location (e.g., "`tool_pre_invoke`").
     hook: Option<&'a str>,
     /// Optional extensions (for security/http context).
     extensions: Option<&'a Extensions>,
@@ -207,7 +207,7 @@ impl<'a> MessageView<'a> {
 
     // -- Phase helpers --
 
-    /// Whether this is a pre-execution hook (tool_pre_invoke, prompt_pre_fetch, etc.).
+    /// Whether this is a pre-execution hook (`tool_pre_invoke`, `prompt_pre_fetch`, etc.).
     pub fn is_pre(&self) -> bool {
         self.hook.is_some_and(|h| h.contains("pre"))
     }
@@ -527,7 +527,7 @@ impl<'a> std::fmt::Debug for MessageView<'a> {
     }
 }
 
-/// Decompose a Message into individually addressable MessageViews.
+/// Decompose a Message into individually addressable `MessageViews`.
 ///
 /// Yields one view per content part. Each view provides a uniform
 /// interface for policy evaluation regardless of content type.
@@ -544,7 +544,7 @@ pub fn iter_views<'a>(
 
 // Also add iter_views to Message
 impl Message {
-    /// Decompose this message into individually addressable MessageViews.
+    /// Decompose this message into individually addressable `MessageViews`.
     ///
     /// Yields one view per content part. Each view provides a uniform
     /// interface for policy evaluation regardless of content type.

@@ -45,7 +45,7 @@ use crate::plugin::{Plugin, PluginConfig, PluginMode};
 ///
 /// The `trusted_config` comes from the config loader / manager — never
 /// from the plugin itself. The executor reads all scheduling decisions
-/// (mode, priority, hooks, capabilities, on_error) from this config.
+/// (mode, priority, hooks, capabilities, `on_error`) from this config.
 ///
 /// The plugin receives a copy of its config at construction time so it
 /// can read its own settings during hook execution. But the manager/executor
@@ -74,16 +74,16 @@ pub struct PluginRef {
     /// Runtime circuit breaker — set to true when `on_error: Disable`
     /// triggers. Once set, `mode()` returns `Disabled` and the plugin
     /// is skipped by `group_by_mode()` on all subsequent invocations.
-    /// Uses `Arc<AtomicBool>` so clones (in HookEntry) share the same flag.
+    /// Uses `Arc<AtomicBool>` so clones (in `HookEntry`) share the same flag.
     disabled: Arc<AtomicBool>,
 }
 
 impl PluginRef {
-    /// Create a new PluginRef with an independently-sourced config.
+    /// Create a new `PluginRef` with an independently-sourced config.
     ///
     /// The `trusted_config` must come from the config loader or manager,
     /// NOT from `plugin.config()`. The plugin may hold its own copy
-    /// for reading during execute(), but the manager never consults it.
+    /// for reading during `execute()`, but the manager never consults it.
     pub fn new(plugin: Arc<dyn Plugin>, trusted_config: PluginConfig) -> Self {
         Self {
             plugin,
@@ -117,7 +117,7 @@ impl PluginRef {
     /// Effective mode — returns `Disabled` if the runtime circuit breaker
     /// has tripped, otherwise returns the configured mode.
     ///
-    /// `Acquire` on the load pairs with `Release` on the disable() store
+    /// `Acquire` on the load pairs with `Release` on the `disable()` store
     /// so weak-memory-ordering hardware (ARM64) propagates the disable
     /// promptly across threads.
     pub fn mode(&self) -> PluginMode {
@@ -131,7 +131,7 @@ impl PluginRef {
     /// Runtime-disable this plugin (one-way circuit breaker).
     ///
     /// Called by the executor when a plugin errors with `on_error: Disable`.
-    /// All clones of this PluginRef (in HookEntry, etc.) share the same
+    /// All clones of this `PluginRef` (in `HookEntry`, etc.) share the same
     /// `AtomicBool`, so the disable is visible across the system.
     ///
     /// `Release` ordering establishes a happens-before with `Acquire`
@@ -188,7 +188,7 @@ pub trait AnyHookHandler: Send + Sync {
     fn hook_type_name(&self) -> &'static str;
 }
 
-/// A registered hook handler paired with its PluginRef.
+/// A registered hook handler paired with its `PluginRef`.
 ///
 /// The executor uses `plugin_ref` for scheduling decisions (mode,
 /// priority, capabilities) and `handler` for actual dispatch.
@@ -208,7 +208,7 @@ pub struct HookEntry {
 
 /// Manages registered plugin instances and hook handler mappings.
 ///
-/// Stores `PluginRef` wrappers by name and `HookEntry` (PluginRef +
+/// Stores `PluginRef` wrappers by name and `HookEntry` (`PluginRef` +
 /// handler) by hook name. The executor reads scheduling decisions
 /// from `PluginRef.trusted_config` and dispatches through the
 /// type-erased handler.
@@ -221,7 +221,7 @@ pub struct HookEntry {
 ///   hook names (the CMF pattern where one handler covers
 ///   `cmf.tool_pre_invoke`, `cmf.llm_input`, etc.).
 ///
-/// `Clone` is cheap-ish: the HashMaps duplicate, but their values are all
+/// `Clone` is cheap-ish: the `HashMaps` duplicate, but their values are all
 /// `Arc`-counted (`Arc<PluginRef>`, `Arc<dyn AnyHookHandler>`), so the
 /// inner data is shared. Used by `PluginManager`'s `ArcSwap` snapshot
 /// pattern, where every mutating method clones the registry, mutates the
@@ -234,7 +234,7 @@ pub struct PluginRegistry {
     /// not one per hook.
     plugins: HashMap<String, Arc<PluginRef>>,
 
-    /// Hook name → list of HookEntries, sorted by priority.
+    /// Hook name → list of `HookEntries`, sorted by priority.
     hook_index: HashMap<HookType, Vec<HookEntry>>,
 }
 
@@ -397,8 +397,8 @@ impl PluginRegistry {
 
     /// Unregister a plugin by name.
     ///
-    /// Removes the PluginRef from the name index and all HookEntries
-    /// from the hook index. Returns the (Arc-wrapped) PluginRef if found.
+    /// Removes the `PluginRef` from the name index and all `HookEntries`
+    /// from the hook index. Returns the (Arc-wrapped) `PluginRef` if found.
     pub fn unregister(&mut self, name: &str) -> Option<Arc<PluginRef>> {
         let plugin_ref = self.plugins.remove(name)?;
 
@@ -411,14 +411,14 @@ impl PluginRegistry {
         Some(plugin_ref)
     }
 
-    /// Look up a PluginRef by name. Returns an `Arc` clone so callers
+    /// Look up a `PluginRef` by name. Returns an `Arc` clone so callers
     /// don't hold borrows on internal storage — works with snapshot-based
     /// dispatch where the registry may sit behind a transient guard.
     pub fn get(&self, name: &str) -> Option<Arc<PluginRef>> {
         self.plugins.get(name).map(Arc::clone)
     }
 
-    /// Returns all HookEntries for a given hook name, sorted by priority.
+    /// Returns all `HookEntries` for a given hook name, sorted by priority.
     ///
     /// Returns an empty slice if no plugins are registered for the hook.
     pub fn entries_for_hook(&self, hook_type: &HookType) -> &[HookEntry] {
@@ -448,7 +448,7 @@ impl PluginRegistry {
         self.plugins.keys().cloned().collect()
     }
 
-    /// Returns every (hook_name, HookEntry) pair where the entry's plugin
+    /// Returns every (`hook_name`, `HookEntry`) pair where the entry's plugin
     /// matches the given name. Used by external orchestrators that need
     /// to build pre-resolved dispatch lineups for a single plugin across
     /// every hook it registered to (e.g. praxis-policy-apl-runtime deciding which entry
@@ -473,11 +473,11 @@ impl Default for PluginRegistry {
     }
 }
 
-/// Groups a list of HookEntries by their execution mode.
+/// Groups a list of `HookEntries` by their execution mode.
 ///
 /// Reads mode from `plugin_ref.trusted_config` — never from the plugin.
 /// Returns a tuple of five vectors in execution order:
-/// (sequential, transform, audit, concurrent, fire_and_forget).
+/// (sequential, transform, audit, concurrent, `fire_and_forget`).
 /// Disabled plugins are excluded.
 pub type GroupedHookEntries = (
     Vec<HookEntry>,
@@ -537,7 +537,7 @@ mod tests {
 
     // -- Test handler (type-erased wrapper) --
 
-    /// A simple AnyHookHandler that wraps a function for testing.
+    /// A simple `AnyHookHandler` that wraps a function for testing.
     struct TestHandler;
 
     #[async_trait]

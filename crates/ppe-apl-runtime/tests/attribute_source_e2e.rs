@@ -368,7 +368,7 @@ routes:
     std::fs::remove_dir_all(&dir).ok();
 }
 
-/// An injected tree (set_attribute_tree) beats declarative attribute_files.
+/// An injected tree (`set_attribute_tree`) beats declarative `attribute_files`.
 #[tokio::test]
 async fn injected_tree_beats_declarative_files() {
     let (dir, paths) = write_attr_files(

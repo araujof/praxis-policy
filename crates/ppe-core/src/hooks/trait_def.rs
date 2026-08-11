@@ -40,7 +40,7 @@ use crate::plugin::Plugin;
 /// | Transform       | owned (clone)   | No         | Yes         |
 /// | Audit           | &Payload        | No         | No          |
 /// | Concurrent      | &Payload        | Yes        | No          |
-/// | FireAndForget   | &Payload        | No         | No          |
+/// | `FireAndForget`   | &Payload        | No         | No          |
 ///
 /// # Defining a Hook
 ///
@@ -57,7 +57,7 @@ pub trait HookTypeDef: Send + Sync + 'static {
 
     /// Hook name — used as the registry key and in config YAML.
     ///
-    /// Multiple hook names can map to the same HookTypeDef (the CMF
+    /// Multiple hook names can map to the same `HookTypeDef` (the CMF
     /// pattern where one handler covers `cmf.tool_pre_invoke`,
     /// `cmf.llm_input`, etc.). The primary NAME is used for
     /// single-name registration; additional names are registered

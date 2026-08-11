@@ -51,7 +51,7 @@ use praxis_policy_core::plugin::PluginMode;
 ///     a bunch of praxis-policy-core internal types).
 ///   * Future consumers that store plugin modes in a different shape
 ///     (e.g. a separate config catalogue) plug in without forcing them
-///     to back the lookup with a full PluginManager.
+///     to back the lookup with a full `PluginManager`.
 pub trait PluginModeLookup {
     /// Returns the mode for `name`, or `None` if no plugin by that
     /// name is registered.

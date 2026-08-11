@@ -84,8 +84,8 @@ use crate::identity::HOOK_IDENTITY_RESOLVE;
 
 /// Lifecycle position a hook occupies for dispatcher purposes.
 ///
-/// APL's args/pre_invocation phases dispatch to `Pre` hooks; APL's
-/// result/post_invocation phases dispatch to `Post` hooks. Hook families
+/// APL's `args/pre_invocation` phases dispatch to `Pre` hooks; APL's
+/// `result/post_invocation` phases dispatch to `Post` hooks. Hook families
 /// outside the request-lifecycle model (identity at request entry,
 /// token-delegate inside authorization) use `Unphased` and match any
 /// requested phase.
@@ -113,7 +113,7 @@ pub enum HookPhase {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HookMetadata {
     /// Entity type the hook applies to (`"tool"`, `"llm"`, `"prompt"`,
-    /// `"resource"`). `None` means "applies regardless of entity_type"
+    /// `"resource"`). `None` means "applies regardless of `entity_type`"
     /// — used for hooks that don't tie to MCP's entity-type taxonomy.
     pub entity_type: Option<&'static str>,
     /// Lifecycle phase the hook occupies.
@@ -136,10 +136,10 @@ impl HookMetadata {
     ///
     /// Matching rules:
     ///
-    /// - `entity_type`: a hook tied to a specific entity_type
+    /// - `entity_type`: a hook tied to a specific `entity_type`
     ///   (`Some("tool")`) matches only contexts with that entity
     ///   type. A hook with `entity_type: None` matches any context.
-    ///   A request without an entity_type (`None`) matches any hook
+    ///   A request without an `entity_type` (`None`) matches any hook
     ///   — the dispatcher hasn't specified what entity is in play,
     ///   so we can't filter on it.
     /// - `phase`: exact match between hook's phase and the requested
@@ -246,7 +246,7 @@ const BUILTIN_METADATA: &[(&str, HookMetadata)] = &[
 
 /// Runtime-registered additions to the metadata table. Hosts /
 /// plugin authors call [`register_hook_metadata`] to populate.
-/// Initialized with the BUILTIN_METADATA on first access.
+/// Initialized with the `BUILTIN_METADATA` on first access.
 fn registry() -> &'static RwLock<HashMap<String, HookMetadata>> {
     static REGISTRY: OnceLock<RwLock<HashMap<String, HookMetadata>>> = OnceLock::new();
     REGISTRY.get_or_init(|| {
@@ -260,7 +260,7 @@ fn registry() -> &'static RwLock<HashMap<String, HookMetadata>> {
 
 /// Look up metadata for a hook name. Returns
 /// [`HookMetadata::unknown`] for names not in the registry —
-/// equivalent to "no phase, no entity_type filter," which lets
+/// equivalent to "no phase, no `entity_type` filter," which lets
 /// unregistered hooks still dispatch via the conservative wildcard
 /// in [`HookMetadata::matches`].
 pub fn lookup(hook_name: &str) -> HookMetadata {

@@ -14,7 +14,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// A value that requires a WriteToken for mutable access.
+/// A value that requires a `WriteToken` for mutable access.
 ///
 /// Read access via `.read()` is always available. Write access via
 /// `.write(token)` requires a `WriteToken` proving the caller has
@@ -40,9 +40,9 @@ impl<T> Guarded<T> {
         &self.inner
     }
 
-    /// Write access — requires a WriteToken proving the caller has capability.
+    /// Write access — requires a `WriteToken` proving the caller has capability.
     ///
-    /// The framework issues WriteTokens only to plugins that declared
+    /// The framework issues `WriteTokens` only to plugins that declared
     /// the write capability in their config. Without the token, this
     /// method is uncallable — the plugin can read but not write.
     pub fn write(&mut self, _token: &WriteToken) -> &mut T {

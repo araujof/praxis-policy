@@ -379,7 +379,7 @@ fn build_filtered_raw_credentials(
     }
 }
 
-/// Build a filtered SecurityExtension containing only accessible fields.
+/// Build a filtered `SecurityExtension` containing only accessible fields.
 ///
 /// Unrestricted sub-fields (objects, data, classification) are always
 /// included. Labels and subject sub-fields are gated by capabilities.
@@ -453,7 +453,7 @@ fn build_filtered_security(
     filtered
 }
 
-/// Build a filtered SubjectExtension containing only accessible fields.
+/// Build a filtered `SubjectExtension` containing only accessible fields.
 ///
 /// Always includes id and type (base subject access). Individual
 /// sub-fields are only populated if the plugin holds the capability.
@@ -685,8 +685,8 @@ mod tests {
         assert!(filtered.delegation.unwrap().delegated);
     }
 
-    /// Builds a SecurityExtension carrying all four identity principal
-    /// slots — subject, client, caller_workload, this_workload.
+    /// Builds a `SecurityExtension` carrying all four identity principal
+    /// slots — subject, client, `caller_workload`, `this_workload`.
     /// Used by the new-slot cap-gating tests.
     fn security_with_all_principals() -> SecurityExtension {
         use crate::extensions::{

@@ -71,7 +71,7 @@ impl From<String> for HookType {
     }
 }
 
-/// Legacy hook names — typed payloads (ToolPreInvokePayload, etc.).
+/// Legacy hook names — typed payloads (`ToolPreInvokePayload`, etc.).
 pub mod hook_names {
     // Tool lifecycle
     pub const TOOL_PRE_INVOKE: &str = "tool_pre_invoke";
@@ -90,7 +90,7 @@ pub mod hook_names {
     pub const TOKEN_DELEGATE: &str = "token_delegate";
 }
 
-/// CMF hook names — MessagePayload wrapping a CMF Message.
+/// CMF hook names — `MessagePayload` wrapping a CMF Message.
 /// The `cmf.` prefix lets legacy and CMF plugins coexist at the
 /// same interception point. The gateway fires both at each event.
 pub mod cmf_hook_names {
@@ -113,7 +113,7 @@ pub mod cmf_hook_names {
 
 /// Returns all built-in hook types with their canonical string values.
 ///
-/// Called once during PluginManager initialization to populate the
+/// Called once during `PluginManager` initialization to populate the
 /// hook registry. Hosts add their own hook types after this.
 pub fn builtin_hook_types() -> Vec<HookType> {
     vec![
@@ -139,7 +139,7 @@ pub fn builtin_hook_types() -> Vec<HookType> {
 }
 
 /// Look up a hook type by name. Returns the canonical instance if
-/// it matches a built-in, otherwise creates a new custom HookType.
+/// it matches a built-in, otherwise creates a new custom `HookType`.
 pub fn hook_type_from_str(name: &str) -> HookType {
     HookType::new(name)
 }

@@ -60,13 +60,13 @@ pub(crate) enum Step {
     Plugin { name: String },
 
     /// `delegate: { plugin: ..., ... }` — mint a downstream delegation
-    /// token via a TokenDelegateHook plugin. Populates
+    /// token via a `TokenDelegateHook` plugin. Populates
     /// `delegation.granted_*` attributes in the bag so subsequent
     /// rules in the same step list can read them.
     Delegate(DelegateStep),
 
     /// `taint(label[, scope])` — apply a taint label. Always succeeds;
-    /// never produces a Deny. SessionStore dispatch happens in praxis-policy-apl-runtime.
+    /// never produces a Deny. `SessionStore` dispatch happens in praxis-policy-apl-runtime.
     Taint {
         label: String,
         scopes: Vec<TaintScope>,
@@ -112,7 +112,7 @@ pub(crate) enum Step {
 ///
 /// Multiple `delegate(...)` steps in the same phase are supported —
 /// each fires independently, each contributes to `Extensions`
-/// (`raw_credentials.delegated_tokens` is a HashMap keyed on
+/// (`raw_credentials.delegated_tokens` is a `HashMap` keyed on
 /// audience+scope+mode so tokens accumulate; `delegation.chain`
 /// grows with each hop). But the `delegation.granted.*` bag keys
 /// are **overwritten** on each call — only the most recent
@@ -138,7 +138,7 @@ pub struct DelegateStep {
     pub config_override: Option<serde_yaml::Value>,
 
     /// `deny | continue` — what to do when the plugin returns a
-    /// deny (e.g. IdP refusal, network error). `None` defaults to
+    /// deny (e.g. `IdP` refusal, network error). `None` defaults to
     /// `"deny"` (fail-closed; matches PDP step semantics).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub on_error: Option<String>,
@@ -175,7 +175,7 @@ pub enum ElicitKind {
 }
 
 impl ElicitKind {
-    /// The snake_case wire name (matches the serde representation). Used
+    /// The `snake_case` wire name (matches the serde representation). Used
     /// by the praxis-policy-apl-runtime bridge to pass `kind` to channel plugins as a
     /// string, since praxis-policy-core can't depend on this enum.
     pub fn as_str(&self) -> &'static str {
@@ -337,7 +337,7 @@ impl PdpDialect {
 }
 
 /// External policy-decision dispatch. Implemented by Cedar, OPA HTTP
-/// clients, AuthZen clients, NeMo Guardrails — anything that can answer
+/// clients, `AuthZen` clients, `NeMo` Guardrails — anything that can answer
 /// "given this call, allow or deny?" against a request context.
 ///
 /// `praxis-policy-apl-runtime` provides the bridge from PPE plugins (e.g. `cedar-direct`)
@@ -408,7 +408,7 @@ pub enum DispatchPhase {
 /// Context for one plugin invocation: tells the invoker the *intent* of
 /// the call so it can dispatch to the right PPE hook contract.
 ///
-/// `Step` is the policy / post_policy case — the invoker (praxis-policy-apl-runtime side)
+/// `Step` is the policy / `post_policy` case — the invoker (praxis-policy-apl-runtime side)
 /// already holds a typed payload reference; APL doesn't need to pass one.
 ///
 /// `Field` is the pipe-chain case — APL is focused on a specific field
@@ -473,7 +473,7 @@ pub trait PluginInvoker: Send + Sync {
 #[async_trait]
 pub trait DelegationInvoker: Send + Sync {
     /// Run one delegation step. Returns a `DelegationOutcome` carrying
-    /// the granted permissions / audience / expiry the IdP issued; the
+    /// the granted permissions / audience / expiry the `IdP` issued; the
     /// evaluator writes those into the bag as `delegation.granted_*`
     /// attributes so subsequent rules in the same step list can
     /// inspect them via `require(delegation.granted_permissions
@@ -488,7 +488,7 @@ pub trait DelegationInvoker: Send + Sync {
 /// What a delegation invocation returned.
 ///
 /// On success, `decision` is `Allow` and the granted_* fields reflect
-/// what the IdP actually issued (which may be narrower than what the
+/// what the `IdP` actually issued (which may be narrower than what the
 /// route asked for — `granted_permissions` is the source of truth for
 /// what the downstream tool will accept). The evaluator surfaces these
 /// into the bag under the `delegation.granted.*` sub-namespace plus a
@@ -499,7 +499,7 @@ pub trait DelegationInvoker: Send + Sync {
 #[derive(Debug, Clone)]
 pub struct DelegationOutcome {
     pub decision: Decision,
-    /// Permissions the IdP actually granted on the minted token. Empty
+    /// Permissions the `IdP` actually granted on the minted token. Empty
     /// when the call failed or the plugin returned no token.
     pub granted_permissions: Vec<String>,
     /// Audience the minted token is valid for. `None` when no token
@@ -849,7 +849,7 @@ pub struct PluginOutcome {
     /// Pipe-context return: when a plugin runs as a stage inside an
     /// args/result chain, it may rewrite the field value (e.g., a PII
     /// scrubber producing a redacted string). `None` means "leave value
-    /// unchanged"; always `None` for policy / post_policy invocations.
+    /// unchanged"; always `None` for policy / `post_policy` invocations.
     ///
     /// Scoped to the field named in [`PluginInvocation::Field`] and
     /// nothing else. A plugin that rewrote some other part of the
@@ -911,14 +911,14 @@ impl Step {
 /// chain attributes (`delegation.depth`, `delegation.origin`,
 /// `delegation.chain`, ...) populated by identity resolver plugins
 /// via `IdentityPayload.delegation` + apply-to-extensions, then
-/// surfaced through praxis-policy-apl-cmf's BagBuilder.
+/// surfaced through praxis-policy-apl-cmf's `BagBuilder`.
 ///
 /// The `delegation.granted.*` sub-namespace defined here is for
 /// OUTBOUND results — what came back from a `delegate(...)` step
 /// the framework just ran. Two writers (identity plugin for inbound,
 /// `delegate(...)` for outbound), distinct sub-trees, no collision.
 pub mod delegation_bag_keys {
-    /// `StringSet` — permissions actually granted by the IdP on the
+    /// `StringSet` — permissions actually granted by the `IdP` on the
     /// minted token. May be narrower than `required_permissions`.
     pub const GRANTED_PERMISSIONS: &str = "delegation.granted.permissions";
     /// `String` — audience the minted token is valid for.
@@ -927,7 +927,7 @@ pub mod delegation_bag_keys {
     pub const GRANTED_EXPIRES_AT: &str = "delegation.granted.expires_at";
     /// `Bool` — set to `true` after a successful `delegate(...)`
     /// step. Lets policy branch on success without inspecting the
-    /// granted_permissions set: `require(delegation.granted)`. Absent
+    /// `granted_permissions` set: `require(delegation.granted)`. Absent
     /// (i.e. evaluates to false) when no delegate step has run OR
     /// when the most recent one denied.
     pub const GRANTED: &str = "delegation.granted";

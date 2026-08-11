@@ -39,7 +39,7 @@ use praxis_policy_apl_core::evaluator::Decision;
 use praxis_policy_apl_core::step::{PdpCall, PdpDialect, PdpResolver as _};
 use praxis_policy_pdp_cedar_direct::CedarDirectResolver;
 
-/// musl's default thread stack size — below cedar's 100 KiB remaining-stack
+/// musl's default thread stack size — below cedar's 100 `KiB` remaining-stack
 /// floor once evaluation is underway.
 const MUSL_DEFAULT_STACK: usize = 128 * 1024;
 

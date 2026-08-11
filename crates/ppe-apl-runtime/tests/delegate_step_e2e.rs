@@ -215,7 +215,7 @@ impl PdpResolver for AllowPdp {
 
 /// Build request-level Extensions with a fake inbound bearer token so
 /// `DelegationPluginInvoker` has something to put in the
-/// DelegationPayload's bearer slot.
+/// `DelegationPayload`'s bearer slot.
 fn ext_with_bearer(token: &str) -> Extensions {
     let mut raw = RawCredentialsExtension::default();
     raw.inbound_tokens.insert(
@@ -254,7 +254,7 @@ fn ext_with_subject_and_label(token: &str, subject_id: &str, label: &str) -> Ext
     }
 }
 
-/// Wire up a PluginManager with one or more TokenDelegate plugins,
+/// Wire up a `PluginManager` with one or more `TokenDelegate` plugins,
 /// run the route YAML through praxis-policy-apl-core's compile, and return the
 /// pieces a test needs to invoke a route.
 async fn build_setup(
@@ -411,7 +411,7 @@ routes:
     assert_eq!(token.scopes, vec!["read_compensation"]);
 }
 
-/// IdP-as-PDP: when the plugin denies (e.g. simulating IdP refusal),
+/// IdP-as-PDP: when the plugin denies (e.g. simulating `IdP` refusal),
 /// the route halts with the plugin's violation code — `on_error: deny`
 /// is the default and translates the delegate's deny into a route
 /// deny.
@@ -742,10 +742,10 @@ routes:
 
 /// Delegate plugin declaring `read_subject` AND `read_inbound_credentials`
 /// (the inbound-credentials cap is needed because the bearer token
-/// arrives via raw_credentials and the invoker passes Extensions
+/// arrives via `raw_credentials` and the invoker passes Extensions
 /// through unmodified beyond the per-entry filter). Plugin sees the
 /// subject, sees the inbound bearer token, but NOT the security label
-/// (no read_labels cap).
+/// (no `read_labels` cap).
 #[tokio::test]
 async fn delegate_with_read_subject_sees_subject_but_not_labels() {
     let ledger: Arc<Mutex<Vec<DelegateCallRecord>>> = Arc::new(Mutex::new(Vec::new()));
@@ -854,7 +854,7 @@ routes:
 }
 
 /// Delegate plugin declaring NO capabilities. Should see NOTHING in
-/// security or raw_credentials — the executor strips both slots
+/// security or `raw_credentials` — the executor strips both slots
 /// because no relevant cap is held. Verifies the negative case:
 /// failure to declare a cap actually does hide the slot.
 #[tokio::test]

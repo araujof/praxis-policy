@@ -119,7 +119,7 @@ pub struct PipelineResult {
 
     /// Errors from plugins that ran with `on_error: ignore` or
     /// `on_error: disable`. These plugins didn't halt the pipeline
-    /// (their on_error policy said to continue), but the caller
+    /// (their `on_error` policy said to continue), but the caller
     /// should still know the errors happened so it can log them in
     /// a structured way, retry the affected plugin, or alert.
     /// Empty when no plugin errored on a non-halt path.
@@ -179,7 +179,7 @@ impl PipelineResult {
         }
     }
 
-    /// Replace the errors vec on a constructed PipelineResult. Used by
+    /// Replace the errors vec on a constructed `PipelineResult`. Used by
     /// the executor to attach errors collected from `on_error: ignore`
     /// / `on_error: disable` plugins.
     pub fn with_errors(mut self, errors: Vec<crate::error::PluginErrorRecord>) -> Self {
@@ -210,7 +210,7 @@ impl BackgroundTasks {
         Self { tasks: Vec::new() }
     }
 
-    /// Create from a list of (plugin_name, handle) pairs.
+    /// Create from a list of (`plugin_name`, handle) pairs.
     fn from_handles(tasks: Vec<(String, tokio::task::JoinHandle<()>)>) -> Self {
         Self { tasks }
     }
@@ -286,7 +286,7 @@ impl Executor {
     ///
     /// # Arguments
     ///
-    /// * `entries` — HookEntries for this hook, sorted by priority.
+    /// * `entries` — `HookEntries` for this hook, sorted by priority.
     /// * `payload` — The typed payload (type-erased as `Box<dyn PluginPayload>`).
     /// * `extensions` — The full extensions (filtered per plugin before dispatch).
     /// * `context_table` — Optional context table from a previous hook invocation.
@@ -1112,7 +1112,7 @@ impl Default for Executor {
 
 // SerialResult removed — run_serial_phase now returns Option<Violation> directly.
 
-/// Common fields extracted from a type-erased PluginResult.
+/// Common fields extracted from a type-erased `PluginResult`.
 ///
 /// Handlers return `Box<dyn Any>` which wraps this struct. The
 /// executor extracts it via [`extract_erased()`] to read the

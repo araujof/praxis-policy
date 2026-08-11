@@ -115,7 +115,7 @@ use zeroize::Zeroizing;
 /// `RawCredentialsExtension.inbound_tokens` are by this key.
 ///
 /// `Custom(String)` is the escape hatch for host-defined roles —
-/// HashMap equality is by value, so callers must construct the same
+/// `HashMap` equality is by value, so callers must construct the same
 /// `Custom("foo".into())` for both insert and lookup.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -291,7 +291,7 @@ impl RawInboundToken {
 ///
 /// `scopes` is a `Vec<String>` (not a `HashSet`) because Cedar / OPA
 /// policies frequently care about scope *order* — `["read", "write"]`
-/// and `["write", "read"]` may carry different semantics in some IdPs.
+/// and `["write", "read"]` may carry different semantics in some `IdPs`.
 /// Callers that want set semantics should sort before constructing.
 /// `#[non_exhaustive]`: construct via [`DelegationKey::new`] + the `with_*`
 /// setters so adding a future principal slot doesn't break downstream callers.
@@ -363,7 +363,7 @@ impl DelegationKey {
     }
 }
 
-/// One minted outbound credential, produced by a TokenDelegate
+/// One minted outbound credential, produced by a `TokenDelegate`
 /// handler and cached for re-use until expiry. The `token` field is
 /// serde-skipped under the same rules as `RawInboundToken.token`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -383,7 +383,7 @@ pub struct RawDelegatedToken {
 
     /// Effective scopes on the minted token. May be narrower than
     /// the inbound credential's scopes — monotonic narrowing is a
-    /// framework-level invariant enforced by TokenDelegate.
+    /// framework-level invariant enforced by `TokenDelegate`.
     pub scopes: Vec<String>,
 
     /// Cache eviction trigger. Handlers re-mint when `now >=
@@ -416,7 +416,7 @@ impl RawDelegatedToken {
 /// - `inbound_tokens` — what the wire layer handed us, keyed by
 ///   `TokenRole`. Populated by identity-resolver plugins.
 /// - `delegated_tokens` — what we minted for outbound calls, keyed
-///   by `DelegationKey`. Populated by TokenDelegate handlers and
+///   by `DelegationKey`. Populated by `TokenDelegate` handlers and
 ///   read by forwarding / proxy plugins.
 ///
 /// `plugin_credentials` is intentionally absent until
@@ -429,10 +429,10 @@ pub struct RawCredentialsExtension {
     #[serde(default)]
     pub inbound_tokens: HashMap<TokenRole, RawInboundToken>,
 
-    /// Outbound delegated tokens, minted on demand by TokenDelegate
+    /// Outbound delegated tokens, minted on demand by `TokenDelegate`
     /// handlers and cached for re-use. Read with
     /// `read_delegated_tokens`; write with `write_delegated_tokens`
-    /// (TokenDelegate handlers only).
+    /// (`TokenDelegate` handlers only).
     #[serde(default)]
     pub delegated_tokens: HashMap<DelegationKey, RawDelegatedToken>,
 }

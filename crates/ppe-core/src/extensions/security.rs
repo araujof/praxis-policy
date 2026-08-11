@@ -153,7 +153,7 @@ impl Default for ClientTrustLevel {
 /// The shape is deliberately symmetric with `SubjectExtension` —
 /// roles / permissions / teams / claims appear on both. That lets APL
 /// policies write `client.roles.contains("partner")` and
-/// `subject.roles.contains("admin")` with the same idiom; some IdPs
+/// `subject.roles.contains("admin")` with the same idiom; some `IdPs`
 /// (Keycloak service accounts, Auth0 M2M apps, AWS IAM role grants)
 /// attach RBAC grants to clients directly.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -161,7 +161,7 @@ pub struct ClientExtension {
     /// OAuth `client_id` — required. Anchor identifier for the client.
     pub client_id: String,
 
-    /// Human-readable client name from the IdP. Useful for audit logs.
+    /// Human-readable client name from the `IdP`. Useful for audit logs.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub client_name: Option<String>,
 
@@ -169,15 +169,15 @@ pub struct ClientExtension {
     #[serde(default)]
     pub trust_level: ClientTrustLevel,
 
-    /// OAuth scopes the IdP authorized for this client (across all
-    /// audiences). Policy authors use this to gate on what the IdP
+    /// OAuth scopes the `IdP` authorized for this client (across all
+    /// audiences). Policy authors use this to gate on what the `IdP`
     /// believes the client is allowed to ask for, before checking
     /// whether the specific request stays within those scopes.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub authorized_scopes: Vec<String>,
 
-    /// OAuth audiences the IdP authorized this client to address.
-    /// Different IdPs encode this differently; the resolver
+    /// OAuth audiences the `IdP` authorized this client to address.
+    /// Different `IdPs` encode this differently; the resolver
     /// normalizes them into this list.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub authorized_audiences: Vec<String>,
@@ -252,10 +252,10 @@ pub struct WorkloadIdentity {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub selectors: Vec<String>,
 
-    /// OAuth client_id, when the workload also carries one. Kept
+    /// OAuth `client_id`, when the workload also carries one. Kept
     /// alongside SPIFFE so call sites with both shapes (a SPIFFE
     /// workload that's *also* registered as an OAuth client to a
-    /// dynamic-client-registration IdP) don't have to populate two
+    /// dynamic-client-registration `IdP`) don't have to populate two
     /// extensions. The OAuth client's authorization data
     /// (scopes / audiences / claims) lives on the separate
     /// `ClientExtension` slot, not here.
@@ -271,10 +271,10 @@ pub struct WorkloadIdentity {
 ///
 /// - `subject` — the *user* (or service-as-user) initiating the request
 /// - `client`  — the *OAuth client / application* brokering the request
-/// - `caller_workload` — the *attested workload* on the inbound network
-///                       peer (SPIFFE-SVID, mTLS cert chain)
-/// - `this_workload` — *our own* gateway's attested identity, used for
-///                     outbound calls
+/// - `caller_workload` is the *attested workload* on the inbound network peer,
+///   via SPIFFE-SVID or an mTLS cert chain
+/// - `this_workload` is *our own* gateway's attested identity, used for
+///   outbound calls
 ///
 /// A request can populate any subset; identity-resolver plugins are
 /// expected to fill the slots they're configured for. Policy authors
@@ -282,8 +282,8 @@ pub struct WorkloadIdentity {
 /// `client.*` / `caller_workload.*` / `this_workload.*` bag namespaces.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SecurityExtension {
-    /// Security labels (monotonic — add-only via MonotonicSet).
-    /// No remove() method — enforced at compile time.
+    /// Security labels (monotonic — add-only via `MonotonicSet`).
+    /// No `remove()` method — enforced at compile time.
     #[serde(default)]
     pub labels: MonotonicSet<String>,
 
@@ -317,7 +317,7 @@ pub struct SecurityExtension {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub this_workload: Option<WorkloadIdentity>,
 
-    /// Authentication method used (e.g., "jwt", "mtls", "spiffe", "api_key").
+    /// Authentication method used (e.g., "jwt", "mtls", "spiffe", "`api_key`").
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub auth_method: Option<String>,
 

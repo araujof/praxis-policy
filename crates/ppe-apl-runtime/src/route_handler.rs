@@ -100,7 +100,7 @@ pub enum Phase {
 /// Synthetic plugin that drives APL evaluation for one route + one phase.
 ///
 /// Implements `Plugin` (so praxis-policy-core treats it like any other plugin —
-/// mode/capabilities/on_error come from the `PluginConfig` the visitor
+/// `mode/capabilities/on_error` come from the `PluginConfig` the visitor
 /// supplied at `annotate_route` time) and `AnyHookHandler` (so the
 /// executor dispatches into it through the normal type-erased path).
 pub struct AplRouteHandler {
@@ -117,7 +117,7 @@ pub struct AplRouteHandler {
     /// PDP resolver. APL routes that don't use `pdp(...)` steps never
     /// touch this. Default is an empty [`PdpRouter`] — any `pdp(...)`
     /// step against an unregistered dialect returns
-    /// `PdpError::NoResolver`. Hosts that need Cedar, OPA, NeMo, etc.
+    /// `PdpError::NoResolver`. Hosts that need Cedar, OPA, `NeMo`, etc.
     /// install resolvers via [`Self::with_pdp`] or
     /// [`Self::with_pdp_router`].
     pdp: Arc<dyn PdpResolver>,
@@ -161,7 +161,7 @@ impl AplRouteHandler {
     }
 
     /// Install a `PdpResolver`. Pass a [`PdpRouter`] when the host needs
-    /// to support multiple dialects (Cedar + OPA + NeMo) on the same
+    /// to support multiple dialects (Cedar + OPA + `NeMo`) on the same
     /// route — the router dispatches each `pdp(...)` step by dialect.
     /// Pass a single resolver when only one dialect is in use; APL
     /// steps for any other dialect will then return

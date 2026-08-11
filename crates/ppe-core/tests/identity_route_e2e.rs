@@ -177,7 +177,7 @@ impl PluginFactory for RecordingFactory {
 // Test helpers
 // =====================================================================
 
-/// Build the request Extensions with MetaExtension set so route
+/// Build the request Extensions with `MetaExtension` set so route
 /// filtering kicks in. Without `meta`, the filter falls through to
 /// chain dispatch (all entries returned) — that's the wrong code
 /// path to be testing.
@@ -196,7 +196,7 @@ fn build_payload(token: &str) -> IdentityPayload {
     IdentityPayload::new(token, TokenSource::Bearer)
 }
 
-/// Standard set-up: PluginManager with the recording factory
+/// Standard set-up: `PluginManager` with the recording factory
 /// registered, plus a shared ledger and factory-call counter the
 /// test asserts on. Doesn't wire extensions observation —
 /// existing tests don't need it.
@@ -359,7 +359,7 @@ routes:
 }
 
 /// A route with no `authentication:` block produces zero identity
-/// dispatches even when the entity_type / entity_name match. The
+/// dispatches even when the `entity_type` / `entity_name` match. The
 /// plugins ARE registered under identity.resolve, but no route
 /// binds them, so the route-filter returns an empty entry list.
 #[tokio::test]

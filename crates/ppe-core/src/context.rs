@@ -139,11 +139,11 @@ impl PluginContextTable {
     }
 
     /// Build a `PluginContext` for the given plugin, *removing* its stored
-    /// local_state from the table and seeding it with a fresh clone of the
-    /// canonical global_state. Use in serial phases where the plugin will
-    /// commit its local_state changes back via `store_context`.
+    /// `local_state` from the table and seeding it with a fresh clone of the
+    /// canonical `global_state`. Use in serial phases where the plugin will
+    /// commit its `local_state` changes back via `store_context`.
     ///
-    /// If the plugin has no stored local_state yet, its context starts
+    /// If the plugin has no stored `local_state` yet, its context starts
     /// empty (first invocation in the request lifecycle).
     pub fn take_context(&mut self, plugin_id: Uuid) -> PluginContext {
         PluginContext {
@@ -153,7 +153,7 @@ impl PluginContextTable {
     }
 
     /// Build a `PluginContext` for the given plugin without mutating the
-    /// table — the local_state is *cloned* and the global_state is cloned.
+    /// table — the `local_state` is *cloned* and the `global_state` is cloned.
     /// Use in read-only phases (audit, concurrent, fire-and-forget) where
     /// per-plugin mutations should not influence subsequent plugins.
     pub fn snapshot_context(&self, plugin_id: Uuid) -> PluginContext {
@@ -168,19 +168,19 @@ impl PluginContextTable {
     }
 
     /// Commit a plugin's context back into the table after it ran. Replaces
-    /// the canonical global_state with the plugin's possibly-modified copy
-    /// (move, no clone) and stores the plugin's local_state for next time.
+    /// the canonical `global_state` with the plugin's possibly-modified copy
+    /// (move, no clone) and stores the plugin's `local_state` for next time.
     pub fn store_context(&mut self, plugin_id: Uuid, ctx: PluginContext) {
         self.global_state = ctx.global_state;
         self.local_states.insert(plugin_id, ctx.local_state);
     }
 
-    /// Number of plugins with stored local_state in the table.
+    /// Number of plugins with stored `local_state` in the table.
     pub fn len(&self) -> usize {
         self.local_states.len()
     }
 
-    /// Whether the table holds no per-plugin local_state.
+    /// Whether the table holds no per-plugin `local_state`.
     pub fn is_empty(&self) -> bool {
         self.local_states.is_empty()
     }

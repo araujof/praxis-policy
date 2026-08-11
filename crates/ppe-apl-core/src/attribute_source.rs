@@ -65,7 +65,7 @@ impl Default for AttributeTree {
 
 /// Where the `data.*` tree comes from — a **trait object injected at
 /// construction**, not a PPE hook-plugin. The host implements it over a
-/// file, etcd, Postgres, a k8s ConfigMap, etc., and hands the object to
+/// file, etcd, Postgres, a k8s `ConfigMap`, etc., and hands the object to
 /// the runtime at startup.
 ///
 /// `load` is **synchronous and one-shot**: it runs once at startup, never

@@ -147,7 +147,7 @@ pub struct FieldRule {
 /// A taint label produced as a side effect of running a pipeline.
 ///
 /// The evaluator accumulates these in `PipelineEvaluation.taints`; the host
-/// (praxis-policy-apl-runtime) drains them and writes to the actual SessionStore. Same shape
+/// (praxis-policy-apl-runtime) drains them and writes to the actual `SessionStore`. Same shape
 /// as `Stage::Taint`'s fields, but lives at the evaluator boundary because
 /// it also carries taints emitted by plugin invocations and scan stages
 /// — not just literal `taint(...)` stages.

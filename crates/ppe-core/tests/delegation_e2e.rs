@@ -63,7 +63,7 @@ use praxis_policy_core::plugin::{OnError, Plugin, PluginConfig, PluginMode};
 /// Minimal RFC-8693-style stub. Doesn't actually exchange anything
 /// — just constructs a `RawDelegatedToken` by combining the caller's
 /// bearer token with the target audience. Real handlers would call
-/// out to an IdP; we only care about wiring here.
+/// out to an `IdP`; we only care about wiring here.
 struct StubExchanger {
     cfg: PluginConfig,
 }
@@ -158,7 +158,7 @@ impl HookHandler<TokenDelegateHook> for DecliningHandler {
 
 /// Fallback minter — runs after a declining handler. Asserts that
 /// the prior handler's `metadata` contribution survived through
-/// Sequential-phase threading (i.e. we see "declined_by") and
+/// Sequential-phase threading (i.e. we see "`declined_by`") and
 /// produces a token in spite of the prior decline.
 struct FallbackMinter {
     cfg: PluginConfig,
@@ -416,8 +416,8 @@ async fn rejecting_handler_halts_pipeline() {
 }
 
 /// Full host-side flow: a request already has a resolved subject in
-/// `Extensions.security.subject` (from a prior IdentityResolve pass);
-/// the outbound forwarding plugin invokes TokenDelegate; the host
+/// `Extensions.security.subject` (from a prior `IdentityResolve` pass);
+/// the outbound forwarding plugin invokes `TokenDelegate`; the host
 /// applies the result back to Extensions; the minted token now lives
 /// in `Extensions.raw_credentials.delegated_tokens` keyed by a
 /// `DelegationKey` that incorporates the subject id.
@@ -498,7 +498,7 @@ async fn apply_to_extensions_writes_delegated_token_keyed_by_subject() {
 ///
 /// Mirrors the `cap_gating_post_apply_through_cmf_dispatch`
 /// test but for the *outbound* leg:
-///   1. TokenDelegate handler mints a downstream credential.
+///   1. `TokenDelegate` handler mints a downstream credential.
 ///   2. Host applies the resolved payload back to `Extensions` via
 ///      `apply_to_extensions` — the minted token lands in
 ///      `Extensions.raw_credentials.delegated_tokens`.

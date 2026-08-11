@@ -28,7 +28,7 @@ pub enum MutabilityTier {
 ///
 /// # Why no `Write*` for identity slots
 ///
-/// The IdentityResolve and TokenDelegate hook families return result
+/// The `IdentityResolve` and `TokenDelegate` hook families return result
 /// payloads that the framework consumes to mutate `Extensions`. Plugins
 /// never write to `security.subject` / `security.client` /
 /// `security.*_workload` / `raw_credentials.*` directly — those slots
@@ -92,7 +92,7 @@ pub enum Capability {
     /// Read raw inbound tokens
     /// (`raw_credentials.inbound_tokens`) — the bearer-token
     /// strings captured at the wire layer before validation.
-    /// Narrowly scoped: only IdentityResolve handlers, forwarding
+    /// Narrowly scoped: only `IdentityResolve` handlers, forwarding
     /// plugins, and a small set of audit plugins should declare it.
     ///
     /// Token fields are `#[serde(skip)]`, so this capability never
@@ -105,7 +105,7 @@ pub enum Capability {
     ReadInboundCredentials,
     /// Read minted outbound delegated tokens
     /// (`raw_credentials.delegated_tokens`) — the credentials a
-    /// TokenDelegate handler produced for an upstream call. Held by
+    /// `TokenDelegate` handler produced for an upstream call. Held by
     /// forwarding / proxy plugins that re-attach them on the outbound
     /// request. Same serialization and out-of-process rules as
     /// `read_inbound_credentials`; the two are independently scoped and

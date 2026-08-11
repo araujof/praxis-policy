@@ -82,12 +82,12 @@ pub(crate) fn extract_args_from_message(msg: &Message) -> Value {
 }
 
 /// Inverse of [`extract_args_from_message`]: write `args` back into
-/// `msg`'s first ToolCall / PromptRequest argument map, or — for
+/// `msg`'s first `ToolCall` / `PromptRequest` argument map, or — for
 /// text payloads — into the first text part.
 ///
 /// Silently no-ops when the args shape doesn't match the message
 /// content shape (e.g. operator pipeline produced a String for what
-/// was originally a ToolCall). The mismatch path is recoverable —
+/// was originally a `ToolCall`). The mismatch path is recoverable —
 /// the upstream just sees the original unmodified content rather
 /// than a malformed rewrite.
 pub(crate) fn write_args_back_to_message(msg: &mut Message, args: &Value) {
@@ -133,7 +133,7 @@ pub(crate) fn extract_result_from_message(msg: &Message) -> Value {
 /// `result` back into the message's first `ContentPart::ToolResult.content`,
 /// or — for text-only messages — into the first text part. The praxis
 /// filter's response-body re-serializer then lifts the new content
-/// out of the ContentPart and folds it back into the JSON-RPC
+/// out of the `ContentPart` and folds it back into the JSON-RPC
 /// `result.content[*].text` payload.
 pub(crate) fn write_result_back_to_message(msg: &mut Message, result: &Value) {
     for part in &mut msg.content {

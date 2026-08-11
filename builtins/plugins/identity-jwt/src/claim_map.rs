@@ -80,12 +80,12 @@ pub type ClaimMap = HashMap<String, Value>;
 ///
 ///   * `sub`                    → `subject.id` (required)
 ///   * `roles`                  → `subject.roles`     (string array)
-///   * `permissions` / `scope`  → `subject.permissions` (array or
-///                                 space-separated string)
+///   * `permissions` / `scope`  → `subject.permissions` (array, or a
+///     space-separated string)
 ///   * `groups` / `teams`       → `subject.teams`     (string array)
 ///   * Every other claim        → `subject.claims.<name>` (stringified)
 ///
-/// Implementations with non-standard IdPs (Keycloak's nested
+/// Implementations with non-standard `IdPs` (Keycloak's nested
 /// `realm_access.roles`, AWS Cognito's `cognito:*` prefixed claims)
 /// write their own `ClaimMapper`; this struct is for the common
 /// vanilla-OIDC case.

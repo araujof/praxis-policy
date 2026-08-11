@@ -459,7 +459,7 @@ async fn apply_to_extensions_populates_security_and_preserves_existing_fields() 
     assert_eq!(&*user_token.token, "eyJ.fake.jwt");
 }
 
-/// When the IdentityHook chain is denied, `from_pipeline_result`
+/// When the `IdentityHook` chain is denied, `from_pipeline_result`
 /// returns `None` because the executor produces no `modified_payload`
 /// on the deny path. Hosts use this to distinguish "identity
 /// resolved" from "identity rejected" without a separate type.
@@ -489,8 +489,8 @@ async fn from_pipeline_result_returns_none_on_deny() {
 /// `raw_credentials` slot.
 ///
 /// Scenario:
-///   1. IdentityResolve handler populates `subject` + a
-///      RawCredentialsExtension with a User token.
+///   1. `IdentityResolve` handler populates `subject` + a
+///      `RawCredentialsExtension` with a User token.
 ///   2. Host applies the resolved payload back to `Extensions` via
 ///      `apply_to_extensions`, getting a fully-populated request
 ///      Extensions container.

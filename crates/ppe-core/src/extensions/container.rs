@@ -52,7 +52,7 @@ pub struct Extensions {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent: Option<Arc<AgentExtension>>,
 
-    /// HTTP headers (frozen as Arc — unfrozen in OwnedExtensions).
+    /// HTTP headers (frozen as Arc — unfrozen in `OwnedExtensions`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub http: Option<Arc<HttpExtension>>,
 
@@ -61,7 +61,7 @@ pub struct Extensions {
     pub security: Option<Arc<SecurityExtension>>,
 
     /// Backend candidate constraint emitted by APL `restrict` effects
-    /// (frozen as Arc — cloned out in OwnedExtensions). The policy
+    /// (frozen as Arc — cloned out in `OwnedExtensions`). The policy
     /// engine writes it; the host router reads it typed to narrow its
     /// candidate set. A routing directive, never an access decision.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -110,12 +110,12 @@ pub struct Extensions {
     #[serde(default)]
     pub meta: Option<Arc<MetaExtension>>,
 
-    /// Custom extensions (frozen as Arc — unfrozen in OwnedExtensions).
+    /// Custom extensions (frozen as Arc — unfrozen in `OwnedExtensions`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub custom: Option<Arc<HashMap<String, serde_json::Value>>>,
 
     /// Write tokens — set by the executor per plugin, NOT serialized.
-    /// Used by `cow_copy()` to propagate write access to OwnedExtensions.
+    /// Used by `cow_copy()` to propagate write access to `OwnedExtensions`.
     #[serde(skip)]
     pub http_write_token: Option<WriteToken>,
     #[serde(skip)]
@@ -254,7 +254,7 @@ impl Extensions {
             || modified.candidate_constraint.as_ref() == self.candidate_constraint.as_deref()
     }
 
-    /// Merge an OwnedExtensions back into this Extensions, field by field.
+    /// Merge an `OwnedExtensions` back into this Extensions, field by field.
     ///
     /// # Why per-field and not per-slot
     ///
@@ -469,7 +469,7 @@ pub struct OwnedExtensions {
     pub meta: Option<Arc<MetaExtension>>,
     /// Raw credentials are shared by Arc here too — write tokens for
     /// `inbound_tokens` and `delegated_tokens` mutation paths land with
-    /// the IdentityResolve and TokenDelegate hooks. Until
+    /// the `IdentityResolve` and `TokenDelegate` hooks. Until
     /// then, no plugin writes through `OwnedExtensions.raw_credentials`.
     pub raw_credentials: Option<Arc<RawCredentialsExtension>>,
 

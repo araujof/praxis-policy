@@ -107,9 +107,9 @@ pub struct JwtIdentityResolver {
     /// `RawInboundToken.source_header` so forwarding plugins know
     /// where to put it (or strip it) on the upstream call.
     header: String,
-    /// Background JWKS-refresh tasks, one per JwksUrl issuer.
+    /// Background JWKS-refresh tasks, one per `JwksUrl` issuer.
     /// Spawned during `initialize()`. Aborted in the resolver's
-    /// `Drop` impl — without that, tokio JoinHandles silently
+    /// `Drop` impl — without that, tokio `JoinHandles` silently
     /// detach the task and the refresh loop runs forever (until
     /// the runtime shuts down or it panics).
     refresh_tasks: std::sync::Mutex<Vec<tokio::task::JoinHandle<()>>>,
@@ -269,26 +269,26 @@ impl Plugin for JwtIdentityResolver {
     }
 
     /// Resolve any `JwksUrl` decoding keys deferred at construction,
-    /// then spawn a background task per JwksUrl issuer to refresh
-    /// the KeyStore on a periodic schedule (default 10 min,
+    /// then spawn a background task per `JwksUrl` issuer to refresh
+    /// the `KeyStore` on a periodic schedule (default 10 min,
     /// configurable per-issuer via `refresh_secs`).
     ///
     /// **Soft-fail semantics:** an unreachable / slow /
     /// malformed JWKS at startup logs a warning and leaves the
-    /// issuer's KeyStore *empty*. The plugin still loads, the
+    /// issuer's `KeyStore` *empty*. The plugin still loads, the
     /// gateway still boots, and the background refresh task gets
-    /// spawned anyway — so a transient IdP outage during boot
+    /// spawned anyway — so a transient `IdP` outage during boot
     /// recovers on its own as soon as refresh succeeds. Verify-time
-    /// requests against an issuer with an empty KeyStore receive
+    /// requests against an issuer with an empty `KeyStore` receive
     /// `auth.jwks_unavailable` rather than crashing the request.
     ///
     /// Initial fetches happen concurrently — N pending issuers
     /// → one `join_all`, not N sequential round-trips — so the
-    /// time-to-ready scales with the slowest IdP, not the sum.
+    /// time-to-ready scales with the slowest `IdP`, not the sum.
     ///
     /// The `PluginManager` drives this once per plugin lifetime
     /// (before any hooks fire). Idempotent: if `pending_jwks` is
-    /// empty (no JwksUrl sources) this is a free no-op.
+    /// empty (no `JwksUrl` sources) this is a free no-op.
     async fn initialize(&self) -> Result<(), Box<PluginError>> {
         if self.pending_jwks.is_empty() {
             return Ok(());
@@ -640,18 +640,18 @@ fn peek_issuer(token: &str) -> Option<String> {
 /// and JWKS-availability cases.
 enum ValidateError {
     /// The JWT's header `kid` didn't match any key the issuer's
-    /// KeyStore knows about. Distinct from `InvalidSignature` so
+    /// `KeyStore` knows about. Distinct from `InvalidSignature` so
     /// the verify path can surface `auth.unknown_kid` with the
     /// specific kid that was missing — operators can match this
-    /// against their IdP's currently-published JWKS to confirm
+    /// against their `IdP`'s currently-published JWKS to confirm
     /// rotation propagated.
     UnknownKid(Option<String>),
-    /// The issuer's KeyStore is empty: initial JWKS fetch failed
+    /// The issuer's `KeyStore` is empty: initial JWKS fetch failed
     /// at `initialize()`, refresh task hasn't yet succeeded. The
     /// gateway didn't crash (soft-fail by design), but it also
     /// can't verify any token from this issuer until refresh
     /// catches up. Surfaces as `auth.jwks_unavailable` so
-    /// operators see "JWKS issue at IdP X" rather than the more
+    /// operators see "JWKS issue at `IdP` X" rather than the more
     /// alarming `auth.signature_invalid` they'd see if we
     /// silently fell back to e.g. an empty key.
     KeysUnavailable,

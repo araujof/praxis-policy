@@ -88,7 +88,7 @@ pub struct RouteDecision {
 /// Run the **pre-invocation** phases: `args` then `policy`. Used by
 /// orchestrators bound to a `tool_pre_invoke`-style hook — by the time
 /// post-invoke fires, the tool has produced a response, so result/
-/// post_policy belong to [`evaluate_post`].
+/// `post_policy` belong to [`evaluate_post`].
 ///
 /// On a phase Deny, halts and returns immediately. `args_modified` is
 /// set if any args field was rewritten or omitted; `result_modified` is

@@ -18,8 +18,8 @@ use praxis_policy_core::plugin::{Plugin, PluginConfig};
 
 use crate::config::{PiiPattern, PiiScanMode, PiiScannerConfig};
 
-/// CMF plugin that walks the message's ToolCall / PromptRequest /
-/// ResourceRef arguments and tests each string value against the
+/// CMF plugin that walks the message's `ToolCall` / `PromptRequest` /
+/// `ResourceRef` arguments and tests each string value against the
 /// configured PII patterns.
 #[derive(Debug)]
 pub struct PiiScanner {

@@ -216,7 +216,7 @@ pub struct AttenuationConfig {
     pub ttl_seconds: Option<u64>,
 }
 
-/// State threaded through the TokenDelegate hook chain.
+/// State threaded through the `TokenDelegate` hook chain.
 ///
 /// See the module-level docs for the input/output split. Input
 /// fields are private (set once via the constructor + builders,

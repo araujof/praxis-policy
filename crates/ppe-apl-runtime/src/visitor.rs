@@ -80,7 +80,7 @@ pub const HOOK_PRE: &str = HOOK_CMF_TOOL_PRE_INVOKE;
 /// Legacy alias for the tool-family post hook. See `HOOK_PRE`.
 pub const HOOK_POST: &str = HOOK_CMF_TOOL_POST_INVOKE;
 
-/// Resolve the (pre, post) CMF hook pair for an entity_type. Drives
+/// Resolve the (pre, post) CMF hook pair for an `entity_type`. Drives
 /// per-entity `annotate_route` calls so an `llm:` route annotates on
 /// `cmf.llm_input` / `cmf.llm_output` rather than the tool-family
 /// hooks. Returns `None` for unknown entity types — the visitor logs
@@ -268,7 +268,7 @@ impl AplConfigVisitor {
     /// Precedence: a tree injected via
     /// [`AplConfigVisitor::set_attribute_tree`] before the config walk
     /// wins — declarative `attribute_files` is skipped when a non-empty
-    /// tree is already present (injected > attribute_files > none).
+    /// tree is already present (injected > `attribute_files` > none).
     fn build_attribute_tree_from_config(
         &self,
         entries: &serde_yaml::Sequence,

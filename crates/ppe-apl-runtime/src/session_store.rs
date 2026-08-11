@@ -116,7 +116,7 @@ pub trait SessionStoreFactory: Send + Sync {
 /// state across all consumers.
 #[derive(Default)]
 pub struct MemorySessionStore {
-    /// `RwLock` because reads (load_labels at request start) outnumber
+    /// `RwLock` because reads (`load_labels` at request start) outnumber
     /// writes (append at request end) in steady state — and lock
     /// contention is bounded by the per-session level of concurrency,
     /// not request volume.
