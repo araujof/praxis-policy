@@ -23,11 +23,17 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CompareOp {
+    /// Equality.
     Eq,
+    /// Inequality.
     NotEq,
+    /// Greater than.
     Gt,
+    /// Greater than or equal.
     GtEq,
+    /// Less than.
     Lt,
+    /// Less than or equal.
     LtEq,
     /// `<set_key> contains <literal>` — left is a `StringSet` attribute,
     /// right is a string literal.
@@ -38,9 +44,13 @@ pub enum CompareOp {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Literal {
+    /// A boolean.
     Bool(bool),
+    /// A signed integer. Integer pairs compare exactly rather than through `f64`.
     Int(i64),
+    /// A floating-point number.
     Float(f64),
+    /// A string.
     String(String),
 }
 
@@ -82,21 +92,30 @@ impl From<String> for Literal {
 /// an `Action::Deny`. See the DSL spec desugarings.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Condition {
+    /// Compares the attribute at `key` against a literal.
     Comparison {
+        /// The attribute to read.
         key: String,
+        /// The comparison to apply.
         op: CompareOp,
+        /// The right-hand side.
         value: Literal,
     },
+    /// True when the attribute at `key` is truthy.
     IsTrue {
+        /// The attribute to read.
         key: String,
     },
+    /// True when the attribute at `key` is absent or falsy.
     IsFalse {
+        /// The attribute to read.
         key: String,
     },
     /// DSL `exists(key)` — true iff the key is present in the
     /// `AttributeBag`, regardless of its value. Distinct from `IsTrue`
     /// (which only succeeds for truthy values).
     Exists {
+        /// The attribute whose presence is tested.
         key: String,
     },
     /// DSL `value_key in set_key` (negate=false) / `value_key not in set_key`
@@ -105,8 +124,11 @@ pub enum Condition {
     /// `set_key`. Returns `false` if either key is missing or
     /// the types don't match (scalar must resolve to a string).
     InSet {
+        /// The attribute holding the scalar to look for.
         value_key: String,
+        /// The attribute holding the set to look in.
         set_key: String,
+        /// Inverts the result, giving `not in`.
         negate: bool,
     },
 }
@@ -119,10 +141,15 @@ pub enum Condition {
 /// — only by rule-level forms where no `when:` is supplied.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Expression {
+    /// A single condition.
     Condition(Condition),
+    /// True when every part is true.
     And(Vec<Expression>),
+    /// True when any part is true.
     Or(Vec<Expression>),
+    /// Inverts the inner expression.
     Not(Box<Expression>),
+    /// Always true, for rules written without a `when:`.
     Always,
 }
 
@@ -152,8 +179,11 @@ pub enum Expression {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Effect {
+    /// Permit the request. Terminal for the phase.
     Allow,
+    /// Reject the request. Terminal for the phase.
     Deny {
+        /// Operator-facing explanation, surfaced with the violation.
         reason: Option<String>,
         /// Author-supplied stable violation code. When `Some`, it
         /// overrides the rule's auto-generated source-position code
@@ -170,9 +200,12 @@ pub enum Effect {
         /// map form.
         code: Option<String>,
     },
+    /// Invoke a named plugin and honour its verdict.
     Plugin {
+        /// The plugin to invoke, as registered.
         name: String,
     },
+    /// Mint a downstream credential for a target audience.
     Delegate(crate::step::DelegateStep),
     /// Elicitation effect — dispatch a question to a human (approval,
     /// confirmation, step-up, …) through a channel plugin, hold pending
@@ -180,8 +213,11 @@ pub enum Effect {
     /// The elicitation analogue of `Delegate`. See
     /// [`crate::step::ElicitStep`].
     Elicit(crate::step::ElicitStep),
+    /// Attach a security label, accumulating rather than deciding.
     Taint {
+        /// The label to attach.
         label: String,
+        /// How far the label propagates.
         scopes: Vec<crate::pipeline::TaintScope>,
     },
     /// Backend candidate constraint (DSL — the `restrict` effect). Narrows
@@ -191,6 +227,7 @@ pub enum Effect {
     /// layer folds it into a `CandidateConstraintExtension` the host
     /// serializes to its router.
     Restrict {
+        /// The constraint to fold into the request.
         spec: crate::constraint::RestrictSpec,
     },
     /// Content effect — apply a pipe chain (`redact`, `mask`,
@@ -209,7 +246,9 @@ pub enum Effect {
     /// `when:`/`do:` shape can describe both phases without
     /// branching.
     FieldOp {
+        /// Dotted path to the field, as in `result.salary`.
         path: String,
+        /// The pipe chain applied to that field, in order.
         stages: Vec<crate::pipeline::Stage>,
     },
     /// Run a list of effects in declaration order, stopping on the
@@ -240,17 +279,23 @@ pub enum Effect {
     /// surfaced in `Decision::Deny.rule_source` when the body denies
     /// without supplying its own code.
     When {
+        /// The predicate gating the body.
         condition: Expression,
+        /// Effects run in order when the predicate holds.
         body: Vec<Effect>,
+        /// Human-readable origin, reported when the body denies.
         source: String,
     },
     /// External PDP call. `on_allow` / `on_deny` are reaction effect
     /// lists fired against the PDP's decision. Replaces
     /// `Step::Pdp { ... }` — `args`-shape stays identical.
     Pdp {
+        /// The decision point and the arguments passed to it.
         call: crate::step::PdpCall,
+        /// Effects fired when the decision point permits.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         on_allow: Vec<Effect>,
+        /// Effects fired when it denies.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         on_deny: Vec<Effect>,
     },
@@ -347,7 +392,9 @@ impl Effect {
 /// both `Action::Allow` and `Effect::Allow` in the IR.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Rule {
+    /// The predicate that must hold for the effects to run.
     pub condition: Expression,
+    /// What the rule does when it matches.
     pub effects: Vec<Effect>,
     /// Human-readable source (original YAML line, file path, etc.).
     /// Surfaces in audit logs and policy violation diagnostics.
@@ -391,9 +438,13 @@ impl From<Rule> for Effect {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Phase {
+    /// Inbound arguments, before the call is made.
     Args,
+    /// The authorization decision.
     Policy,
+    /// The response, before it reaches the caller.
     Result,
+    /// After the response, for effects that must not gate it.
     PostPolicy,
 }
 
@@ -402,18 +453,22 @@ pub enum Phase {
 pub struct PhaseSet(u8);
 
 impl PhaseSet {
+    /// An empty set.
     pub fn new() -> Self {
         Self(0)
     }
 
+    /// Add a phase.
     pub fn insert(&mut self, p: Phase) {
         self.0 |= Self::bit(p);
     }
 
+    /// Whether the phase is present.
     pub fn contains(&self, p: Phase) -> bool {
         self.0 & Self::bit(p) != 0
     }
 
+    /// Whether no phase is declared, meaning the route runs nothing.
     pub fn is_empty(&self) -> bool {
         self.0 == 0
     }
@@ -460,14 +515,19 @@ pub struct DenyResponse {
 /// apl-dsl-spec.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CompiledRoute {
+    /// Identifies the route this was compiled for.
     pub route_key: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    /// Field rules applied to inbound arguments.
     pub args: Vec<crate::pipeline::FieldRule>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    /// Effects deciding whether the call proceeds.
     pub policy: Vec<Effect>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    /// Field rules applied to the response.
     pub result: Vec<crate::pipeline::FieldRule>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    /// Effects run after the response, which cannot gate it.
     pub post_policy: Vec<Effect>,
     /// Per-plugin overrides declared on this route's `plugins:` block.
     /// Keyed by plugin name; merged at dispatch time via
@@ -484,6 +544,7 @@ pub struct CompiledRoute {
 }
 
 impl CompiledRoute {
+    /// An empty route with no phases declared.
     pub fn new(route_key: impl Into<String>) -> Self {
         Self {
             route_key: route_key.into(),
