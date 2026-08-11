@@ -353,13 +353,21 @@ pub struct PluginCondition {
 /// `Option<&str>` and could be misordered silently.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct MatchContext<'a> {
+    /// The server the request is bound for.
     pub server_id: Option<&'a str>,
+    /// The tenant the request belongs to.
     pub tenant_id: Option<&'a str>,
+    /// The tool being invoked.
     pub tool: Option<&'a str>,
+    /// The prompt being rendered.
     pub prompt: Option<&'a str>,
+    /// The resource being fetched.
     pub resource: Option<&'a str>,
+    /// The calling agent.
     pub agent: Option<&'a str>,
+    /// The acting user.
     pub user: Option<&'a str>,
+    /// The content type in play.
     pub content_type: Option<&'a str>,
 }
 

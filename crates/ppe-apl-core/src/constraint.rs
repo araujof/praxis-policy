@@ -66,17 +66,20 @@ pub struct CandidateConstraint {
     /// label here — PPE passes it through without needing to know the
     /// order. `None` = no tier ceiling.
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Ceiling on cost tier. The host orders the tier names.
     pub max_cost_tier: Option<String>,
 
     /// Arbitrary backend labels the candidate must carry, matched by plain
     /// equality (k8s `nodeSelector` semantics). The escape hatch for
     /// backend attributes without a typed field above. Empty = none.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    /// Host-defined constraints, passed through unread.
     pub custom: BTreeMap<String, String>,
 
     /// What the host should do if the constraint prunes every candidate.
     /// Fail-closed by default (see [`OnEmpty`]).
     #[serde(default)]
+    /// What the host does when nothing qualifies.
     pub on_empty: OnEmpty,
 }
 
@@ -198,12 +201,16 @@ pub struct RestrictResolveError {
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct RestrictSpec {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Only these models qualify. An empty set qualifies none.
     pub allow_models: Option<StringSetSpec>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// These models are excluded.
     pub deny_models: Option<StringSetSpec>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Only backends in these regions qualify.
     pub allow_regions: Option<StringSetSpec>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Only backends at these sites qualify.
     pub allow_sites: Option<StringSetSpec>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_cost_tier: Option<String>,

@@ -23,13 +23,20 @@ use super::security::SubjectType;
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum DelegationStrategy {
+    /// RFC 8693 token exchange.
     TokenExchange,
+    /// OAuth client credentials.
     ClientCredentials,
+    /// A SPIFFE SVID.
     SpiffeSvid,
+    /// The caller's own token, forwarded unchanged.
     Passthrough,
+    /// A UCAN capability token.
     Ucan,
+    /// A transaction token.
     TransactionToken,
     #[serde(untagged)]
+    /// A host-defined mode, named here.
     Custom(String),
 }
 

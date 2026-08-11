@@ -32,10 +32,15 @@ use std::collections::{HashMap, HashSet};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AttributeValue {
+    /// A boolean.
     Bool(bool),
+    /// A signed integer.
     Int(i64),
+    /// A floating-point number.
     Float(f64),
+    /// A string.
     String(String),
+    /// A set of strings, for `contains` and `in` tests.
     StringSet(HashSet<String>),
 }
 
@@ -82,24 +87,29 @@ pub struct AttributeBag {
 }
 
 impl AttributeBag {
+    /// An empty bag.
     pub fn new() -> Self {
         Self {
             attrs: HashMap::new(),
         }
     }
 
+    /// Insert or replace the value at `key`.
     pub fn set(&mut self, key: impl Into<String>, value: impl Into<AttributeValue>) {
         self.attrs.insert(key.into(), value.into());
     }
 
+    /// The value at `key`, if present.
     pub fn get(&self, key: &str) -> Option<&AttributeValue> {
         self.attrs.get(key)
     }
 
+    /// Whether `key` is present, whatever its value.
     pub fn contains(&self, key: &str) -> bool {
         self.attrs.contains_key(key)
     }
 
+    /// The value at `key` as a bool, or `None` if absent or another type.
     pub fn get_bool(&self, key: &str) -> Option<bool> {
         match self.get(key) {
             Some(AttributeValue::Bool(v)) => Some(*v),
@@ -107,6 +117,7 @@ impl AttributeBag {
         }
     }
 
+    /// The value at `key` as an integer, or `None` if absent or another type.
     pub fn get_int(&self, key: &str) -> Option<i64> {
         match self.get(key) {
             Some(AttributeValue::Int(v)) => Some(*v),
@@ -119,6 +130,7 @@ impl AttributeBag {
         reason = "the caller asked for an f64; an integer past 2^53 cannot be \
                   represented exactly and there is no other common type"
     )]
+    /// The value at `key` as an `f64`, promoting an integer if needed.
     pub fn get_float(&self, key: &str) -> Option<f64> {
         match self.get(key) {
             Some(AttributeValue::Float(v)) => Some(*v),
@@ -129,6 +141,7 @@ impl AttributeBag {
         }
     }
 
+    /// The value at `key` as a string, or `None` if absent or another type.
     pub fn get_string(&self, key: &str) -> Option<&str> {
         match self.get(key) {
             Some(AttributeValue::String(v)) => Some(v.as_str()),
@@ -136,6 +149,7 @@ impl AttributeBag {
         }
     }
 
+    /// The value at `key` as a string set, or `None` if absent or another type.
     pub fn get_string_set(&self, key: &str) -> Option<&HashSet<String>> {
         match self.get(key) {
             Some(AttributeValue::StringSet(v)) => Some(v),
@@ -199,14 +213,17 @@ impl AttributeBag {
         }
     }
 
+    /// How many keys the bag holds.
     pub fn len(&self) -> usize {
         self.attrs.len()
     }
 
+    /// Whether the bag holds no keys.
     pub fn is_empty(&self) -> bool {
         self.attrs.is_empty()
     }
 
+    /// Every key and value, in unspecified order.
     pub fn iter(&self) -> impl Iterator<Item = (&str, &AttributeValue)> {
         self.attrs.iter().map(|(k, v)| (k.as_str(), v))
     }
@@ -223,6 +240,7 @@ impl AttributeBag {
 ///
 /// Implementations for the praxis-policy-core extensions live in `praxis-policy-apl-cmf`, not here.
 pub trait AttributeExtractor {
+    /// Write this source's attributes into the bag.
     fn extract(&self, bag: &mut AttributeBag);
 }
 

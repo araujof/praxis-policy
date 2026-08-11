@@ -395,31 +395,37 @@ impl DelegationPayload {
         self
     }
 
+    /// Set the target type.
     pub fn with_target_type(mut self, t: TargetType) -> Self {
         self.target_type = t;
         self
     }
 
+    /// Set the target audience.
     pub fn with_target_audience(mut self, aud: impl Into<String>) -> Self {
         self.target_audience = Some(aud.into());
         self
     }
 
+    /// Set the permissions the route requires.
     pub fn with_required_permissions(mut self, perms: Vec<String>) -> Self {
         self.required_permissions = perms;
         self
     }
 
+    /// Set the trust domain.
     pub fn with_trust_domain(mut self, td: impl Into<String>) -> Self {
         self.trust_domain = Some(td.into());
         self
     }
 
+    /// Set who enforces authorization downstream.
     pub fn with_auth_enforced_by(mut self, who: AuthEnforcedBy) -> Self {
         self.auth_enforced_by = who;
         self
     }
 
+    /// Set the route attenuation, if any.
     pub fn with_route_attenuation(mut self, cfg: AttenuationConfig) -> Self {
         self.route_attenuation = Some(cfg);
         self
@@ -476,30 +482,37 @@ impl DelegationPayload {
         self.subject == DelegationSubject::Client || self.actor_role == Some(TokenRole::Client)
     }
 
+    /// The target name.
     pub fn target_name(&self) -> &str {
         &self.target_name
     }
 
+    /// The target type.
     pub fn target_type(&self) -> &TargetType {
         &self.target_type
     }
 
+    /// The target audience.
     pub fn target_audience(&self) -> Option<&str> {
         self.target_audience.as_deref()
     }
 
+    /// The permissions the route requires.
     pub fn required_permissions(&self) -> &[String] {
         &self.required_permissions
     }
 
+    /// The trust domain.
     pub fn trust_domain(&self) -> Option<&str> {
         self.trust_domain.as_deref()
     }
 
+    /// Who enforces authorization downstream.
     pub fn auth_enforced_by(&self) -> AuthEnforcedBy {
         self.auth_enforced_by
     }
 
+    /// The route attenuation, if any.
     pub fn route_attenuation(&self) -> Option<&AttenuationConfig> {
         self.route_attenuation.as_ref()
     }

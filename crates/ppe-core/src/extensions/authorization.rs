@@ -21,21 +21,27 @@ use std::collections::BTreeMap;
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct AuthorizationDetail {
     #[serde(rename = "type")]
+    /// The authorization detail type, per RFC 9396.
     pub detail_type: String,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Resource locations the grant covers.
     pub locations: Option<Vec<String>>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Actions the grant permits.
     pub actions: Option<Vec<String>>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Data types the grant covers.
     pub datatypes: Option<Vec<String>>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// The specific resource the grant names.
     pub identifier: Option<String>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Privileges the grant confers.
     pub privileges: Option<Vec<String>>,
 
     /// API-specific fields not covered by the named RFC 9396 fields above.

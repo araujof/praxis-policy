@@ -378,7 +378,9 @@ pub async fn evaluate_effects(
 /// change" signals so the host knows to re-serialize the body.
 #[derive(Debug, Clone)]
 pub struct StepsEvaluation {
+    /// The verdict for the phase.
     pub decision: Decision,
+    /// Labels accumulated while evaluating.
     pub taints: Vec<crate::pipeline::TaintEvent>,
     /// Backend candidate constraints emitted by any `restrict` effects
     /// that ran. Accumulated even when the phase ultimately denies (same
@@ -386,7 +388,9 @@ pub struct StepsEvaluation {
     /// have no `restrict`. A higher layer (praxis-policy-apl-runtime) folds these into a
     /// single `CandidateConstraintExtension` for the host's router.
     pub constraints: Vec<crate::constraint::CandidateConstraint>,
+    /// Whether a field rule rewrote an argument.
     pub args_modified: bool,
+    /// Whether a field rule rewrote the result.
     pub result_modified: bool,
     /// Set when a phase suspended on an unresolved elicitation. `Some`
     /// means "do not forward — emit `-32120` with this bundle." `decision`
@@ -1250,10 +1254,19 @@ async fn dispatch_field_op(
 /// `Deny`: a validator failed; pipeline halted; the route should deny.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FieldOutcome {
+    /// The value survives unchanged.
     Pass,
+    /// The value is replaced with this one.
     Replace(serde_json::Value),
+    /// The field is dropped from the output.
     Omit,
-    Deny { reason: String, stage_index: usize },
+    /// A stage rejected the value.
+    Deny {
+        /// Why it was rejected.
+        reason: String,
+        /// Which stage in the chain rejected it.
+        stage_index: usize,
+    },
 }
 
 /// Full result of a pipeline run: value-level outcome plus accumulated
@@ -1266,7 +1279,9 @@ pub enum FieldOutcome {
 /// halts at the failing stage).
 #[derive(Debug, Clone, PartialEq)]
 pub struct PipelineEvaluation {
+    /// What happened to the field.
     pub outcome: FieldOutcome,
+    /// Labels the chain attached.
     pub taints: Vec<TaintEvent>,
 }
 

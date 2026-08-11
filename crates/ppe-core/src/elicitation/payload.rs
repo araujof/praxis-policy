@@ -214,54 +214,66 @@ impl ElicitationPayload {
         self
     }
 
+    /// Set the stated purpose.
     pub fn with_purpose(mut self, purpose: impl Into<String>) -> Self {
         self.purpose = Some(purpose.into());
         self
     }
 
+    /// Set the approval scope.
     pub fn with_scope(mut self, scope: impl Into<String>) -> Self {
         self.scope = Some(scope.into());
         self
     }
 
+    /// Set the timeout.
     pub fn with_timeout(mut self, timeout: impl Into<String>) -> Self {
         self.timeout = Some(timeout.into());
         self
     }
 
+    /// Set the channel plugin.
     pub fn with_channel(mut self, channel: impl Into<String>) -> Self {
         self.channel = Some(channel.into());
         self
     }
 
+    /// Which operation this payload requests.
     pub fn operation(&self) -> ElicitationOp {
         self.operation
     }
 
+    /// The elicitation id.
     pub fn elicitation_id(&self) -> Option<&str> {
         self.elicitation_id.as_deref()
     }
 
+    /// The elicitation kind.
     pub fn kind(&self) -> &str {
         &self.kind
     }
 
+    /// Who is being asked.
     pub fn from(&self) -> &str {
         &self.from
     }
 
+    /// The stated purpose.
     pub fn purpose(&self) -> Option<&str> {
         self.purpose.as_deref()
     }
 
+    /// The approval scope.
     pub fn scope(&self) -> Option<&str> {
         self.scope.as_deref()
     }
 
+    /// The timeout.
     pub fn timeout(&self) -> Option<&str> {
         self.timeout.as_deref()
     }
 
+    /// The channel plugin.
     pub fn channel(&self) -> Option<&str> {
         self.channel.as_deref()
     }

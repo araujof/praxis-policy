@@ -33,23 +33,43 @@ use crate::rules::{CompareOp, CompiledRoute, Condition, Effect, Expression, Lite
 use crate::step::{DelegateStep, ElicitKind, ElicitStep, PdpCall, PdpDialect, Step};
 
 #[derive(Debug, Error)]
+/// Why a policy document could not be compiled.
 pub enum ParseError {
+    /// The document is not valid YAML, or does not match the expected shape.
     #[error("YAML parse error: {0}")]
     Yaml(#[from] serde_yaml::Error),
 
     #[error("rule '{rule}': {msg}")]
-    Rule { rule: String, msg: String },
+    Rule {
+        /// The rule text as written.
+        rule: String,
+        /// What is wrong with it.
+        msg: String,
+    },
 
     #[error("unsupported step `{kind}` in rule '{rule}'")]
-    UnsupportedStep { rule: String, kind: String },
+    UnsupportedStep {
+        /// The rule text as written.
+        rule: String,
+        /// The step name that is not recognized.
+        kind: String,
+    },
 
     #[error("predicate '{predicate}': {msg}")]
-    Predicate { predicate: String, msg: String },
+    Predicate {
+        /// The predicate text as written.
+        predicate: String,
+        /// What is wrong with it.
+        msg: String,
+    },
 
     #[error("in `{location}`: config field `{old}` was renamed to `{new}` — update your config")]
     RenamedField {
+        /// Where in the document the stale field appears.
         location: String,
+        /// The old field name.
         old: String,
+        /// The name to use instead.
         new: String,
     },
 
@@ -57,7 +77,12 @@ pub enum ParseError {
         "in `{location}`: `{phase}` is declared both nested under `authorization:` and flat on \
          the section — use one form, not both (declaring both runs the effects twice)"
     )]
-    ConflictingAuthorizationForms { location: String, phase: String },
+    ConflictingAuthorizationForms {
+        /// Where in the document the conflict appears.
+        location: String,
+        /// The phase declared twice.
+        phase: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -2653,6 +2678,7 @@ fn parse_taint_scope(s: &str, src: &str) -> Result<TaintScope, ParseError> {
 /// going back to the raw YAML.
 #[derive(Debug, Default, Deserialize)]
 pub struct ConfigYaml {
+    /// The `routes:` block, keyed by route.
     #[serde(default)]
     pub routes: HashMap<String, RouteYaml>,
 
@@ -2666,6 +2692,7 @@ pub struct ConfigYaml {
 }
 
 #[derive(Debug, Default, Deserialize)]
+/// One route's raw blocks, before compilation.
 pub struct RouteYaml {
     /// Flat pre-invocation authorization effects (was `policy:`). Each
     /// entry is either a string (rule / plugin / taint) or a single-key
@@ -2720,9 +2747,11 @@ pub struct RouteYaml {
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AuthorizationYaml {
+    /// Effects run before the call.
     #[serde(default)]
     pub pre_invocation: Vec<serde_yaml::Value>,
 
+    /// Effects run after it.
     #[serde(default)]
     pub post_invocation: Vec<serde_yaml::Value>,
 }
@@ -2735,7 +2764,9 @@ pub struct AuthorizationYaml {
 /// hook name / kind for each plugin name referenced by those steps.
 #[derive(Debug, Default)]
 pub struct CompiledConfig {
+    /// The compiled routes, keyed by route.
     pub routes: HashMap<String, CompiledRoute>,
+    /// Plugin declarations the steps refer to by name.
     pub plugins: PluginRegistry,
 }
 

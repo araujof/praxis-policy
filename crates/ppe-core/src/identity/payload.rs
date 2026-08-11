@@ -190,21 +190,25 @@ impl IdentityPayload {
         }
     }
 
+    /// Set the header the token came from.
     pub fn with_source_header(mut self, h: impl Into<String>) -> Self {
         self.source_header = Some(h.into());
         self
     }
 
+    /// Set the inbound headers.
     pub fn with_headers(mut self, h: HashMap<String, String>) -> Self {
         self.headers = h;
         self
     }
 
+    /// Set the client host.
     pub fn with_client_host(mut self, h: impl Into<String>) -> Self {
         self.client_host = Some(h.into());
         self
     }
 
+    /// Set the client port.
     pub fn with_client_port(mut self, port: u16) -> Self {
         self.client_port = Some(port);
         self
@@ -217,22 +221,27 @@ impl IdentityPayload {
         &self.raw_token
     }
 
+    /// Where the token came from.
     pub fn source(&self) -> &TokenSource {
         &self.source
     }
 
+    /// The header the token came from.
     pub fn source_header(&self) -> Option<&str> {
         self.source_header.as_deref()
     }
 
+    /// The inbound headers.
     pub fn headers(&self) -> &HashMap<String, String> {
         &self.headers
     }
 
+    /// The client host.
     pub fn client_host(&self) -> Option<&str> {
         self.client_host.as_deref()
     }
 
+    /// The client port.
     pub fn client_port(&self) -> Option<u16> {
         self.client_port
     }
