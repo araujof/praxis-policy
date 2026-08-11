@@ -21,28 +21,50 @@ use super::tiers::{AccessPolicy, Capability, MutabilityTier, SlotPolicy};
 /// Extension slot identifiers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SlotName {
+    /// The request environment slot.
     Request,
+    /// The agent session and lineage slot.
     Agent,
+    /// The HTTP headers slot.
     Http,
+    /// The host metadata slot.
     Meta,
+    /// The delegation chain slot.
     Delegation,
+    /// The host-supplied custom slot.
     Custom,
+    /// The tool and resource metadata slot.
     Mcp,
+    /// The completion metadata slot.
     Completion,
+    /// The message origin slot.
     Provenance,
+    /// The model identity slot.
     Llm,
+    /// The framework context slot.
     Framework,
     // Security sub-slots
+    /// Session security labels.
     SecurityLabels,
+    /// The subject identity.
     SecuritySubject,
+    /// The subject's roles.
     SecuritySubjectRoles,
+    /// The subject's teams.
     SecuritySubjectTeams,
+    /// The subject's raw token claims.
     SecuritySubjectClaims,
+    /// The subject's permissions.
     SecuritySubjectPermissions,
+    /// The OAuth client identity.
     SecurityClient,
+    /// The attested identity of the calling workload.
     SecurityCallerWorkload,
+    /// This gateway's own attested identity.
     SecurityThisWorkload,
+    /// Per-object security profiles.
     SecurityObjects,
+    /// Data handling policy.
     SecurityData,
     // Raw credentials sub-slots (Layer 3 — capability-gated). Token
     // fields are `#[serde(skip)]`, so a filtered view that survives to
@@ -50,7 +72,9 @@ pub enum SlotName {
     // carries metadata with empty token strings. Plaintext reaches a
     // worker only over a host's purpose-built side channel, under the
     // conditions documented on `RawCredentialsExtension`.
+    /// The raw inbound token. Capability-gated.
     RawCredentialsInbound,
+    /// Minted delegated tokens. Capability-gated.
     RawCredentialsDelegated,
 }
 
