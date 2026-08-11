@@ -145,6 +145,23 @@ impl ValkeyConfig {
         // credential fails at config-load, not on first request.
         self.connection_url()?;
 
+        // A TTL that does not fit in an i64 is rejected here rather than
+        // clamped silently, because the wrapped value is not merely wrong: it
+        // is negative, and `EXPIRE` with a non-positive TTL deletes the key at
+        // once. This store carries session taint, so the visible effect of an
+        // absurd TTL would be taint quietly failing to persist between
+        // requests, which is a downgrade rather than an outage.
+        if let Some(ttl) = self.ttl_seconds {
+            if i64::try_from(ttl).is_err() {
+                return Err(BuildError::Config(format!(
+                    "`ttl_seconds` of {ttl} exceeds the maximum valkey accepts ({}); a TTL that \
+                     large cannot be expressed as an expiry and would delete the session key \
+                     immediately",
+                    i64::MAX
+                )));
+            }
+        }
+
         if let (Some(ttl), Some(life)) = (self.ttl_seconds, self.max_session_lifetime_seconds) {
             if ttl < life {
                 tracing::warn!(
@@ -277,6 +294,32 @@ mod tests {
                 .unwrap()
                 .starts_with("redis://localhost:6379")
         );
+    }
+
+    /// A `ttl_seconds` past `i64::MAX` used to reach `EXPIRE` as a wrapped
+    /// negative number, and valkey deletes a key whose TTL is not positive. The
+    /// visible effect would be session taint silently failing to persist between
+    /// requests: a downgrade, not an outage, and invisible in the logs.
+    #[test]
+    fn ttl_seconds_beyond_i64_is_rejected() {
+        let err =
+            parse("kind: valkey\nendpoint: localhost:6379\nttl_seconds: 18446744073709551615\n")
+                .unwrap_err();
+        let msg = format!("{err:?}");
+        assert!(
+            msg.contains("ttl_seconds"),
+            "error should name the offending field: {msg}"
+        );
+    }
+
+    #[test]
+    fn ttl_seconds_at_the_i64_boundary_is_accepted() {
+        let yaml = format!(
+            "kind: valkey\nendpoint: localhost:6379\nttl_seconds: {}\n",
+            i64::MAX
+        );
+        let cfg = parse(&yaml).expect("a TTL that fits in i64 must be accepted");
+        assert_eq!(cfg.ttl_seconds, Some(i64::MAX as u64));
     }
 
     #[test]

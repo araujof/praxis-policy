@@ -201,7 +201,7 @@ unused_mut = "allow"                        # parked: hygiene, 0 production (33 
 missing_debug_implementations = "allow"     # parked: api, 39
 # seed: measured. Three upcasts of a concrete Arc/Box to a trait object in the
 # plugin registry and payload plumbing.
-trivial_casts = "allow"                     # parked: numeric-cast, 12
+trivial_casts = "deny"
 # seed: measured. Two single-use lifetime parameters in the policy parser.
 single_use_lifetimes = "allow"              # parked: style, 2
 # seed: measured. One non-binding let on a value with a destructor.
@@ -363,11 +363,11 @@ multiple_inherent_impl = "allow"            # parked: hygiene, 1
 map_err_ignore = "allow"                    # parked: diagnostics, 6
 allow_attributes = "allow"                  # parked: attributes, 13
 allow_attributes_without_reason = "allow"   # parked: attributes, 13
-cast_lossless = "allow"                     # parked: numeric-cast, 5
-cast_possible_truncation = "allow"          # parked: numeric-cast, 7
-cast_possible_wrap = "allow"                # parked: numeric-cast, 4
-cast_sign_loss = "allow"                    # parked: numeric-cast, 1
-cast_precision_loss = "allow"               # parked: numeric-cast, 6
+cast_lossless = "deny"
+cast_possible_truncation = "deny"
+cast_possible_wrap = "deny"
+cast_sign_loss = "deny"
+cast_precision_loss = "deny"
 undocumented_unsafe_blocks = "allow"        # parked: unsafe, 2
 # Panic sources. A library must not abort on operator input. The volume lives in
 # tests, which are scope-allowed; the counts below are the library's own surface.

@@ -30,7 +30,7 @@ pub fn extract_agent(agent: &AgentExtension, bag: &mut AttributeBag) {
         bag.set("agent.conversation_id", v.clone());
     }
     if let Some(v) = agent.turn {
-        bag.set("agent.turn", v as i64);
+        bag.set("agent.turn", i64::from(v));
     }
     if let Some(v) = &agent.agent_id {
         bag.set("agent.agent_id", v.clone());

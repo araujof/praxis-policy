@@ -186,6 +186,9 @@ pub fn register_apl(mgr: &Arc<PluginManager>, opts: AplOptions) -> Arc<AplConfig
         arc.register_pdp(pdp);
     }
 
-    mgr.register_visitor(Arc::clone(&arc) as Arc<dyn ConfigVisitor>);
+    // Annotated binding rather than a cast: `Arc::clone` infers the concrete
+    // type, so the unsizing coercion needs a site that names the trait object.
+    let visitor: Arc<dyn ConfigVisitor> = arc.clone();
+    mgr.register_visitor(visitor);
     arc
 }

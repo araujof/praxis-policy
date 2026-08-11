@@ -114,6 +114,11 @@ impl AttributeBag {
         }
     }
 
+    #[allow(
+        clippy::cast_precision_loss,
+        reason = "the caller asked for an f64; an integer past 2^53 cannot be \
+                  represented exactly and there is no other common type"
+    )]
     pub fn get_float(&self, key: &str) -> Option<f64> {
         match self.get(key) {
             Some(AttributeValue::Float(v)) => Some(*v),

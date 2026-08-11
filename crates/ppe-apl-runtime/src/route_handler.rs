@@ -495,7 +495,7 @@ impl AnyHookHandler for AplRouteHandler {
                 apply_changed_paths(&mut merged, pre, &route_payload.args);
                 write_args_back_to_message(&mut updated.message, &merged);
             }
-            Some(Box::new(updated) as Box<dyn PluginPayload>)
+            Some::<Box<dyn PluginPayload>>(Box::new(updated))
         } else if decision.result_modified {
             // A `result:` pipeline rewrote a field in the upstream
             // response. Fold the new result back into the message
@@ -516,7 +516,7 @@ impl AnyHookHandler for AplRouteHandler {
                 apply_changed_paths(&mut merged, pre, result_value);
                 write_result_back_to_message(&mut updated.message, &merged);
             }
-            Some(Box::new(updated) as Box<dyn PluginPayload>)
+            Some::<Box<dyn PluginPayload>>(Box::new(updated))
         } else if invoker.payload_was_modified() {
             // A plugin mutated the message directly via `modify_payload`
             // (not through a field pipeline). Pass the invoker's view
@@ -532,7 +532,7 @@ impl AnyHookHandler for AplRouteHandler {
                 route = %self.route.route_key,
                 "plugin mutated the payload directly; forwarding the mutated view"
             );
-            Some(Box::new(final_payload) as Box<dyn PluginPayload>)
+            Some::<Box<dyn PluginPayload>>(Box::new(final_payload))
         } else {
             None
         };

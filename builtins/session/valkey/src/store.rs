@@ -35,6 +35,17 @@ use crate::connection::build_pool;
 use crate::error::BuildError;
 
 /// Valkey-backed session label store.
+/// The configured TTL as the `i64` valkey expects.
+///
+/// Saturating rather than wrapping. `EXPIRE` treats a non-positive TTL as
+/// "delete now", so a wrapped negative value would drop the session key and with
+/// it any accumulated taint. `ValkeyConfig::validate` already rejects a TTL this
+/// large, so this is the second of two guards; it exists because the consequence
+/// of getting it wrong is a silent downgrade rather than a visible failure.
+fn ttl_for_expire(ttl: u64) -> i64 {
+    i64::try_from(ttl).unwrap_or(i64::MAX)
+}
+
 pub struct ValkeySessionStore {
     pool: Pool,
     key_prefix: String,
@@ -114,13 +125,15 @@ impl SessionStore for ValkeySessionStore {
         // closed. A persistently-failing refresh risks silent key
         // expiry across requests — see the operator runbook.
         if let Some(ttl) = self.ttl_seconds {
-            let refresh: Result<bool, _> =
-                match tokio::time::timeout(self.command_timeout, conn.expire(&key, ttl as i64))
-                    .await
-                {
-                    Ok(res) => res,
-                    Err(_) => Ok(false), // treat timeout as a failed refresh
-                };
+            let refresh: Result<bool, _> = match tokio::time::timeout(
+                self.command_timeout,
+                conn.expire(&key, ttl_for_expire(ttl)),
+            )
+            .await
+            {
+                Ok(res) => res,
+                Err(_) => Ok(false), // treat timeout as a failed refresh
+            };
             if let Err(e) = refresh {
                 tracing::warn!(
                     alarm = "session_store_ttl_refresh_failed",
@@ -151,7 +164,7 @@ impl SessionStore for ValkeySessionStore {
         pipe.atomic();
         pipe.sadd(&key, labels).ignore();
         if let Some(ttl) = self.ttl_seconds {
-            pipe.expire(&key, ttl as i64).ignore();
+            pipe.expire(&key, ttl_for_expire(ttl)).ignore();
         }
 
         match tokio::time::timeout(self.command_timeout, pipe.query_async::<()>(&mut conn)).await {

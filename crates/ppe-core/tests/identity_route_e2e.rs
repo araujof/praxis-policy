@@ -20,6 +20,7 @@
 // rejection, apply_to_extensions) live in `identity_e2e.rs`.
 
 #![allow(
+    trivial_casts,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

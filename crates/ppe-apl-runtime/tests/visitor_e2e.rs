@@ -19,6 +19,7 @@
 // executor path).
 
 #![allow(
+    trivial_casts,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

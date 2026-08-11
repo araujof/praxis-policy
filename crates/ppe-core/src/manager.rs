@@ -1246,13 +1246,10 @@ impl PluginManager {
             scope,
             hook_name: hook_name.into(),
         };
-        let plugin_ref = Arc::new(crate::registry::PluginRef::new(
-            handler.clone() as Arc<dyn crate::plugin::Plugin>,
-            config,
-        ));
+        let plugin_ref = Arc::new(crate::registry::PluginRef::new(handler.clone(), config));
         let entry = crate::registry::HookEntry {
             plugin_ref,
-            handler: handler as Arc<dyn crate::registry::AnyHookHandler>,
+            handler,
         };
         self.mutate_runtime(|snap| {
             snap.route_annotations.insert(key, entry);
@@ -1848,6 +1845,7 @@ impl Default for PluginManager {
 
 #[cfg(test)]
 #[allow(
+    trivial_casts,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

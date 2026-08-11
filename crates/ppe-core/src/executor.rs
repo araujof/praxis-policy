@@ -640,7 +640,7 @@ impl Executor {
                     error!("{} plugin '{}' timed out", phase_label, plugin_name);
                     let timeout_err = crate::error::PluginError::Timeout {
                         plugin_name: plugin_name.to_string(),
-                        timeout_ms: timeout_dur.as_millis() as u64,
+                        timeout_ms: u64::try_from(timeout_dur.as_millis()).unwrap_or(u64::MAX),
                         proto_error_code: None,
                     };
                     match on_error {
@@ -747,7 +747,7 @@ impl Executor {
                     );
                     let timeout_err = crate::error::PluginError::Timeout {
                         plugin_name: plugin_name.clone(),
-                        timeout_ms: timeout_dur.as_millis() as u64,
+                        timeout_ms: u64::try_from(timeout_dur.as_millis()).unwrap_or(u64::MAX),
                         proto_error_code: None,
                     };
                     errors.push((&timeout_err).into());
@@ -957,7 +957,7 @@ impl Executor {
                 BranchOutcome::TimedOut => {
                     let timeout_err = crate::error::PluginError::Timeout {
                         plugin_name: plugin_name.to_string(),
-                        timeout_ms: timeout_dur.as_millis() as u64,
+                        timeout_ms: u64::try_from(timeout_dur.as_millis()).unwrap_or(u64::MAX),
                         proto_error_code: None,
                     };
                     match on_error {
@@ -1149,7 +1149,7 @@ pub fn erase_result<P: crate::hooks::PluginPayload>(
         continue_processing: result.continue_processing,
         modified_payload: result
             .modified_payload
-            .map(|p| Box::new(p) as Box<dyn PluginPayload>),
+            .map(|p| -> Box<dyn PluginPayload> { Box::new(p) }),
         modified_extensions: result.modified_extensions,
         violation: result.violation,
     })

@@ -21,6 +21,7 @@
 //                        to the trailing post-check.
 
 #![allow(
+    trivial_casts,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

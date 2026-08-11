@@ -504,6 +504,7 @@ pub fn group_by_mode(entries: &[HookEntry]) -> GroupedHookEntries {
 
 #[cfg(test)]
 #[allow(
+    trivial_casts,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

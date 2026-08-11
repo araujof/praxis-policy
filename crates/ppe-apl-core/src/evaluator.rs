@@ -162,6 +162,11 @@ enum OrderOp {
     LtEq,
 }
 
+#[allow(
+    clippy::cast_precision_loss,
+    reason = "mixed int/float comparison has no exact common type; the same-type \
+              arms above are exact and handle the cases where one exists"
+)]
 fn values_eq(attr: &AttributeValue, lit: &Literal) -> bool {
     match (attr, lit) {
         (AttributeValue::Bool(a), Literal::Bool(b)) => a == b,
@@ -176,7 +181,21 @@ fn values_eq(attr: &AttributeValue, lit: &Literal) -> bool {
 }
 
 fn numeric_compare(attr: &AttributeValue, lit: &Literal, op: OrderOp) -> bool {
-    // Coerce both operands to f64 for the order comparison. Numeric-looking
+    // Integer pairs compare exactly, without going through f64 first. Above
+    // 2^53 a double cannot represent every i64, so distinct integers collapse
+    // onto the same value and an ordering test answers the wrong way. This is
+    // the common shape in practice (`args.amount > 10000`), and it is the one
+    // where an exact answer is available for free.
+    if let (AttributeValue::Int(a), Literal::Int(b)) = (attr, lit) {
+        return match op {
+            OrderOp::Gt => a > b,
+            OrderOp::GtEq => a >= b,
+            OrderOp::Lt => a < b,
+            OrderOp::LtEq => a <= b,
+        };
+    }
+
+    // Every other combination needs a common type, and f64 is it. Numeric-looking
     // strings are coerced — LLM tool arguments routinely arrive as strings
     // (e.g. `"amount": "25000"`), and a policy author writing
     // `args.amount > 10000` plainly means a numeric comparison. A string
@@ -201,6 +220,13 @@ fn numeric_compare(attr: &AttributeValue, lit: &Literal, op: OrderOp) -> bool {
 /// Coerce a bag attribute to `f64` for an order comparison: numbers pass
 /// through; a string is parsed (numeric-looking strings only); anything
 /// else is non-numeric.
+///
+/// Only reached for operand pairs that are not both integers, since
+/// [`numeric_compare`] answers those exactly before coercing.
+#[allow(
+    clippy::cast_precision_loss,
+    reason = "f64 is the only common type for a mixed int/float comparison"
+)]
 fn coerce_f64_attr(attr: &AttributeValue) -> Option<f64> {
     match attr {
         AttributeValue::Int(a) => Some(*a as f64),
@@ -212,6 +238,10 @@ fn coerce_f64_attr(attr: &AttributeValue) -> Option<f64> {
 
 /// Coerce a literal to `f64` for an order comparison. Same rules as
 /// [`coerce_f64_attr`] so `args.x > "10"` works symmetrically.
+#[allow(
+    clippy::cast_precision_loss,
+    reason = "f64 is the only common type for a mixed int/float comparison"
+)]
 fn coerce_f64_lit(lit: &Literal) -> Option<f64> {
     match lit {
         Literal::Int(b) => Some(*b as f64),
@@ -1600,6 +1630,7 @@ fn value_for_hash(v: &serde_json::Value) -> String {
 
 #[cfg(test)]
 #[allow(
+    trivial_casts,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,
@@ -1638,6 +1669,55 @@ mod tests {
     }
     fn auto_elicitations() -> Arc<dyn crate::step::ElicitationInvoker> {
         Arc::new(crate::step::AutoApprovingElicitor)
+    }
+
+    /// Two integers one apart, both above 2^53, are the same `f64`. Routing an
+    /// ordering test through a double therefore answers "not greater" for a
+    /// value that plainly is greater. Integer pairs take an exact path for that
+    /// reason, and this pins it: the assertions below all fail if the exact
+    /// branch is removed and both operands go through `coerce_f64_*`.
+    #[test]
+    #[allow(
+        clippy::cast_precision_loss,
+        reason = "the lossy conversion is the premise under test"
+    )]
+    fn large_integers_compare_exactly_not_through_f64() {
+        let big = 9_007_199_254_740_993_i64; // 2^53 + 1
+        let boundary = 9_007_199_254_740_992_i64; // 2^53
+        assert_eq!(
+            big as f64, boundary as f64,
+            "premise: these are indistinguishable as doubles"
+        );
+
+        let mut bag = AttributeBag::default();
+        bag.set("args.amount", AttributeValue::Int(big));
+
+        assert!(
+            eval_comparison("args.amount", CompareOp::Gt, &Literal::Int(boundary), &bag),
+            "2^53+1 must compare greater than 2^53"
+        );
+        assert!(
+            !eval_comparison("args.amount", CompareOp::Lt, &Literal::Int(boundary), &bag),
+            "2^53+1 must not compare less than 2^53"
+        );
+        assert!(
+            !eval_comparison(
+                "args.amount",
+                CompareOp::LtEq,
+                &Literal::Int(boundary),
+                &bag
+            ),
+            "2^53+1 must not compare less-or-equal to 2^53"
+        );
+        assert!(
+            eval_comparison(
+                "args.amount",
+                CompareOp::GtEq,
+                &Literal::Int(boundary),
+                &bag
+            ),
+            "2^53+1 must compare greater-or-equal to 2^53"
+        );
     }
 
     fn deny(reason: &str) -> Effect {

@@ -2414,12 +2414,11 @@ fn parse_stage_redact_cond(a: &str, src: &str) -> Result<Stage, ParseError> {
 fn parse_stage_len(a: &str, bad: &impl Fn(&str) -> ParseError) -> Result<Stage, ParseError> {
     let (min, max) = parse_range_inner(a)
         .ok_or_else(|| bad(&format!("len(...) expects N..M range, got `{}`", a)))?;
+    // `try_from` carries both halves of what the manual check plus cast did:
+    // negatives are rejected, and the conversion is exact on every target width
+    // rather than only on 64-bit.
     let to_usize = |v: i64| -> Result<usize, ParseError> {
-        if v < 0 {
-            Err(bad("len bounds must be non-negative"))
-        } else {
-            Ok(v as usize)
-        }
+        usize::try_from(v).map_err(|_| bad("len bounds must be non-negative and fit a usize"))
     };
     Ok(Stage::Length {
         min: min.map(to_usize).transpose()?,

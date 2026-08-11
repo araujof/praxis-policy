@@ -23,9 +23,9 @@ pub fn extract_completion(c: &CompletionExtension, bag: &mut AttributeBag) {
         bag.set("completion.stop_reason", stop_reason_str(sr));
     }
     if let Some(tu) = &c.tokens {
-        bag.set("completion.tokens.input", tu.input_tokens as i64);
-        bag.set("completion.tokens.output", tu.output_tokens as i64);
-        bag.set("completion.tokens.total", tu.total_tokens as i64);
+        bag.set("completion.tokens.input", i64::from(tu.input_tokens));
+        bag.set("completion.tokens.output", i64::from(tu.output_tokens));
+        bag.set("completion.tokens.total", i64::from(tu.total_tokens));
     }
     if let Some(v) = &c.model {
         bag.set("completion.model", v.clone());
@@ -37,7 +37,12 @@ pub fn extract_completion(c: &CompletionExtension, bag: &mut AttributeBag) {
         bag.set("completion.created_at", v.clone());
     }
     if let Some(ms) = c.latency_ms {
-        bag.set("completion.latency_ms", ms as i64);
+        // Saturating. This is a telemetry attribute a policy can read, so a
+        // wrapped negative latency would be both wrong and confusing in a rule.
+        bag.set(
+            "completion.latency_ms",
+            i64::try_from(ms).unwrap_or(i64::MAX),
+        );
     }
 }
 

@@ -196,8 +196,19 @@ fn attr_to_value(attr: &AttributeValue) -> Value {
 /// `attr_to_value` (bag scalars) and `yaml_to_value` (author args) so
 /// `delegation.depth: 2` works against the literal `2` regardless of
 /// whether the bag populated it as `Int(2)` or `Float(2.0)`.
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_precision_loss,
+    reason = "the conversion is guarded to finite, integral, in-range values; the \
+              bound casts are deliberate and explained below"
+)]
 fn float_to_value(f: f64) -> Value {
-    if f.is_finite() && f.fract() == 0.0 && f >= i64::MIN as f64 && f <= i64::MAX as f64 {
+    // The upper bound is strict on purpose. `i64::MAX as f64` cannot represent
+    // 2^63 - 1 and rounds up to exactly 2^63, so `<=` against it would admit
+    // 2^63, which is one past the last i64 and saturates on conversion. `<` is
+    // then exactly the right test. `i64::MIN as f64` is exact at -2^63, so the
+    // lower bound stays inclusive.
+    if f.is_finite() && f.fract() == 0.0 && f >= i64::MIN as f64 && f < i64::MAX as f64 {
         Value::from(f as i64)
     } else {
         Value::from(f)

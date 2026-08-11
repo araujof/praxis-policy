@@ -377,7 +377,7 @@ impl AplConfigVisitor {
             let state = self.state.read().unwrap_or_else(|p| p.into_inner());
             (
                 Arc::new(state.plugin_registry.clone()),
-                Arc::new(state.pdp_router.clone()) as Arc<dyn PdpResolver>,
+                Arc::new(state.pdp_router.clone()),
             )
         };
         let session_store = self
@@ -514,7 +514,7 @@ impl ConfigVisitor for AplConfigVisitor {
         // so a shallow strip on a clone is enough.
         let policy_only = strip_non_dsl_keys(&apl_block);
         let mut compiled = compile_policy_block_value("global.apl", &policy_only)
-            .map_err(|e| Box::new(e) as VisitorError)?;
+            .map_err(|e| -> VisitorError { Box::new(e) })?;
         // A `response:` block at the global scope is the catch-all denyWith.
         compiled.response = response_subblock(yaml, "global");
 
@@ -582,7 +582,7 @@ impl ConfigVisitor for AplConfigVisitor {
         };
         warn_if_global_only_key_at_nonglobal_scope(&source, &apl_block);
         let compiled = compile_policy_block_value(&source, &apl_block)
-            .map_err(|e| Box::new(e) as VisitorError)?;
+            .map_err(|e| -> VisitorError { Box::new(e) })?;
         self.state
             .write()
             .unwrap_or_else(|p| p.into_inner())
@@ -605,7 +605,7 @@ impl ConfigVisitor for AplConfigVisitor {
         };
         warn_if_global_only_key_at_nonglobal_scope(&source, &apl_block);
         let compiled = compile_policy_block_value(&source, &apl_block)
-            .map_err(|e| Box::new(e) as VisitorError)?;
+            .map_err(|e| -> VisitorError { Box::new(e) })?;
         self.state
             .write()
             .unwrap_or_else(|p| p.into_inner())
@@ -692,7 +692,7 @@ impl ConfigVisitor for AplConfigVisitor {
             if let Some(block) = &route_apl {
                 let source = format!("routes.{}.apl", route_key);
                 let route_layer = compile_policy_block_value(&source, block)
-                    .map_err(|e| Box::new(e) as VisitorError)?;
+                    .map_err(|e| -> VisitorError { Box::new(e) })?;
                 effective.apply_layer(route_layer);
             }
 

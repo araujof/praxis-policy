@@ -161,7 +161,8 @@ mod tests {
 
     #[test]
     fn pdp_factories_track_enabled_features() {
-        let expected = cfg!(feature = "cedar-direct") as usize + cfg!(feature = "cel") as usize;
+        let expected =
+            usize::from(cfg!(feature = "cedar-direct")) + usize::from(cfg!(feature = "cel"));
         assert_eq!(
             builtin_pdps().len(),
             expected,
@@ -171,7 +172,7 @@ mod tests {
 
     #[test]
     fn session_store_factories_track_enabled_features() {
-        let expected = cfg!(feature = "valkey") as usize;
+        let expected = usize::from(cfg!(feature = "valkey"));
         assert_eq!(
             builtin_session_store_factories().len(),
             expected,

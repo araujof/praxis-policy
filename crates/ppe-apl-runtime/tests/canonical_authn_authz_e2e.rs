@@ -23,6 +23,7 @@
 // at the same level. This test exercises both from one loaded config.
 
 #![allow(
+    trivial_casts,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

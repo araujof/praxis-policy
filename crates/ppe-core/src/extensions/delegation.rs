@@ -110,9 +110,10 @@ impl DelegationExtension {
     /// Append a delegation hop (monotonic — cannot remove).
     pub fn append_hop(&mut self, hop: DelegationHop) {
         self.chain.push(hop);
-        // Cast is safe: a chain with > u32::MAX hops would have failed
-        // memory allocation long ago.
-        self.depth = self.chain.len() as u32;
+        // Saturating rather than wrapping: overflowing a u32 here would need a
+        // chain far past what allocation allows, but a wrapped depth reads as
+        // shallow and depth is what a `delegation.depth > N` rule tests.
+        self.depth = u32::try_from(self.chain.len()).unwrap_or(u32::MAX);
         self.delegated = true;
     }
 }

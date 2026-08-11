@@ -242,6 +242,7 @@ pub type ErasedBranch<T> = BoxFuture<'static, T>;
 
 #[cfg(test)]
 #[allow(
+    trivial_casts,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

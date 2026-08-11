@@ -408,10 +408,11 @@ impl Extensions {
         }
         merged.chain = owned.chain;
 
-        // Derived from the chain, not asserted by the plugin.
-        // Cast is safe: a chain with > u32::MAX hops would have failed
-        // allocation long ago.
-        merged.depth = merged.chain.len() as u32;
+        // Derived from the chain, not asserted by the plugin. Saturating rather
+        // than wrapping: a chain long enough to overflow a u32 would have failed
+        // allocation long ago, but a wrapped depth reads as shallow, and depth is
+        // what a `delegation.depth > N` rule tests. Saturating fails closed.
+        merged.depth = u32::try_from(merged.chain.len()).unwrap_or(u32::MAX);
         merged.delegated = !merged.chain.is_empty();
 
         // The root of the chain cannot be re-pointed once established; the

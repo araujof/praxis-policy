@@ -17,6 +17,7 @@
 // only thing that translates plugin-named steps into CMF hook calls.
 
 #![allow(
+    trivial_casts,
     clippy::expect_used,
     clippy::get_unwrap,
     clippy::indexing_slicing,

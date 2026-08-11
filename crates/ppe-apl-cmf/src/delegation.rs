@@ -22,7 +22,7 @@ use praxis_policy_core::extensions::DelegationExtension;
 
 /// Flatten a `DelegationExtension` into the bag.
 pub fn extract_delegation(del: &DelegationExtension, bag: &mut AttributeBag) {
-    bag.set("delegation.depth", del.depth as i64);
+    bag.set("delegation.depth", i64::from(del.depth));
     bag.set("delegation.delegated", del.delegated);
     // Top-level alias — DSL idiom is `require(!delegated)`, unprefixed.
     bag.set("delegated", del.delegated);

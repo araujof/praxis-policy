@@ -524,7 +524,11 @@ impl HookHandler<TokenDelegateHook> for OAuthDelegator {
         // Route attenuation may shorten further.
         let ttl_secs = if let Some(att) = payload.route_attenuation() {
             if let Some(hint) = att.ttl_seconds {
-                ttl_secs.min(hint as i64)
+                // Saturating: attenuation only ever shortens, so a hint too
+                // large for an i64 means "no further shortening". Wrapping would
+                // turn it negative and `min` would pick it, producing a
+                // negative lifetime for the delegated token.
+                ttl_secs.min(i64::try_from(hint).unwrap_or(i64::MAX))
             } else {
                 ttl_secs
             }
