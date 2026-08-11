@@ -9,6 +9,7 @@
 // rely on for audit logs.
 
 #![allow(
+    missing_docs,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

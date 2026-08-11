@@ -16,6 +16,7 @@
 use praxis_policy_apl_core::AttributeBag;
 use praxis_policy_core::extensions::RequestExtension;
 
+/// Write request environment into the bag.
 pub fn extract_request(req: &RequestExtension, bag: &mut AttributeBag) {
     if let Some(v) = &req.environment {
         bag.set("request.environment", v.clone());

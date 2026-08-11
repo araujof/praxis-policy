@@ -42,11 +42,17 @@ pub enum PiiPattern {
     /// Operator-supplied regex. Useful for company-specific IDs
     /// (employee IDs that aren't already public, internal account
     /// numbers, etc.).
-    Custom { name: String, regex: String },
+    Custom {
+        /// Name reported when this pattern matches.
+        name: String,
+        /// The pattern to test values against.
+        regex: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+/// What the scanner does when a pattern matches.
 pub enum PiiScanMode {
     /// Return `pii.detected` violation — gateway translates to 403.
     /// The strictest mode; the request never reaches downstream.

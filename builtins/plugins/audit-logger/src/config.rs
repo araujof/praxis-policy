@@ -6,6 +6,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+/// Audit logger settings.
 pub struct AuditLoggerConfig {
     /// Where audit records go. Stderr is the default — convenient
     /// for the demo (`docker compose logs -f`) and for k8s sidecar
@@ -23,6 +24,7 @@ pub struct AuditLoggerConfig {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+/// Where audit records are written.
 pub enum AuditDestination {
     /// Write one JSON line per call to stderr.
     #[default]

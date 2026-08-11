@@ -16,6 +16,7 @@ use praxis_policy_apl_core::AttributeBag;
 use praxis_policy_core::extensions::MetaExtension;
 use std::collections::HashSet;
 
+/// Write operational metadata into the bag.
 pub fn extract_meta(meta: &MetaExtension, bag: &mut AttributeBag) {
     if let Some(v) = &meta.entity_type {
         bag.set("meta.entity_type", v.clone());

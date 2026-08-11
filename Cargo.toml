@@ -145,7 +145,7 @@ strip = true
 # a backlog: each group's comment says why those lints cannot silently change an
 # enforcement decision. Do not add new violations of one.
 #
-# Of Praxis's 171 rules, 127 are enforced identically here and 42 are weaker. Two
+# Of Praxis's 171 rules, 130 are enforced identically here and 39 are weaker. Two
 # are stricter, and three more are denied that Praxis does not configure at all.
 # docs/lints.md carries the per-lint counts, how to reproduce them, and the cases
 # where a lint's own suggested fix is worse than the code it replaces.
@@ -184,13 +184,9 @@ trivial_casts = "deny"
 # compile-time assertion stands in their place.
 unsafe_code = "deny"
 
+missing_docs = "deny"
+
 # --- Not enforced: a settled list, see the header ---
-#
-# docs: Documentation completeness and prose style. The gap is real and worth
-# closing, but it is a writing task rather than a code change: satisfying these
-# by generating filler would hide where documentation is actually missing.
-# docs/lints.md carries the item counts.
-missing_docs = "allow"
 #
 # style: Formatting and idiom preference. No effect on behavior.
 elided_lifetimes_in_paths = "allow"
@@ -352,18 +348,16 @@ collapsible_match = "deny"
 iter_kv_map = "deny"
 empty_line_after_doc_comments = "deny"
 collapsible_if = "deny"
-
-# --- Not enforced: a settled list, see the header ---
-#
-# docs: Documentation completeness and prose style. The gap is real and worth
-# closing, but it is a writing task rather than a code change: satisfying these
-# by generating filler would hide where documentation is actually missing.
-# docs/lints.md carries the item counts.
 doc_lazy_continuation = "deny"
 doc_markdown = "deny"
 doc_overindented_list_items = "deny"
-missing_docs_in_private_items = "allow"
 missing_errors_doc = "deny"
+
+# --- Not enforced: a settled list, see the header ---
+#
+# docs: Documentation of private items, which never reaches docs.rs. The public
+# API is documented in full and enforced; this is for readers of the source.
+missing_docs_in_private_items = "allow"
 #
 # style: Formatting and idiom preference. No effect on behavior.
 default_trait_access = "allow"
@@ -434,8 +428,4 @@ private_doc_tests = "deny"
 
 # --- Not enforced: a settled list, see the header ---
 #
-# docs: Documentation completeness and prose style. The gap is real and worth
-# closing, but it is a writing task rather than a code change: satisfying these
-# by generating filler would hide where documentation is actually missing.
-# docs/lints.md carries the item counts.
-missing_crate_level_docs = "allow"
+missing_crate_level_docs = "deny"

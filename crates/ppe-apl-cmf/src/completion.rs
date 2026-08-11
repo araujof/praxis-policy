@@ -18,6 +18,7 @@
 use praxis_policy_apl_core::AttributeBag;
 use praxis_policy_core::extensions::{CompletionExtension, StopReason};
 
+/// Write completion metadata into the bag.
 pub fn extract_completion(c: &CompletionExtension, bag: &mut AttributeBag) {
     if let Some(sr) = c.stop_reason {
         bag.set("completion.stop_reason", stop_reason_str(sr));

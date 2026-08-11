@@ -21,6 +21,7 @@
 // same behavior without writing any glue.
 
 #![allow(
+    missing_docs,
     clippy::needless_raw_string_hashes,
     clippy::needless_raw_strings,
     clippy::expect_used,

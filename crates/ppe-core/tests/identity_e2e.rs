@@ -23,6 +23,7 @@
 //     pipeline halts; status + reason flow back to the caller.
 
 #![allow(
+    missing_docs,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

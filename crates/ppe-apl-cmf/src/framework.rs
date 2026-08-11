@@ -15,6 +15,7 @@
 use praxis_policy_apl_core::AttributeBag;
 use praxis_policy_core::extensions::FrameworkExtension;
 
+/// Write framework context into the bag.
 pub fn extract_framework(f: &FrameworkExtension, bag: &mut AttributeBag) {
     if let Some(v) = &f.framework {
         bag.set("framework.framework", v.clone());

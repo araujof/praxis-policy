@@ -15,6 +15,7 @@
 //     plugin's output is visible to the next).
 
 #![allow(
+    missing_docs,
     trivial_casts,
     clippy::expect_used,
     clippy::indexing_slicing,

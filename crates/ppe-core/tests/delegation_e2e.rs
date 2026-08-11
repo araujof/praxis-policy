@@ -26,6 +26,7 @@
 //     the synthesized `DelegationKey`.
 
 #![allow(
+    missing_docs,
     clippy::cast_possible_wrap,
     clippy::expect_used,
     clippy::indexing_slicing,

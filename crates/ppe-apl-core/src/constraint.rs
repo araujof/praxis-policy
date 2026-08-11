@@ -216,10 +216,13 @@ pub struct RestrictSpec {
     /// Only backends at these sites qualify.
     pub allow_sites: Option<StringSetSpec>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Ceiling on cost tier, as authored.
     pub max_cost_tier: Option<String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    /// Host-defined constraints, as authored.
     pub custom: BTreeMap<String, String>,
     #[serde(default)]
+    /// What the host does when nothing qualifies.
     pub on_empty: OnEmpty,
 }
 

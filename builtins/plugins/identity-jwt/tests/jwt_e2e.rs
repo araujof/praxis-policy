@@ -20,6 +20,7 @@
 // ~50-100ms; one-time cost) and shared across tests via OnceLock.
 
 #![allow(
+    missing_docs,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

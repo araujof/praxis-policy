@@ -19,6 +19,9 @@ use crate::logger::AuditLogger;
 /// logger instance.
 pub const KIND: &str = "audit/logger";
 
+/// Constructs an [`AuditLogger`] from config.
+///
+/// [`AuditLogger`]: crate::logger::AuditLogger
 pub struct AuditLoggerFactory;
 
 impl PluginFactory for AuditLoggerFactory {

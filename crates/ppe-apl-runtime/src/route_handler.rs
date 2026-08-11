@@ -93,7 +93,9 @@ pub const ELICITATION_PEEK_HEADER: &str = "X-Policy-Elicitation-Peek";
 /// changes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Phase {
+    /// Before the call, addressing arguments.
     Pre,
+    /// After the call, addressing the result.
     Post,
 }
 

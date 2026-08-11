@@ -101,14 +101,17 @@ pub struct OAuthDelegatorConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ClientSecretSource {
+    /// Read from an environment variable.
     EnvVar {
         /// The environment variable holding the secret.
         name: String,
     },
+    /// Read from a file, which suits a mounted secret.
     File {
         /// Path to a file holding the secret.
         path: PathBuf,
     },
+    /// Given inline in the config.
     Literal {
         /// The secret inline. Avoid outside local development.
         secret: String,

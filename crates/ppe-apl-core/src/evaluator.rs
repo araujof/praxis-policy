@@ -28,6 +28,7 @@ pub enum Decision {
     Allow,
     /// A `deny` rule fired. Pipeline halts.
     Deny {
+        /// Why the phase denied, when it did.
         reason: Option<String>,
         /// `Rule.source` of the rule that produced the deny — for audit logs.
         rule_source: String,

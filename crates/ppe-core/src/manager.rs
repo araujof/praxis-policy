@@ -204,6 +204,7 @@ struct AnnotationKey {
     hook_name: String,
 }
 
+/// Owns registered plugins and dispatches hook invocations to them.
 pub struct PluginManager {
     /// Hot-path runtime state. Swapped atomically on registration / config
     /// reload — readers see a consistent view via a single `load_full()`.

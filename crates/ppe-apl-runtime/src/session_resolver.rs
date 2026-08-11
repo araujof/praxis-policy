@@ -71,6 +71,7 @@ pub enum SessionSource {
 }
 
 impl SessionSource {
+    /// The tier's name, for logs and diagnostics.
     pub fn as_str(self) -> &'static str {
         match self {
             SessionSource::Agent => "agent",

@@ -22,6 +22,7 @@ use praxis_policy_core::extensions::HttpExtension;
 
 use crate::constants::{BAG_HTTP_HOST, BAG_HTTP_METHOD, BAG_HTTP_PATH, BAG_HTTP_SCHEME};
 
+/// Write request and response headers into the bag.
 pub fn extract_http(http: &HttpExtension, bag: &mut AttributeBag) {
     if let Some(method) = &http.method {
         bag.set(BAG_HTTP_METHOD.to_owned(), method.clone());

@@ -52,6 +52,7 @@ pub struct PdpRouter {
 }
 
 impl PdpRouter {
+    /// A new instance with nothing registered or stored yet.
     pub fn new() -> Self {
         Self {
             resolvers: HashMap::new(),
@@ -89,6 +90,7 @@ impl PdpRouter {
         self.resolvers.len()
     }
 
+    /// Whether no resolver is registered.
     pub fn is_empty(&self) -> bool {
         self.resolvers.is_empty()
     }

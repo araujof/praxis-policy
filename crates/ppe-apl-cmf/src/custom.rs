@@ -17,6 +17,7 @@ use praxis_policy_apl_core::AttributeBag;
 use serde_json::Value;
 use std::collections::HashMap;
 
+/// Write host-supplied custom values into the bag.
 pub fn extract_custom(custom: &HashMap<String, Value>, bag: &mut AttributeBag) {
     for (k, v) in custom {
         crate::payload::walk(v, &format!("custom.{k}"), bag);

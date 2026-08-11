@@ -17,6 +17,7 @@
 // only thing that translates plugin-named steps into CMF hook calls.
 
 #![allow(
+    missing_docs,
     clippy::needless_raw_string_hashes,
     clippy::field_reassign_with_default,
     clippy::needless_raw_strings,

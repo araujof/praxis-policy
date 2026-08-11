@@ -8,6 +8,7 @@
 // stack is misaligned (extension shape, bag vocabulary, or compiler).
 
 #![allow(
+    missing_docs,
     clippy::expect_used,
     clippy::get_unwrap,
     clippy::indexing_slicing,

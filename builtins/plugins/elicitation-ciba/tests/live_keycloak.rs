@@ -22,6 +22,7 @@
 //   cargo test -p praxis-policy-plugin-elicitation-ciba --test live_keycloak -- --ignored --nocapture
 
 #![allow(
+    missing_docs,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

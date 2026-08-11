@@ -33,6 +33,7 @@ use crate::resolver::CedarDirectResolver;
 pub struct CedarDirectPdpFactory;
 
 impl CedarDirectPdpFactory {
+    /// A new instance with nothing registered or stored yet.
     pub fn new() -> Self {
         Self
     }

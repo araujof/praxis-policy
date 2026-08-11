@@ -19,6 +19,7 @@ use praxis_policy_apl_core::AttributeBag;
 use praxis_policy_core::extensions::AgentExtension;
 use std::collections::HashSet;
 
+/// Write agent session and lineage into the bag.
 pub fn extract_agent(agent: &AgentExtension, bag: &mut AttributeBag) {
     if let Some(v) = &agent.input {
         bag.set("agent.input", v.clone());

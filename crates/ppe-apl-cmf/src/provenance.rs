@@ -13,6 +13,7 @@
 use praxis_policy_apl_core::AttributeBag;
 use praxis_policy_core::extensions::ProvenanceExtension;
 
+/// Write message origin into the bag.
 pub fn extract_provenance(p: &ProvenanceExtension, bag: &mut AttributeBag) {
     if let Some(v) = &p.source {
         bag.set("provenance.source", v.clone());

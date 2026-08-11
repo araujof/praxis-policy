@@ -40,47 +40,58 @@ than one that reports a large number.
 
 ## Where the tree stands against Praxis
 
-Of Praxis's 171 rules, **127 are enforced identically here and 42 are weaker**.
-Two are stricter (`empty_line_after_outer_attr` and `rustdoc::private_doc_tests`,
-both of which Praxis allows), and three more are denied that Praxis does not
-configure at all: `unexpected_cfgs`, `clippy::unreachable`, and
-`clippy::get_unwrap`.
+Of Praxis's 171 rules, **130 are enforced identically here and 39 are weaker**.
+Two are stricter, and three more are denied that Praxis does not configure at
+all: `unexpected_cfgs`, `clippy::unreachable`, and `clippy::get_unwrap`.
 
-Started at 55 identical and 113 weaker. Both tables cover the same lint set, so
-every remaining difference is a level rather than an omission.
+Started at 55 identical and 113 weaker.
 
-Note that Praxis does not deny everything either: it allows
-`missing_debug_implementations`, `empty_line_after_outer_attr`, and
-`rustdoc::private_doc_tests`, and sets `significant_drop_tightening` to `warn`.
+The 41 entries that are not enforced, by group:
 
-The 47 entries that are not enforced, by the group they sit in, with production
-sites measured by clippy:
+| Group | Lints |
+|---|---:|
+| style | 10 |
+| perf | 9 |
+| hygiene | 7 |
+| api | 5 |
+| complexity | 5 |
+| attributes | 2 |
+| docs | 1 |
+| concurrency | 1 |
+| test-hygiene | 1 |
 
-| Group | Lints | Production sites |
-|---|---:|---:|
-| docs | 7 | 1,215 |
-| complexity | 5 | 120 |
-| style | 10 | 92 |
-| api | 5 | 83 |
-| hygiene | 7 | 59 |
-| perf | 9 | 50 |
-| attributes | 2 | 29 |
-| concurrency | 1 | 8 |
-| test-hygiene | 1 | 1 |
-| **Total** | **47** | **1,657** |
+## Documentation: closed for the public API
 
-Forty-two of the 47 are rules Praxis enforces more strictly. The other five are
-lints Praxis also does not enforce, or does not configure.
+Every public item is documented and `missing_docs` is enforced, along with
+`missing_errors_doc`, `doc_markdown`, `doc_lazy_continuation`,
+`doc_overindented_list_items`, and `rustdoc::missing_crate_level_docs`.
 
-The docs figure counts six lints; the seventh,
-`rustdoc::missing_crate_level_docs`, is not measured there because clippy does not
-check `rustdoc::` lints. It applies to 13 crates.
+That was 968 items. What it took, and what generalizes:
 
-**Docs is 73% of the remaining sites and the one group worth spending on.**
-`missing_docs` alone is 665 undocumented public items, and this crate publishes to
-docs.rs, so that list is the published API reference. It is a writing task, not a
-code change: generating filler to satisfy the lint would hide where documentation
-is actually missing. Nothing else in the table is user-facing.
+- **247 sites were mechanical** and closed with `clippy --fix`: identifiers
+  needing backticks, and list indentation. Ten needed hand correction, including
+  a prose line beginning with `+`, which markdown read as a list item and turned
+  the following six lines into lazy continuations.
+- **13 crate docs and 127 module lines.** Both had usable prose already, as
+  plain `//` header comments rather than `//!` or `///`, so most of this was
+  promoting what was there and cutting it to length.
+- **103 constants** across two tables. Systematic enough to derive from the name
+  and value, which is legitimate for a table of attribute keys and hook names.
+- **60 `# Errors` sections**, each read from the function's error paths. Several
+  carry the reason the error exists rather than just its variant: an unresolved
+  deny-list reference cannot fail open to empty the way an allow-list can, an
+  unresolved Cedar `${key}` would change which policy matches, and a failed
+  session append becomes a deny because the decision is already computed.
+- **The remaining 425 items** are the domain types: rule IR, pipeline stages,
+  step dialects, extension slots, payload builders, and the error enums.
+
+Two doc links of my own were caught by `make doc` on the way: one pointed at a
+private method from a public section, and one repeated a path the label already
+resolved. That is the doc gate paying for itself.
+
+`missing_docs_in_private_items` stays parked, at 243 items. Private items never
+reach docs.rs, so it is documentation for readers of the source rather than for
+callers, and it is the one docs lint whose absence costs nothing externally.
 
 ## What closing the cheap remainder found
 

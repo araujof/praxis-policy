@@ -10,6 +10,7 @@
 // Run with: cargo run --example plugin_demo
 
 #![allow(
+    missing_docs,
     clippy::manual_string_new,
     clippy::expect_used,
     clippy::indexing_slicing,

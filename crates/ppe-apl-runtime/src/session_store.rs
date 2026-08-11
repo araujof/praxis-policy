@@ -129,6 +129,7 @@ pub struct MemorySessionStore {
 }
 
 impl MemorySessionStore {
+    /// A new instance with nothing registered or stored yet.
     pub fn new() -> Self {
         Self::default()
     }

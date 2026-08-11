@@ -9,6 +9,7 @@
 // `${...}` interpolation is exercised separately below.
 
 #![allow(
+    missing_docs,
     clippy::needless_raw_string_hashes,
     clippy::field_reassign_with_default,
     clippy::needless_raw_strings,

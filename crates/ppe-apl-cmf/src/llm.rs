@@ -14,6 +14,7 @@ use praxis_policy_apl_core::AttributeBag;
 use praxis_policy_core::extensions::LLMExtension;
 use std::collections::HashSet;
 
+/// Write model identity into the bag.
 pub fn extract_llm(llm: &LLMExtension, bag: &mut AttributeBag) {
     if let Some(v) = &llm.model_id {
         bag.set("llm.model_id", v.clone());

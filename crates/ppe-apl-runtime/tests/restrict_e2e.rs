@@ -10,6 +10,7 @@
 // A `custom`-label contradiction must fail closed.
 
 #![allow(
+    missing_docs,
     clippy::needless_raw_string_hashes,
     clippy::field_reassign_with_default,
     clippy::needless_raw_strings,

@@ -8,6 +8,7 @@
 // for dispatch → check → validate without a live Keycloak.
 
 #![allow(
+    missing_docs,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

@@ -507,6 +507,7 @@ pub type GroupedHookEntries = (
     Vec<HookEntry>,
 );
 
+/// Partition entries by the phase their mode assigns them to.
 pub fn group_by_mode(entries: &[HookEntry]) -> GroupedHookEntries {
     let mut sequential = Vec::new();
     let mut transform = Vec::new();

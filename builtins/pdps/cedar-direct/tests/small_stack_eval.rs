@@ -26,6 +26,7 @@
 // runtime.
 
 #![allow(
+    missing_docs,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

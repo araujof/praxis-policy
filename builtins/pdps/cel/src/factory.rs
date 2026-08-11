@@ -30,6 +30,7 @@ use crate::resolver::CelResolver;
 pub struct CelPdpFactory;
 
 impl CelPdpFactory {
+    /// A new instance with nothing registered or stored yet.
     pub fn new() -> Self {
         Self
     }

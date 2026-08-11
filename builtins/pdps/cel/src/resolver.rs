@@ -87,6 +87,7 @@ pub const DEFAULT_MAX_CACHE_ENTRIES: usize = 1024;
 /// for the process.
 pub type CelFunctionSetup = dyn Fn(&mut Context<'static>) + Send + Sync + 'static;
 
+/// Evaluates CEL expressions, caching compiled programs under a bounded cap.
 pub struct CelResolver {
     dialect: PdpDialect,
     on_error: OnError,

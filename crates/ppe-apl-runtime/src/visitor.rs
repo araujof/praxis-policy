@@ -165,6 +165,7 @@ pub struct AplConfigVisitor {
 }
 
 impl AplConfigVisitor {
+    /// A visitor with the given options and no compiled routes yet.
     pub fn new(
         dispatch_cache: Arc<DispatchCache>,
         session_store: Arc<dyn SessionStore>,

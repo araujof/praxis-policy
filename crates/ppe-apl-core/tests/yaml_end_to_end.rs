@@ -13,6 +13,7 @@
 // list-with-matchers form is a deferred shape).
 
 #![allow(
+    missing_docs,
     clippy::bool_comparison,
     clippy::expect_used,
     clippy::get_unwrap,

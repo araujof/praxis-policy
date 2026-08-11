@@ -20,6 +20,7 @@
 //     stops a silent green.
 
 #![allow(
+    missing_docs,
     clippy::manual_assert,
     clippy::expect_used,
     clippy::indexing_slicing,

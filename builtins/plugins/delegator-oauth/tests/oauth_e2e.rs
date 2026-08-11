@@ -23,6 +23,7 @@
 //     token (leg 2); attributed `AsCallerWorkload`, not `AsThisWorkload`
 
 #![allow(
+    missing_docs,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

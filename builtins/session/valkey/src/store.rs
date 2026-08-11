@@ -46,6 +46,7 @@ fn ttl_for_expire(ttl: u64) -> i64 {
     i64::try_from(ttl).unwrap_or(i64::MAX)
 }
 
+/// A Valkey-backed store for session security labels.
 pub struct ValkeySessionStore {
     pool: Pool,
     key_prefix: String,

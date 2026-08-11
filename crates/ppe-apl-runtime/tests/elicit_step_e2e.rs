@@ -16,6 +16,7 @@
 //   * A handler deny surfaces as `ElicitationError`.
 
 #![allow(
+    missing_docs,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

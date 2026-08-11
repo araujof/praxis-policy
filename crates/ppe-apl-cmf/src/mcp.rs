@@ -27,6 +27,7 @@
 use praxis_policy_apl_core::AttributeBag;
 use praxis_policy_core::extensions::MCPExtension;
 
+/// Write tool and resource metadata into the bag.
 pub fn extract_mcp(mcp: &MCPExtension, bag: &mut AttributeBag) {
     if let Some(tool) = &mcp.tool {
         bag.set("mcp.tool.name", tool.name.clone());
