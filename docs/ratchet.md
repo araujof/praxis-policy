@@ -1,11 +1,13 @@
 # Lint ratchet
 
 The gate adopted from Praxis denies a great deal this tree does not yet enforce.
-Every non-enforced entry in `[workspace.lints]` carries one of two tags:
+Every non-enforced entry in `[workspace.lints]` carries a `parked:` tag naming a
+category, and the reason has to explain why the lint cannot silently change an
+enforcement decision. That is the only defensible ground for parking one.
 
-- `gate:` must reach deny before publish, with a measured production site count.
-- `parked:` not scheduled, with a reason that has to explain why the lint cannot
-  silently change an enforcement decision.
+A `gate:` tag marks an entry that must reach deny before publish, carrying a
+measured production site count. There are none left; the section below records
+what closing them found.
 
 ## How the counts are produced
 
@@ -39,76 +41,70 @@ than one that reports a large number.
 
 ## Where the tree stands against Praxis
 
-Of Praxis's 171 rules, 94 are enforced identically here, 75 are weaker, and 2 are
+Of Praxis's 171 rules, 98 are enforced identically here, 71 are weaker, and 2 are
 stricter (`empty_line_after_outer_attr` and `rustdoc::private_doc_tests`, both of
 which Praxis allows). This tree also adds `unexpected_cfgs` at deny, which Praxis
-does not configure, as a guard against a feature rename silently disabling a gated
-export.
+does not configure, as a guard against a feature rename silently disabling a
+gated export.
 
-Parking the remainder was necessary to import 192 files under a gate none of them
-had been compiled against. It is not a claim that the bar is equal, and this
-document exists so the gap is a number rather than an impression.
+The 71 that remain weaker, by the tag each carries:
 
-## The publish gate
-
-Publishing a version Praxis depends on requires the panic sources green. The gate
-is defined by what a lint can do, not by a fixed list of names: `string_slice` and
-`unreachable` were both outside the original six and both abort on reachable
-input, so both are in.
-
-| Lint | Production sites |
+| Category | Lints |
 |---|---:|
-| `string_slice` | 37 |
-| `indexing_slicing` | 17 |
-| `expect_used` | 10 |
-| `unreachable` | 3 |
-| `print_stderr` | 1 |
-| `get_unwrap` | 0 (30 in tests, needs scoped allows in 8 files) |
-| **Total** | **68** |
+| style | 23 |
+| hygiene | 10 |
+| perf | 10 |
+| docs | 6 |
+| numeric-cast | 6 |
+| api | 4 |
+| complexity | 4 |
+| unsafe | 3 |
+| attributes | 2 |
+| concurrency, diagnostics, test-hygiene | 1 each |
 
-Already closed and enforced: `unwrap_used`, `panic`, `print_stdout`, `exit`,
-`mem_forget`, and the rustdoc link lints. `integer_division` and
-`modulo_arithmetic` measure zero, which retires divide-by-zero without work.
+## The publish gate: closed
 
-By file, the concentration is what makes this tractable:
+Every panic source is enforced. There are no `gate:` entries left.
 
-| File | Sites |
-|---|---:|
-| `crates/ppe-apl-core/src/parser.rs` | 44 |
-| `builtins/plugins/elicitation-ciba/src/approver.rs` | 4 |
-| `crates/ppe-apl-core/src/attributes.rs` | 4 |
-| `crates/ppe-core/src/extensions/routing.rs` | 3 |
-| `builtins/session/valkey/src/config.rs` | 3 |
-| `crates/ppe-core/src/manager.rs` | 2 |
-| `builtins/plugins/identity-jwt/src/resolver.rs` | 2 |
-| `crates/ppe-core/src/executor.rs` | 2 |
-| `crates/ppe-orchestration/src/lib.rs` | 2 |
-| `builtins/plugins/audit-logger/src/logger.rs` | 1 |
-| `crates/ppe-apl-core/src/evaluator.rs` | 1 |
+Now at deny: `unwrap_used`, `expect_used`, `panic`, `indexing_slicing`,
+`string_slice`, `unreachable`, `get_unwrap`, `print_stdout`, `print_stderr`,
+`exit`, `mem_forget`, and the rustdoc link lints. `integer_division` and
+`modulo_arithmetic` measured zero from the start, which retired divide-by-zero
+without work.
 
-## Why this is not a mechanical pass
+68 production sites were closed. Two of them were live bugs rather than
+provably-safe indexing:
 
-The sites split into classes, and the class decides both the fix and whether a
-test is even possible.
+- **`regex(")` and `enum(")` aborted the parser.** A lone quote satisfies both
+  `starts_with('"')` and `ends_with('"')`, and the follow-up `s[1..s.len() - 1]`
+  slices from index 1 to 0. Two of five hand-rolled quote strippers were missing
+  the length guard the other three had. `parse_pipeline` is public and policy text
+  is operator input, so this was reachable, not theoretical. All five now share one
+  `strip_prefix`/`strip_suffix` helper, which cannot take that shape.
+- **An empty issuer algorithm list aborted token validation.** Config validation
+  blocks it, so it was only reachable by emptying the public field after a valid
+  build. It now denies: an empty list read as "any algorithm acceptable" hands
+  algorithm choice to whoever minted the token.
 
-| Class | Sites | Fix | Test |
-|---|---:|---|---|
-| Structurally eliminable | 62 | Restructure so the panic cannot be expressed | Existing tests, unchanged |
-| Fail-open hazard | 2 | Explicit deny; a silent skip loses a Deny | Injection test per site |
-| Type-level | 1 | Narrow the operand type so the arm cannot exist | Compile-time |
-| Reachable through a published type | 2 | Enforce the invariant in a constructor | Regression test |
-| Intentional | 1 | Scoped allow with a reason | None |
+The rest were structurally eliminable, with the bound check sitting next to the
+index. Those were restructured so the panic cannot be expressed rather than given
+an error path, which is why most carry no new test: there is no new branch to
+test, and reaching one would have meant widening a crate's public surface to get
+at provably dead code.
 
-Most sites carry their bound check on the adjacent line, so the right fix removes
-the branch rather than adding an error path. That adds nothing to test, and
-forcing a test would mean widening a crate's public surface to reach provably dead
-code.
+Three fixes were checked against their previous implementations rather than
+trusted to review, because a silent behavior change in any of them would be a
+routing, disclosure, or decision bug: `glob_match` (116,345 pattern/text pairs),
+`redact_endpoint` and `parse_duration_secs` (11,111 cases). Zero mismatches,
+including multi-byte input on paths that indexed bytes.
 
-The two that matter are `executor.rs` and `ppe-orchestration/src/lib.rs`, which
-index one collection by a position derived from a parallel one. Converting those
-to a silent skip would drop a Deny and yield an Allow: fail-open, and worse than
-the abort it replaced. They convert to an explicit deny with a test that injects
-the divergence.
+Two fail-open hazards were closed by restructuring rather than by bounds checks,
+because a bounds-checked positional write has no safe failure branch. In the
+orchestrator, dropping an outcome left its slot unset, which becomes `Aborted`,
+and an `Aborted` that was really a `Deny` is a bypass; outcomes are now keyed, and
+map insertion is total. In the executor, pairing an outcome with the wrong entry
+would apply the wrong plugin's `on_error` and turn a configured `Fail` into an
+`Ignore`; it now zips and denies on a length mismatch.
 
 ## Correctness-relevant parked classes
 

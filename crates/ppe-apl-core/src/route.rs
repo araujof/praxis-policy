@@ -392,6 +392,7 @@ pub(crate) fn remove_dotted(root: &mut serde_json::Value, path: &str) -> bool {
     clippy::panic,
     clippy::print_stderr,
     clippy::print_stdout,
+    clippy::unreachable,
     clippy::unwrap_used,
     reason = "tests"
 )]

@@ -9,6 +9,7 @@
 
 #![allow(
     clippy::expect_used,
+    clippy::get_unwrap,
     clippy::indexing_slicing,
     clippy::panic,
     clippy::print_stderr,

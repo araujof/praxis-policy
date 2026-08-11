@@ -821,6 +821,7 @@ fn pending_violation(p: &praxis_policy_apl_core::step::PendingElicitation) -> Pl
 #[cfg(test)]
 #[allow(
     clippy::expect_used,
+    clippy::get_unwrap,
     clippy::indexing_slicing,
     clippy::panic,
     clippy::print_stderr,

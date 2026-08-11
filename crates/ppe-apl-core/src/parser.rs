@@ -773,7 +773,7 @@ fn split_predicate_action(s: &str) -> Option<(&str, &str)> {
             _ => {},
         }
     }
-    last_colon.map(|i| (s[..i].trim(), s[i + 1..].trim()))
+    last_colon.and_then(|i| Some((s.get(..i)?.trim(), s.get(i + 1..)?.trim())))
 }
 
 /// Parse the *right* side of a shorthand `predicate: action` rule into a
@@ -1394,18 +1394,15 @@ fn parse_step_map(m: &serde_yaml::Mapping, source: &str) -> Result<Step, ParseEr
         return parse_when_do_rule(m, source);
     }
 
-    if m.len() != 1 {
+    let mut entries = m.iter();
+    let (Some((key_val, body_val)), None) = (entries.next(), entries.next()) else {
         return Err(ParseError::Rule {
             rule: format!("{:?}", m),
             msg: "step map must have exactly one key (PDP call signature, \
                    `when:`/`do:`, or a `predicate: [effects...]` shorthand)"
                 .into(),
         });
-    }
-    let (key_val, body_val) = m
-        .iter()
-        .next()
-        .expect("m.len() == 1 was checked above, so an entry must exist");
+    };
     let key = key_val.as_str().ok_or_else(|| ParseError::Rule {
         rule: format!("{:?}", key_val),
         msg: "PDP step key must be a string".into(),
@@ -1479,8 +1476,16 @@ fn parse_step_map(m: &serde_yaml::Mapping, source: &str) -> Result<Step, ParseEr
             rule: key.to_string(),
             msg: "missing `)` in PDP call signature".into(),
         })?;
-        let inside = key[open + 1..close].trim().to_string();
-        (key[..open].trim(), Some(inside))
+        let inside = key
+            .get(open + 1..close)
+            .ok_or_else(|| ParseError::Rule {
+                rule: key.to_string(),
+                msg: "malformed `()` in PDP call signature".into(),
+            })?
+            .trim()
+            .to_string();
+        let dialect = key.get(..open).unwrap_or(key).trim();
+        (dialect, Some(inside))
     } else {
         (key.trim(), None)
     };
@@ -1517,7 +1522,7 @@ fn has_key(m: &serde_yaml::Mapping, key: &str) -> bool {
 /// the shorthand-list detector to avoid mis-parsing a `cedar: [...]`
 /// reaction list as a predicate-with-effects map.
 fn is_known_pdp_dialect(key: &str) -> bool {
-    let base = key.find('(').map(|i| &key[..i]).unwrap_or(key);
+    let base = key.find('(').and_then(|i| key.get(..i)).unwrap_or(key);
     matches!(base.trim(), "cedar" | "opa" | "authzen" | "nemo" | "cel")
 }
 
@@ -1546,7 +1551,10 @@ fn parse_when_do_rule(m: &serde_yaml::Mapping, source: &str) -> Result<Step, Par
 
     let when_val = m
         .get(serde_yaml::Value::String("when".into()))
-        .expect("has_key verified above");
+        .ok_or_else(|| ParseError::Rule {
+            rule: format!("{:?}", m),
+            msg: "`when:` key missing from when/do rule".into(),
+        })?;
     let predicate = when_val.as_str().ok_or_else(|| ParseError::Rule {
         rule: format!("{:?}", when_val),
         msg: "`when:` must be a predicate string".into(),
@@ -1558,7 +1566,10 @@ fn parse_when_do_rule(m: &serde_yaml::Mapping, source: &str) -> Result<Step, Par
 
     let do_val = m
         .get(serde_yaml::Value::String("do".into()))
-        .expect("has_key verified above");
+        .ok_or_else(|| ParseError::Rule {
+            rule: format!("{:?}", m),
+            msg: "`do:` key missing from when/do rule".into(),
+        })?;
     let effects = parse_do_body(do_val, source)?;
     if effects.is_empty() {
         return Err(ParseError::Rule {
@@ -1636,11 +1647,8 @@ fn parse_effect_value(val: &serde_yaml::Value, source: &str) -> Result<Effect, P
             // `sequential:` / `parallel:` map forms — a single-key
             // map whose key is `sequential` / `parallel` and whose
             // value is a list of effects.
-            if m.len() == 1 {
-                let (k, v) = m
-                    .iter()
-                    .next()
-                    .expect("m.len() == 1 was checked above, so an entry must exist");
+            let mut entries = m.iter();
+            if let (Some((k, v)), None) = (entries.next(), entries.next()) {
                 if let Some(key_str) = k.as_str() {
                     match key_str.trim() {
                         "sequential" => return parse_sequential_effect(v, source),
@@ -1924,7 +1932,9 @@ fn parse_effect_string(s: &str, source: &str) -> Result<Effect, ParseError> {
     let trimmed = s.trim();
     if let Some(mut effects) = try_bare_action(trimmed) {
         if effects.len() == 1 {
-            return Ok(effects.pop().expect("effects.len() == 1 was checked above"));
+            if let Some(only) = effects.pop() {
+                return Ok(only);
+            }
         }
     }
     if let Some(effect) = try_parse_deny_call(trimmed, s)? {
@@ -1950,8 +1960,10 @@ fn try_parse_field_op(s: &str, rule: &str) -> Result<Option<Effect>, ParseError>
     let Some(pipe_idx) = find_top_level_pipe(s) else {
         return Ok(None);
     };
-    let path = s[..pipe_idx].trim();
-    let chain = s[pipe_idx + 1..].trim();
+    let (Some(path), Some(chain)) = (s.get(..pipe_idx), s.get(pipe_idx + 1..)) else {
+        return Ok(None);
+    };
+    let (path, chain) = (path.trim(), chain.trim());
     if path.is_empty() || chain.is_empty() {
         return Ok(None);
     }
@@ -1986,8 +1998,7 @@ fn find_top_level_pipe(s: &str) -> Option<usize> {
     let mut depth: i32 = 0;
     let mut quote: Option<u8> = None;
     let mut i = 0;
-    while i < bytes.len() {
-        let b = bytes[i];
+    while let Some(&b) = bytes.get(i) {
         if let Some(q) = quote {
             if b == b'\\' {
                 i += 2;
@@ -2107,11 +2118,13 @@ fn step_to_effect(step: Step, source: &str) -> Result<Effect, ParseError> {
                     ),
                 });
             }
-            Ok(rule
-                .effects
+            rule.effects
                 .into_iter()
                 .next()
-                .expect("rule.effects.len() == 1 was checked above"))
+                .ok_or_else(|| ParseError::Rule {
+                    rule: source.to_string(),
+                    msg: "unconditional rule inside `do:` produced no effect".into(),
+                })
         },
         Step::Pdp { .. } => Err(ParseError::Rule {
             rule: source.to_string(),
@@ -2254,7 +2267,7 @@ fn extract_call_args(line: &str, name: &str) -> Option<String> {
     if !line.starts_with(name) {
         return None;
     }
-    let after = &line[name.len()..];
+    let after = line.get(name.len()..)?;
     if !after.starts_with('(') {
         return None;
     }
@@ -2268,8 +2281,8 @@ fn extract_call_args(line: &str, name: &str) -> Option<String> {
                 depth -= 1;
                 if depth == 0 {
                     // Anything after the close paren is invalid.
-                    if after[i + 1..].trim().is_empty() {
-                        return Some(after[1..i].to_string());
+                    if after.get(i + 1..)?.trim().is_empty() {
+                        return Some(after.get(1..i)?.to_string());
                     }
                     return None;
                 }
@@ -2312,13 +2325,15 @@ fn split_top_level(s: &str, delim: u8) -> Vec<&str> {
             (None, b'(') | (None, b'[') => depth += 1,
             (None, b')') | (None, b']') => depth -= 1,
             (None, c) if c == delim && depth == 0 => {
-                out.push(&s[start..i]);
+                if let Some(segment) = s.get(start..i) {
+                    out.push(segment);
+                }
                 start = i + 1;
             },
             _ => {},
         }
     }
-    out.push(&s[start..]);
+    out.push(s.get(start..).unwrap_or(""));
     out
 }
 
@@ -2494,8 +2509,8 @@ fn try_parse_range(s: &str) -> Option<Stage> {
 /// Returns `Some((min, max))` if shape is valid; `None` if it's not a range.
 fn parse_range_inner(s: &str) -> Option<(Option<i64>, Option<i64>)> {
     let dotdot = s.find("..")?;
-    let left = s[..dotdot].trim();
-    let right = s[dotdot + 2..].trim();
+    let left = s.get(..dotdot)?.trim();
+    let right = s.get(dotdot + 2..)?.trim();
     let min = if left.is_empty() {
         None
     } else {
@@ -2518,10 +2533,12 @@ fn parse_numeric_with_suffix(s: &str) -> Option<i64> {
     if s.is_empty() {
         return None;
     }
-    let (num_part, mult) = match s.as_bytes().last().copied()? {
-        b'k' | b'K' => (&s[..s.len() - 1], 1_000_i64),
-        b'm' | b'M' => (&s[..s.len() - 1], 1_000_000_i64),
-        _ => (s, 1_i64),
+    let (num_part, mult) = if let Some(rest) = s.strip_suffix(['k', 'K']) {
+        (rest, 1_000_i64)
+    } else if let Some(rest) = s.strip_suffix(['m', 'M']) {
+        (rest, 1_000_000_i64)
+    } else {
+        (s, 1_i64)
     };
     let n: i64 = num_part.parse().ok()?;
     n.checked_mul(mult)
@@ -2549,13 +2566,13 @@ fn split_head_args(s: &str) -> Option<(&str, Option<String>)> {
             }
         }
         let close = close?;
-        let head = s[..open].trim();
+        let head = s.get(..open)?.trim();
         if head.is_empty() {
             return None;
         }
-        let args = s[open + 1..close].to_string();
+        let args = s.get(open + 1..close)?.to_string();
         // Reject trailing garbage after the closing paren.
-        if s[close + 1..].trim().is_empty() {
+        if s.get(close + 1..)?.trim().is_empty() {
             Some((head, Some(args)))
         } else {
             None
@@ -2573,13 +2590,12 @@ fn split_head_args(s: &str) -> Option<(&str, Option<String>)> {
 fn parse_taint(args: &str, src: &str) -> Result<Stage, ParseError> {
     // taint(label) | taint(label, session) | taint(label, [session, message])
     let parts = split_top_level(args, b',');
-    if parts.is_empty() {
+    let Some(label) = parts.first().map(|p| p.trim().to_string()) else {
         return Err(ParseError::Predicate {
             predicate: src.to_string(),
             msg: "taint() requires at least a label".into(),
         });
-    }
-    let label = parts[0].trim().to_string();
+    };
     if label.is_empty() {
         return Err(ParseError::Predicate {
             predicate: src.to_string(),
@@ -2590,10 +2606,13 @@ fn parse_taint(args: &str, src: &str) -> Result<Stage, ParseError> {
     let scopes = if parts.len() == 1 {
         vec![TaintScope::Session] // default
     } else {
-        let scope_arg = parts[1..].join(",");
+        let scope_arg = parts.get(1..).unwrap_or(&[]).join(",");
         let scope_arg = scope_arg.trim();
-        if scope_arg.starts_with('[') && scope_arg.ends_with(']') {
-            split_top_level(&scope_arg[1..scope_arg.len() - 1], b',')
+        if let Some(inner) = scope_arg
+            .strip_prefix('[')
+            .and_then(|rest| rest.strip_suffix(']'))
+        {
+            split_top_level(inner, b',')
                 .into_iter()
                 .map(|s| parse_taint_scope(s.trim(), src))
                 .collect::<Result<Vec<_>, _>>()?
@@ -2903,6 +2922,7 @@ pub fn compile_policy_block_value(
 #[cfg(test)]
 #[allow(
     clippy::expect_used,
+    clippy::get_unwrap,
     clippy::indexing_slicing,
     clippy::panic,
     clippy::print_stderr,
