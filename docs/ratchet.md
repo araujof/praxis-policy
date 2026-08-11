@@ -41,13 +41,13 @@ than one that reports a large number.
 
 ## Where the tree stands against Praxis
 
-Of Praxis's 171 rules, 98 are enforced identically here, 71 are weaker, and 2 are
-stricter (`empty_line_after_outer_attr` and `rustdoc::private_doc_tests`, both of
-which Praxis allows). This tree also adds `unexpected_cfgs` at deny, which Praxis
-does not configure, as a guard against a feature rename silently disabling a
-gated export.
+Of Praxis's 171 rules, 108 are enforced identically here, 61 are weaker, and 2
+are stricter (`empty_line_after_outer_attr` and `rustdoc::private_doc_tests`,
+both of which Praxis allows). This tree also adds `unexpected_cfgs` at deny,
+which Praxis does not configure, as a guard against a feature rename silently
+disabling a gated export.
 
-The 71 that remain weaker, by the tag each carries:
+The 61 that remain weaker, by the tag each carries:
 
 | Category | Lints |
 |---|---:|
@@ -55,14 +55,66 @@ The 71 that remain weaker, by the tag each carries:
 | hygiene | 10 |
 | perf | 10 |
 | docs | 6 |
-| numeric-cast | 6 |
 | api | 4 |
 | complexity | 4 |
-| unsafe | 3 |
 | attributes | 2 |
-| concurrency, diagnostics, test-hygiene | 1 each |
+| concurrency, test-hygiene | 1 each |
 
-## The publish gate: closed
+Nothing correctness-relevant is left parked. `numeric-cast` and `unsafe` are
+closed; see below. The remainder is cosmetic, documentation, or a deliberate
+complexity decision.
+
+**Docs is the one category worth spending on despite being parked.** Its 6 lints
+cover about 970 undocumented items, `missing_docs` alone accounting for 664
+public ones, and this crate publishes to docs.rs. That is a documentation
+project, not a lint gate: generating 664 filler sentences to satisfy the lint
+would hide where real documentation is missing.
+
+**About 970 of the remaining sites are machine-applicable** via
+`cargo clippy --fix` across 25 lints, dominated by `str_to_string` (366),
+`doc_markdown` (236), and `uninlined_format_args` (135).
+
+## The numeric-cast and unsafe classes: closed
+
+Three of the 35 cast sites were live defects rather than provably-safe
+conversions.
+
+- **A valkey `ttl_seconds` past `i64::MAX` wrapped negative**, and `EXPIRE` with
+  a non-positive TTL deletes the key at once. Because this store carries session
+  taint, an absurd TTL made taint quietly fail to persist between requests: a
+  downgrade, not an outage, and invisible in logs. Now rejected at config load,
+  and saturating at the call site as a second guard.
+- **The evaluator compared integer pairs through `f64`.** Above 2^53 distinct
+  i64 values collapse onto one double, so an ordering test answers wrongly.
+  Integer pairs now compare exactly; mixed int/float still needs a common type
+  and carries a reason.
+- **Delegation depth and a delegated-token TTL hint wrapped.** Both now
+  saturate, so an overflow reads as maximally deep or unshortened rather than
+  shallow or negative. `delegation.depth > N` is a rule operators write, so a
+  wrapped depth was a bypass.
+
+The unsafe class closed by deletion. The crate's only unsafe code was two
+hand-written `Send`/`Sync` impls on a zero-sized capability token, justified by a
+comment claiming a private zero-sized field suppresses auto traits. That is not
+how auto traits work: the sole field is `()`, which is already `Send + Sync`, so
+the impls bought nothing. A compile-time assertion stands in their place, so a
+future non-`Send` field fails there with a clear message.
+
+Two related classes were checked and needed no work. `await_holding_lock` and
+`await_holding_refcell_ref` are clean: no synchronous guard is held across an
+`await` anywhere, which is the case that actually deadlocks.
+`integer_division` and `modulo_arithmetic` measured zero from the start, which
+retires divide-by-zero.
+
+`significant_drop_tightening` stays parked at 9 sites, deliberately. The scopes
+where tightening removed a real hazard are closed: the plugin factory lookup no
+longer holds the registry read lock across host-supplied `create` code, which
+could re-enter the manager and deadlock, and the CEL compile cache now logs
+outside its guard while keeping the capacity check and the insert under one lock
+so the cap cannot be exceeded by two threads racing. The rest hold a guard across
+a synchronous call on purpose and document why.
+
+## The panic gate: closed
 
 Every panic source is enforced. There are no `gate:` entries left.
 
@@ -105,16 +157,6 @@ and an `Aborted` that was really a `Deny` is a bypass; outcomes are now keyed, a
 map insertion is total. In the executor, pairing an outcome with the wrong entry
 would apply the wrong plugin's `on_error` and turn a configured `Fail` into an
 `Ignore`; it now zips and denies on a length mismatch.
-
-## Correctness-relevant parked classes
-
-Most parked entries are cosmetic. Two are not, and they are the strongest
-candidates for the next gate after this one:
-
-- `parked: numeric-cast`, 23 sites across five clippy lints, plus 12 more under
-  rustc `trivial_casts`. A truncation or sign change can alter a comparison, and a
-  comparison can be a policy decision.
-- `parked: unsafe`, 5 sites, including two hand-written `Send`/`Sync` impls.
 
 ## Coverage
 
