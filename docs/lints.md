@@ -40,7 +40,7 @@ than one that reports a large number.
 
 ## Where the tree stands against Praxis
 
-Of Praxis's 171 rules, **130 are enforced identically here and 39 are weaker**.
+Of Praxis's 171 rules, **131 are enforced identically here and 38 are weaker**.
 Two are stricter, and three more are denied that Praxis does not configure at
 all: `unexpected_cfgs`, `clippy::unreachable`, and `clippy::get_unwrap`.
 
@@ -59,6 +59,9 @@ The 41 entries that are not enforced, by group:
 | docs | 1 |
 | concurrency | 1 |
 | test-hygiene | 1 |
+
+Thirty-eight of the 41 are rules Praxis enforces more strictly. The other three
+are lints Praxis also does not enforce, or does not configure.
 
 ## Documentation: closed for the public API
 
@@ -92,6 +95,27 @@ resolved. That is the doc gate paying for itself.
 `missing_docs_in_private_items` stays parked, at 243 items. Private items never
 reach docs.rs, so it is documentation for readers of the source rather than for
 callers, and it is the one docs lint whose absence costs nothing externally.
+
+## Applying the gate to a later import
+
+The Rego decision point arrived after the gate was already closed, which made it
+a useful test of whether the gate is a one-time cleanup or a standing bar. It
+came in at 50 violations across 6 files, none of which had ever been compiled
+against these rules.
+
+29 closed with `clippy --fix`. Of the 21 that did not, three are worth recording:
+
+- **`string_slice` in the diagnostic truncator.** The slice offset came from
+  `floor_char_boundary`, so it was provably on a boundary. Converted to `get`
+  anyway, which carries the fact rather than asserting it.
+- **`float_to_value` had the same off-by-one bound as the CEL crate**, admitting
+  2^63 because `i64::MAX as f64` rounds up. Fixed the same way, so the two
+  decision points agree on what an integral float becomes.
+- **One `# Errors` section** and 32 documentation items.
+
+The rest was test-scope suppressions. Nothing in the lint table changed to
+accommodate the import, which is the outcome that matters: a new crate meets the
+existing bar rather than the bar bending to admit it.
 
 ## What closing the cheap remainder found
 

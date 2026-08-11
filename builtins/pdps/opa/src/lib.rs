@@ -3,15 +3,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Fred Araujo
 //
-// cpex-pdp-opa — `PdpResolver` over Microsoft's pure-Rust `regorus` Rego
+// praxis-policy-pdp-opa — `PdpResolver` over Microsoft's pure-Rust `regorus` Rego
 // interpreter.
 //
 // # Where this lives in the stack
 //
-//   APL evaluator (apl-core)
+//   APL evaluator (praxis-policy-apl-core)
 //        │  `opa: { query: "data.authz.allow" }` step
 //        ▼
-//   PdpRouter (apl-cpex)        — dispatches by dialect (PdpDialect::Opa)
+//   PdpRouter (praxis-policy-apl-runtime)        — dispatches by dialect (PdpDialect::Opa)
 //        │  resolver.evaluate(call, bag)
 //        ▼
 //   OpaResolver                 — THIS CRATE
@@ -51,10 +51,22 @@
 // hot path. Inline modules get a bounded prepared-engine cache. See
 // `resolver` for the details.
 
+//! OPA decision point, over the `regorus` Rego interpreter.
+//!
+//! Serves a route's `opa:` step. Global and inline Rego modules plus external
+//! `data` are loaded once at config time; each request maps the attribute bag to
+//! the Rego `input` document and evaluates the configured query. Evaluation is
+//! in-process, with no sidecar.
+
+/// Turns a Rego query result into a permit or deny, with bounded diagnostics.
 pub mod decision;
+/// Errors raised while loading modules, data, or config.
 pub mod error;
+/// Constructs the resolver from configuration.
 pub mod factory;
+/// Maps the attribute bag to the Rego `input` document.
 pub mod input;
+/// The `PdpResolver` implementation, including the prepared-engine cache.
 pub mod resolver;
 
 pub use error::BuildError;
@@ -62,6 +74,7 @@ pub use factory::OpaPdpFactory;
 pub use resolver::{OnError, OpaResolver};
 
 #[cfg(test)]
+#[allow(clippy::panic, clippy::unwrap_used, reason = "tests")]
 mod regorus_api_smoke {
     // Pins the exact regorus 0.11 API the resolver is built on: incremental
     // module load, JSON input, query eval, and the Value shapes for allow /
@@ -74,26 +87,26 @@ mod regorus_api_smoke {
         let mut engine = Engine::new();
         engine
             .add_policy(
-                "authz.rego".to_string(),
+                "authz.rego".to_owned(),
                 r#"package authz
 default allow := false
 allow if input.subject.id == "alice"
 "#
-                .to_string(),
+                .to_owned(),
             )
             .unwrap();
 
         engine
             .set_input_json(r#"{"subject":{"id":"alice"}}"#)
             .unwrap();
-        let v = engine.eval_rule("data.authz.allow".to_string()).unwrap();
+        let v = engine.eval_rule("data.authz.allow".to_owned()).unwrap();
         assert_eq!(v.as_bool().copied().ok(), Some(true));
 
         // Non-match with a `default` → false (not undefined).
         engine
             .set_input_json(r#"{"subject":{"id":"eve"}}"#)
             .unwrap();
-        let v = engine.eval_rule("data.authz.allow".to_string()).unwrap();
+        let v = engine.eval_rule("data.authz.allow".to_owned()).unwrap();
         assert_eq!(v.as_bool().copied().ok(), Some(false));
     }
 
@@ -102,17 +115,17 @@ allow if input.subject.id == "alice"
         let mut engine = Engine::new();
         engine
             .add_policy(
-                "authz.rego".to_string(),
+                "authz.rego".to_owned(),
                 r#"package authz
 allow if input.subject.id == "alice"
 "#
-                .to_string(),
+                .to_owned(),
             )
             .unwrap();
         engine
             .set_input_json(r#"{"subject":{"id":"eve"}}"#)
             .unwrap();
-        let v = engine.eval_rule("data.authz.allow".to_string()).unwrap();
+        let v = engine.eval_rule("data.authz.allow".to_owned()).unwrap();
         // No matching rule and no `default` → undefined, distinct from false.
         assert!(matches!(v, regorus::Value::Undefined), "got {v:?}");
     }
@@ -122,14 +135,14 @@ allow if input.subject.id == "alice"
         let mut engine = Engine::new();
         engine
             .add_policy(
-                "authz.rego".to_string(),
+                "authz.rego".to_owned(),
                 r#"package authz
 deny contains msg if {
     input.subject.id != "alice"
     msg := "subject not allowed"
 }
 "#
-                .to_string(),
+                .to_owned(),
             )
             .unwrap();
 
@@ -137,7 +150,7 @@ deny contains msg if {
         engine
             .set_input_json(r#"{"subject":{"id":"eve"}}"#)
             .unwrap();
-        let v = engine.eval_rule("data.authz.deny".to_string()).unwrap();
+        let v = engine.eval_rule("data.authz.deny".to_owned()).unwrap();
         match &v {
             regorus::Value::Set(s) => assert_eq!(s.len(), 1),
             other => panic!("expected Set, got {other:?}"),
@@ -147,7 +160,7 @@ deny contains msg if {
         engine
             .set_input_json(r#"{"subject":{"id":"alice"}}"#)
             .unwrap();
-        let v = engine.eval_rule("data.authz.deny".to_string()).unwrap();
+        let v = engine.eval_rule("data.authz.deny".to_owned()).unwrap();
         match &v {
             regorus::Value::Set(s) => assert!(s.is_empty()),
             other => panic!("expected empty Set, got {other:?}"),
@@ -162,25 +175,25 @@ deny contains msg if {
             .unwrap();
         engine
             .add_policy(
-                "authz.rego".to_string(),
+                "authz.rego".to_owned(),
                 r#"package authz
 default allow := false
 allow if "reader" in data.roles[input.subject.id]
 "#
-                .to_string(),
+                .to_owned(),
             )
             .unwrap();
         engine
             .set_input_json(r#"{"subject":{"id":"alice"}}"#)
             .unwrap();
-        let v = engine.eval_rule("data.authz.allow".to_string()).unwrap();
+        let v = engine.eval_rule("data.authz.allow".to_owned()).unwrap();
         assert_eq!(v.as_bool().copied().ok(), Some(true));
     }
 
     #[test]
     fn parse_error_surfaces_at_add_policy() {
         let mut engine = Engine::new();
-        let err = engine.add_policy("bad.rego".to_string(), "package x\nallow if {".to_string());
+        let err = engine.add_policy("bad.rego".to_owned(), "package x\nallow if {".to_owned());
         assert!(err.is_err(), "malformed Rego must fail at add_policy");
     }
 
@@ -188,12 +201,12 @@ allow if "reader" in data.roles[input.subject.id]
     fn clone_shares_compiled_policy_and_isolates_input() {
         let mut base = Engine::new();
         base.add_policy(
-            "authz.rego".to_string(),
+            "authz.rego".to_owned(),
             r#"package authz
 default allow := false
 allow if input.subject.id == "alice"
 "#
-            .to_string(),
+            .to_owned(),
         )
         .unwrap();
 
@@ -203,7 +216,7 @@ allow if input.subject.id == "alice"
         b.set_input_json(r#"{"subject":{"id":"eve"}}"#).unwrap();
 
         assert_eq!(
-            a.eval_rule("data.authz.allow".to_string())
+            a.eval_rule("data.authz.allow".to_owned())
                 .unwrap()
                 .as_bool()
                 .copied()
@@ -211,7 +224,7 @@ allow if input.subject.id == "alice"
             Some(true)
         );
         assert_eq!(
-            b.eval_rule("data.authz.allow".to_string())
+            b.eval_rule("data.authz.allow".to_owned())
                 .unwrap()
                 .as_bool()
                 .copied()

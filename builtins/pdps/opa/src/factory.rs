@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Fred Araujo
 //
-// `OpaPdpFactory` — the `PdpFactory` the apl-cpex visitor uses to instantiate
+// `OpaPdpFactory` — the `PdpFactory` the praxis-policy-apl-runtime visitor uses to instantiate
 // an `OpaResolver` from a unified-config block:
 //
 // ```yaml
@@ -26,7 +26,7 @@
 
 use std::sync::Arc;
 
-use apl_core::step::{PdpFactory, PdpResolver};
+use praxis_policy_apl_core::step::{PdpFactory, PdpResolver};
 
 use crate::resolver::OpaResolver;
 
@@ -36,6 +36,7 @@ use crate::resolver::OpaResolver;
 pub struct OpaPdpFactory;
 
 impl OpaPdpFactory {
+    /// A factory that builds resolvers from an `opa:` config block.
     pub fn new() -> Self {
         Self
     }

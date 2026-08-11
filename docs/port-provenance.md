@@ -21,6 +21,32 @@ Recording it is the whole obligation this import carries toward the eventual
 convergence work. How the trees are kept in step, and in which direction, is
 decided by that effort, not this one.
 
+## Second import: the Rego decision point
+
+| | |
+|---|---|
+| Source commit | `fa222c48837d51e1e25799ac80989669fba8e5b1` |
+| Selected | `builtins/pdps/opa/` |
+| Commits before filtering | 258 |
+| Commits after filtering | 1 |
+| Files imported | 8 |
+
+The Rego decision point was excluded from the first import because the
+bundled-extensions crate listed it in its default feature set with an optional
+dependency on a directory that import did not carry, which stopped the workspace
+resolving at all. It is now brought in by a second pass over the same source with
+the same single-pass technique, so its commit and blame survive rather than
+arriving as a copy.
+
+Verified the same way as the first import, against the source rather than by
+inspection: 8 files both sides, every blob hash and mode identical, and per-file
+commit counts identical.
+
+Note the source commit differs from the first import's. The source repository
+advanced in between, so the two imports have separate anchors. Only the decision
+point's own paths were selected in the second pass, so nothing else moved with
+it.
+
 ## How the import was performed
 
 A fresh clone of the source repository was rewritten with `git-filter-repo`
@@ -51,8 +77,9 @@ anywhere in the result, so there is no rename left to cross.
 
 Excluded from the import, and therefore absent from history rather than merely
 deleted at the tip: the FFI crate, the language bindings, the out-of-process
-Python plugin host, the Rego decision point, the Biscuit delegator, and the
-example crates.
+Python plugin host, the Biscuit delegator, and the example crates. The Rego
+decision point was excluded from the first import and imported by the second; see
+above.
 
 Two exclusions required code changes, not just path filtering. The
 bundled-extensions crate listed the Rego decision point in its default feature

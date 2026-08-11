@@ -59,6 +59,7 @@ audit = ["praxis-policy-builtins/audit-logger"]
 elicitation-ciba = ["praxis-policy-builtins/elicitation-ciba"]
 cedar = ["praxis-policy-builtins/cedar-direct"]
 cel = ["praxis-policy-builtins/cel"]
+opa = ["praxis-policy-builtins/opa"]
 valkey = ["praxis-policy-builtins/valkey"]
 
 [dependencies]

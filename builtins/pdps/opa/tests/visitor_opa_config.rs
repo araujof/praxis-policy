@@ -8,7 +8,7 @@
 //   1. declares an `opa` PDP under `global.apl.pdp[]` with Rego module(s),
 //   2. attaches an `opa: { query: "..." }` policy step to a route,
 //
-// must flow a real decision from the cpex-core dispatcher through
+// must flow a real decision from the praxis-policy-core dispatcher through
 // `AplConfigVisitor` → `PdpFactory` → `OpaResolver` → the regorus engine →
 // back into the route handler's allow/deny split.
 //
@@ -20,17 +20,26 @@
 // passes, an operator who drops an `opa` block into their config gets the same
 // behavior without writing any glue.
 
+#![allow(
+    clippy::expect_used,
+    clippy::panic,
+    missing_docs,
+    reason = "test and example code"
+)]
+
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use cpex_core::cmf::enums::Role;
-use cpex_core::cmf::{CmfHook, Message, MessagePayload};
-use cpex_core::extensions::{MetaExtension, SecurityExtension, SubjectExtension, SubjectType};
-use cpex_core::hooks::payload::Extensions;
-use cpex_core::manager::PluginManager;
+use praxis_policy_core::cmf::enums::Role;
+use praxis_policy_core::cmf::{CmfHook, Message, MessagePayload};
+use praxis_policy_core::extensions::{
+    MetaExtension, SecurityExtension, SubjectExtension, SubjectType,
+};
+use praxis_policy_core::hooks::payload::Extensions;
+use praxis_policy_core::manager::PluginManager;
 
-use apl_cpex::{register_apl, AplOptions, DispatchCache, MemorySessionStore};
-use cpex_pdp_opa::OpaPdpFactory;
+use praxis_policy_apl_runtime::{AplOptions, DispatchCache, MemorySessionStore, register_apl};
+use praxis_policy_pdp_opa::OpaPdpFactory;
 
 // A boolean allow-rule policy declared globally; the route queries it. The bag
 // the cmf BagBuilder lifts from the SecurityExtension exposes `subject.id`,
@@ -55,8 +64,8 @@ routes:
 
 fn meta_for_tool(name: &str) -> MetaExtension {
     MetaExtension {
-        entity_type: Some("tool".to_string()),
-        entity_name: Some(name.to_string()),
+        entity_type: Some("tool".to_owned()),
+        entity_name: Some(name.to_owned()),
         ..Default::default()
     }
 }
@@ -64,9 +73,12 @@ fn meta_for_tool(name: &str) -> MetaExtension {
 fn security_with_roles(id: &str, roles: &[&str]) -> SecurityExtension {
     SecurityExtension {
         subject: Some(SubjectExtension {
-            id: Some(id.to_string()),
+            id: Some(id.to_owned()),
             subject_type: Some(SubjectType::User),
-            roles: roles.iter().map(|r| r.to_string()).collect::<HashSet<_>>(),
+            roles: roles
+                .iter()
+                .map(std::string::ToString::to_string)
+                .collect::<HashSet<_>>(),
             ..Default::default()
         }),
         ..Default::default()

@@ -31,8 +31,8 @@
 
 use regorus::Value;
 
-use apl_core::evaluator::Decision;
-use apl_core::step::PdpDecision;
+use praxis_policy_apl_core::evaluator::Decision;
+use praxis_policy_apl_core::step::PdpDecision;
 
 /// The fallback attribution when a policy does not name a rule id.
 const DEFAULT_RULE_SOURCE: &str = "opa";
@@ -41,7 +41,7 @@ const DEFAULT_RULE_SOURCE: &str = "opa";
 /// set are policy-authored and can derive their elements from a large `data`
 /// table, so both the number of lines and the length of each line are capped
 /// before an audit sink sees them. Worst case for a single deny is roughly
-/// 35 KiB: two capped element lists plus the whole-object line.
+/// 35 `KiB`: two capped element lists plus the whole-object line.
 const MAX_DIAGNOSTIC_ELEMENTS: usize = 16;
 const MAX_DIAGNOSTIC_LEN: usize = 1024;
 
@@ -58,8 +58,8 @@ pub(crate) fn map_query_result(value: &Value, decision_field: &str) -> Mapped {
     match value {
         Value::Bool(true) => Mapped::Decision(allow()),
         Value::Bool(false) => Mapped::Decision(deny(
-            "OPA query evaluated to false".to_string(),
-            DEFAULT_RULE_SOURCE.to_string(),
+            "OPA query evaluated to false".to_owned(),
+            DEFAULT_RULE_SOURCE.to_owned(),
             Vec::new(),
         )),
         Value::Object(_) => map_object(value, decision_field),
@@ -69,8 +69,8 @@ pub(crate) fn map_query_result(value: &Value, decision_field: &str) -> Mapped {
         // deny, never routed through on_error (so on_error: allow cannot flip
         // an ordinary non-match to allow).
         Value::Undefined => Mapped::Decision(deny(
-            "OPA query undefined — request not granted".to_string(),
-            DEFAULT_RULE_SOURCE.to_string(),
+            "OPA query undefined — request not granted".to_owned(),
+            DEFAULT_RULE_SOURCE.to_owned(),
             Vec::new(),
         )),
         other => Mapped::Degenerate(format!(
@@ -85,7 +85,7 @@ fn map_object(value: &Value, decision_field: &str) -> Mapped {
     let obj = match value.as_object() {
         Ok(o) => o,
         // Unreachable given the caller's `Value::Object` match; defensive.
-        Err(_) => return Mapped::Degenerate("OPA query object was not an object".to_string()),
+        Err(_) => return Mapped::Degenerate("OPA query object was not an object".to_owned()),
     };
 
     let decision = obj
@@ -97,10 +97,10 @@ fn map_object(value: &Value, decision_field: &str) -> Mapped {
         Some(false) => {
             let reason = get_str(obj, "reason")
                 .or_else(|| get_str(obj, "message"))
-                .unwrap_or_else(|| "OPA policy denied the request".to_string());
+                .unwrap_or_else(|| "OPA policy denied the request".to_owned());
             let rule_source = get_str(obj, "rule_source")
                 .or_else(|| get_str(obj, "id"))
-                .unwrap_or_else(|| DEFAULT_RULE_SOURCE.to_string());
+                .unwrap_or_else(|| DEFAULT_RULE_SOURCE.to_owned());
 
             let mut diagnostics = Vec::new();
             // Recognized violation lists become individual diagnostics.
@@ -135,7 +135,7 @@ fn map_collection<'a>(items: impl ExactSizeIterator<Item = &'a Value>) -> Mapped
     let reason = format!("OPA policy produced {total} violation(s)");
     Mapped::Decision(deny(
         reason,
-        DEFAULT_RULE_SOURCE.to_string(),
+        DEFAULT_RULE_SOURCE.to_owned(),
         bounded_elements(items),
     ))
 }
@@ -161,7 +161,7 @@ fn deny(reason: String, rule_source: String, diagnostics: Vec<String>) -> PdpDec
 fn get_str(obj: &regorus::value::Object, key: &str) -> Option<String> {
     obj.get(&Value::from(key))
         .and_then(|v| v.as_string().ok())
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
 }
 
 /// Cap one diagnostic line, cutting on a UTF-8 boundary and noting how much was
@@ -171,7 +171,10 @@ fn bounded(s: String) -> String {
         return s;
     }
     let cut = s.floor_char_boundary(MAX_DIAGNOSTIC_LEN);
-    format!("{}... [{} more bytes omitted]", &s[..cut], s.len() - cut)
+    // `floor_char_boundary` returns a boundary at or below the cap, so this is
+    // always `Some`. The fallback keeps the function total rather than asserting.
+    let head = s.get(..cut).unwrap_or("");
+    format!("{head}... [{} more bytes omitted]", s.len() - cut)
 }
 
 /// Render at most [`MAX_DIAGNOSTIC_ELEMENTS`] elements, each capped, followed by
@@ -196,10 +199,11 @@ fn render(value: &Value) -> String {
     }
     value
         .to_json_str()
-        .unwrap_or_else(|_| "<unrenderable value>".to_string())
+        .unwrap_or_else(|_| "<unrenderable value>".to_owned())
 }
 
 #[cfg(test)]
+#[allow(clippy::panic, clippy::unwrap_used, reason = "tests")]
 mod tests {
     use super::*;
 

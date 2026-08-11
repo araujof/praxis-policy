@@ -29,7 +29,7 @@ rust-version.workspace = true
 [features]
 # The common in-process set: the four hook plugins plus both PDPs. Heavier
 # / external-backend extensions (valkey) stay opt-in via `full`.
-default = ["pii-scanner", "audit-logger", "identity-jwt", "delegator-oauth", "elicitation-ciba", "cedar-direct", "cel"]
+default = ["pii-scanner", "audit-logger", "identity-jwt", "delegator-oauth", "elicitation-ciba", "cedar-direct", "cel", "opa"]
 
 # Each feature pulls exactly one builtin crate.
 pii-scanner      = ["dep:praxis-policy-plugin-pii-scanner"]
@@ -39,6 +39,7 @@ delegator-oauth  = ["dep:praxis-policy-plugin-delegator-oauth"]
 elicitation-ciba = ["dep:praxis-policy-plugin-elicitation-ciba"]
 cedar-direct     = ["dep:praxis-policy-pdp-cedar-direct"]
 cel              = ["dep:praxis-policy-pdp-cel"]
+opa              = ["dep:praxis-policy-pdp-opa"]
 valkey           = ["dep:praxis-policy-session-valkey"]
 
 # Everything wired here, including the Valkey session store (redis client +
@@ -59,6 +60,7 @@ praxis-policy-plugin-delegator-oauth = { workspace = true, optional = true }
 praxis-policy-plugin-elicitation-ciba = { workspace = true, optional = true }
 praxis-policy-pdp-cedar-direct = { workspace = true, optional = true }
 praxis-policy-pdp-cel = { workspace = true, optional = true }
+praxis-policy-pdp-opa = { workspace = true, optional = true }
 praxis-policy-session-valkey = { workspace = true, optional = true }
 
 [dev-dependencies]

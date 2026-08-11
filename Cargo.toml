@@ -23,6 +23,7 @@ members = [
     "builtins/plugins/elicitation-ciba",
     "builtins/pdps/cedar-direct",
     "builtins/pdps/cel",
+    "builtins/pdps/opa",
     "builtins/session/valkey",
 ]
 
@@ -45,6 +46,7 @@ default-members = [
     "builtins/plugins/elicitation-ciba",
     "builtins/pdps/cedar-direct",
     "builtins/pdps/cel",
+    "builtins/pdps/opa",
 ]
 
 [workspace.package]
@@ -120,6 +122,7 @@ praxis-policy-plugin-delegator-oauth   = { path = "builtins/plugins/delegator-oa
 praxis-policy-plugin-elicitation-ciba  = { path = "builtins/plugins/elicitation-ciba", version = "0.1.0" }
 praxis-policy-pdp-cedar-direct         = { path = "builtins/pdps/cedar-direct",        version = "0.1.0" }
 praxis-policy-pdp-cel                  = { path = "builtins/pdps/cel",                 version = "0.1.0" }
+praxis-policy-pdp-opa                  = { path = "builtins/pdps/opa",                 version = "0.1.0" }
 praxis-policy-session-valkey           = { path = "builtins/session/valkey",           version = "0.1.0" }
 
 # Cross-crate inlining and dead-code elimination, one codegen unit for
@@ -145,7 +148,7 @@ strip = true
 # a backlog: each group's comment says why those lints cannot silently change an
 # enforcement decision. Do not add new violations of one.
 #
-# Of Praxis's 171 rules, 130 are enforced identically here and 39 are weaker. Two
+# Of Praxis's 171 rules, 131 are enforced identically here and 38 are weaker. Two
 # are stricter, and three more are denied that Praxis does not configure at all.
 # docs/lints.md carries the per-lint counts, how to reproduce them, and the cases
 # where a lint's own suggested fix is worse than the code it replaces.

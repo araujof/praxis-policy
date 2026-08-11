@@ -10,10 +10,10 @@
 // document so `input.subject.id` reads as field selection. This module rebuilds
 // the flat bag into a nested JSON object that becomes the engine's `input`.
 //
-// This mirrors the tree-building and type coercions in `cpex-pdp-cel`'s
+// This mirrors the tree-building and type coercions in `praxis-policy-pdp-cel`'s
 // `activation.rs` so a policy author's mental model of the attribute
 // vocabulary is identical across the two backends. It is ported rather than
-// shared so this crate stays apl-core-only at compile time.
+// shared so this crate stays praxis-policy-apl-core-only at compile time.
 //
 // Type mapping (`AttributeValue` → JSON):
 //   Bool      → bool
@@ -28,7 +28,7 @@
 
 use std::collections::BTreeMap;
 
-use apl_core::attributes::{AttributeBag, AttributeValue};
+use praxis_policy_apl_core::attributes::{AttributeBag, AttributeValue};
 use serde_json::{Map, Number, Value};
 
 /// Build the Rego `input` document from the policy bag.
@@ -59,7 +59,7 @@ fn insert(level: &mut BTreeMap<String, Node>, full_key: &str, segments: &[&str],
     let Some((head, rest)) = segments.split_first() else {
         return;
     };
-    let head = (*head).to_string();
+    let head = (*head).to_owned();
 
     if rest.is_empty() {
         match level.get(&head) {
@@ -135,8 +135,18 @@ fn attr_to_value(attr: &AttributeValue) -> Value {
 /// otherwise a JSON float. Keeps parity with CEL's `float_to_value` so a bag
 /// value populated as `Float(2.0)` reads as `2` for an author. A non-finite
 /// float has no JSON representation and becomes `null`.
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_precision_loss,
+    reason = "the conversion is guarded to finite, integral, in-range values; the \
+              bound casts are deliberate and explained below"
+)]
 fn float_to_value(f: f64) -> Value {
-    if f.is_finite() && f.fract() == 0.0 && f >= i64::MIN as f64 && f <= i64::MAX as f64 {
+    // The upper bound is strict on purpose, matching the CEL crate. `i64::MAX as
+    // f64` cannot represent 2^63 - 1 and rounds up to exactly 2^63, so `<=`
+    // against it would admit 2^63, one past the last i64. `i64::MIN as f64` is
+    // exact at -2^63, so the lower bound stays inclusive.
+    if f.is_finite() && f.fract() == 0.0 && f >= i64::MIN as f64 && f < i64::MAX as f64 {
         Value::Number((f as i64).into())
     } else {
         Number::from_f64(f)
@@ -146,6 +156,7 @@ fn float_to_value(f: f64) -> Value {
 }
 
 #[cfg(test)]
+#[allow(clippy::indexing_slicing, clippy::unwrap_used, reason = "tests")]
 mod tests {
     use super::*;
     use std::collections::HashSet;
@@ -160,13 +171,13 @@ mod tests {
         let mut engine = Engine::new();
         engine
             .add_policy(
-                "t.rego".to_string(),
+                "t.rego".to_owned(),
                 format!("package t\nresult if {{ {expr} }}\n"),
             )
             .unwrap();
         engine.set_input_json(&input.to_string()).unwrap();
         engine
-            .eval_rule("data.t.result".to_string())
+            .eval_rule("data.t.result".to_owned())
             .unwrap()
             .as_bool()
             .copied()
@@ -220,7 +231,7 @@ mod tests {
         let mut bag = AttributeBag::new();
         bag.set(
             "session.labels",
-            HashSet::from(["zeta".to_string(), "alpha".to_string(), "mu".to_string()]),
+            HashSet::from(["zeta".to_owned(), "alpha".to_owned(), "mu".to_owned()]),
         );
         assert!(rego_eval("\"alpha\" in input.session.labels", &bag));
         assert!(rego_eval("input.session.labels[0] == \"alpha\"", &bag));

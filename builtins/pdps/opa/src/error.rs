@@ -4,9 +4,9 @@
 // Authors: Fred Araujo
 //
 // Build-time errors for the OPA PDP. These surface at config-load time (when
-// the apl-cpex visitor calls the factory), so an operator sees bad policy or
+// the praxis-policy-apl-runtime visitor calls the factory), so an operator sees bad policy or
 // malformed config at deploy rather than on the first request. Mirrors the
-// shape of `cpex-pdp-cedar-direct`'s `BuildError`.
+// shape of `praxis-policy-pdp-cedar-direct`'s `BuildError`.
 
 use thiserror::Error;
 
@@ -21,7 +21,9 @@ pub enum BuildError {
     /// A `module_files` entry could not be read from disk.
     #[error("failed to read OPA module file '{path}': {source}")]
     ModuleFile {
+        /// The path that could not be read.
         path: String,
+        /// The underlying I/O failure.
         #[source]
         source: std::io::Error,
     },
@@ -31,12 +33,19 @@ pub enum BuildError {
     /// regorus cause is stringified (its error is a type-erased `anyhow::Error`,
     /// so there is no variant to carry).
     #[error("failed to load Rego module '{name}': {cause}")]
-    ModuleParse { name: String, cause: String },
+    ModuleParse {
+        /// The module, named by file path or by the step that carried it inline.
+        name: String,
+        /// The interpreter's message, stringified.
+        cause: String,
+    },
 
     /// A `data_files` entry could not be read from disk.
     #[error("failed to read OPA data file '{path}': {source}")]
     DataFile {
+        /// The path that could not be read.
         path: String,
+        /// The underlying I/O failure.
         #[source]
         source: std::io::Error,
     },
@@ -44,5 +53,10 @@ pub enum BuildError {
     /// A `data` document (inline or from a file) could not be parsed or merged
     /// into the engine's `data` root.
     #[error("failed to load OPA data '{name}': {cause}")]
-    DataParse { name: String, cause: String },
+    DataParse {
+        /// The document, named by file path or `inline`.
+        name: String,
+        /// The parse or merge failure.
+        cause: String,
+    },
 }

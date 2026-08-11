@@ -14,8 +14,14 @@
 #
 # Everything absent from this file is absent from the rewritten history, not
 # merely deleted at the tip. Deliberately excluded: the FFI crate, the language
-# bindings, the out-of-process Python plugin host, the Rego decision point, the
-# Biscuit delegator, and the example crates.
+# bindings, the out-of-process Python plugin host, the Biscuit delegator, and the
+# example crates.
+#
+# The Rego decision point was excluded from the first import and brought in by a
+# second pass over the same source, selecting `builtins/pdps/opa/` alone. Its
+# selection line is listed below so this file describes the tree as it now
+# stands, not just the first pass. Re-running the whole file would reproduce
+# both.
 
 # =============================================================================
 # Selection: engine crates
@@ -39,6 +45,7 @@ builtins/plugins/pii-scanner/
 builtins/plugins/audit-logger/
 builtins/pdps/cedar-direct/
 builtins/pdps/cel/
+builtins/pdps/opa/
 builtins/session/valkey/
 
 # =============================================================================

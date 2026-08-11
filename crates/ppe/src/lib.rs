@@ -57,7 +57,7 @@
 //! No plugins are on by default (`praxis-policy` alone is the engine).
 //! `builtins` enables the common in-process set; `full` adds the Valkey
 //! session store; or pick a granular subset (`jwt`, `oauth`, `pii`,
-//! `audit`, `cedar`, `cel`, `valkey`). When any builtins feature is on, the
+//! `audit`, `cedar`, `cel`, `opa`, `valkey`). When any builtins feature is on, the
 //! registration helpers and the concrete factory types are re-exported here
 //! from `praxis-policy-builtins`.
 
@@ -90,6 +90,8 @@ pub use praxis_policy_builtins::{
 pub use praxis_policy_builtins::CedarDirectPdpFactory;
 #[cfg(feature = "cel")]
 pub use praxis_policy_builtins::CelPdpFactory;
+#[cfg(feature = "opa")]
+pub use praxis_policy_builtins::OpaPdpFactory;
 #[cfg(feature = "audit")]
 pub use praxis_policy_builtins::{AUDIT_KIND, AuditLoggerFactory};
 #[cfg(feature = "jwt")]

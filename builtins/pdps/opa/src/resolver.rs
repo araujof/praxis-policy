@@ -55,11 +55,11 @@ use std::sync::RwLock;
 use async_trait::async_trait;
 use regorus::Engine;
 
-use apl_core::attributes::AttributeBag;
-use apl_core::evaluator::Decision;
-use apl_core::step::{PdpCall, PdpDecision, PdpDialect, PdpError, PdpResolver};
+use praxis_policy_apl_core::attributes::AttributeBag;
+use praxis_policy_apl_core::evaluator::Decision;
+use praxis_policy_apl_core::step::{PdpCall, PdpDecision, PdpDialect, PdpError, PdpResolver};
 
-use crate::decision::{map_query_result, Mapped};
+use crate::decision::{Mapped, map_query_result};
 use crate::error::BuildError;
 use crate::input::bag_to_input;
 
@@ -69,7 +69,7 @@ use crate::input::bag_to_input;
 /// are legitimate denials, always honored. Parse/compile errors, inline/global
 /// package collisions, and cache-full rejections are never governed by this
 /// either: they always deny (an author bug, a trust-boundary violation, or a
-/// resource limit must never flip to allow). Mirrors `cpex-pdp-cel`'s `OnError`.
+/// resource limit must never flip to allow). Mirrors `praxis-policy-pdp-cel`'s `OnError`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum OnError {
     /// Fail-closed: a degenerate runtime outcome denies. The APL default.
@@ -85,7 +85,7 @@ pub enum OnError {
 /// author-supplied in route YAML, so the cache fills with the policy's static
 /// set of distinct inline modules. 1024 is generous for any realistic policy
 /// and small enough that a templating bug trips the cap before it balloons
-/// memory. Mirrors `cpex-pdp-cel`'s cache cap.
+/// memory. Mirrors `praxis-policy-pdp-cel`'s cache cap.
 pub const DEFAULT_MAX_CACHE_ENTRIES: usize = 1024;
 
 /// Virtual filename regorus uses for the query's inline module. Distinct from
@@ -94,6 +94,7 @@ pub const DEFAULT_MAX_CACHE_ENTRIES: usize = 1024;
 pub(crate) const INLINE_MODULE_NAME: &str = "__inline__.rego";
 
 #[derive(Debug)]
+/// Evaluates Rego against the attribute bag, reusing a prepared base engine.
 pub struct OpaResolver {
     dialect: PdpDialect,
     on_error: OnError,
@@ -144,6 +145,13 @@ impl OpaResolver {
     ///
     /// Global modules and data are parsed/loaded here, once. A Rego parse error
     /// or a data merge conflict surfaces as a `BuildError` at load time.
+    /// # Errors
+    ///
+    /// Returns `BuildError` when the block is not a mapping, carries an unknown
+    /// key, names a module or data file that cannot be read, holds Rego that does
+    /// not parse, or supplies data that conflicts on merge. Every one of these is
+    /// rejected at load time rather than at the first request, so a broken policy
+    /// cannot present as a runtime deny.
     pub fn from_config(value: &serde_yaml::Value) -> Result<Self, BuildError> {
         let map = value
             .as_mapping()
@@ -223,10 +231,10 @@ impl OpaResolver {
         // 2. Data documents — inline mapping first, then files. Both are
         //    normalized to JSON (serde_yaml parses JSON too, so a `.json` or
         //    `.yaml` data file both work) and merged into the `data` root.
-        if let Some(data) = map.get(serde_yaml::Value::String("data".into())) {
-            if !data.is_null() {
-                merge_data(&mut engine, "data", data)?;
-            }
+        if let Some(data) = map.get(serde_yaml::Value::String("data".into()))
+            && !data.is_null()
+        {
+            merge_data(&mut engine, "data", data)?;
         }
         for path in read_string_seq(map, "data_files")? {
             let text = std::fs::read_to_string(&path).map_err(|source| BuildError::DataFile {
@@ -282,7 +290,7 @@ impl OpaResolver {
         if let Some(engine) = self
             .inline_cache
             .read()
-            .unwrap_or_else(|p| p.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .get(src)
         {
             return Ok(engine.clone());
@@ -301,7 +309,7 @@ impl OpaResolver {
         // once the cache is full.
         let mut engine = self.base_engine.clone();
         let package = engine
-            .add_policy(INLINE_MODULE_NAME.to_string(), src.to_string())
+            .add_policy(INLINE_MODULE_NAME.to_owned(), src.to_owned())
             .map_err(|e| EngineError::Compile(e.to_string()))?;
 
         // Reject an inline module that lands in a global module's package — it
@@ -313,7 +321,10 @@ impl OpaResolver {
 
         // Insert under the cap — reject past it, never evict (workspace cache
         // convention).
-        let mut cache = self.inline_cache.write().unwrap_or_else(|p| p.into_inner());
+        let mut cache = self
+            .inline_cache
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if cache.len() >= self.max_cache_entries && !cache.contains_key(src) {
             tracing::warn!(
                 cap = self.max_cache_entries,
@@ -325,7 +336,7 @@ impl OpaResolver {
                 cap: self.max_cache_entries,
             });
         }
-        cache.insert(src.to_string(), engine.clone());
+        cache.insert(src.to_owned(), engine.clone());
         Ok(engine)
     }
 
@@ -350,7 +361,7 @@ impl OpaResolver {
             OnError::Deny => PdpDecision {
                 decision: Decision::Deny {
                     reason: Some(cause.clone()),
-                    rule_source: "opa".to_string(),
+                    rule_source: "opa".to_owned(),
                 },
                 diagnostics: vec![cause],
             },
@@ -369,7 +380,7 @@ impl OpaResolver {
         PdpDecision {
             decision: Decision::Deny {
                 reason: Some(cause.clone()),
-                rule_source: "opa".to_string(),
+                rule_source: "opa".to_owned(),
             },
             diagnostics: vec![cause],
         }
@@ -415,7 +426,7 @@ impl PdpResolver for OpaResolver {
             .and_then(|m| m.get(serde_yaml::Value::String("query".into())))
             .and_then(|v| v.as_str())
             .ok_or_else(|| {
-                PdpError::Dispatch("opa: step requires a string `query` argument".to_string())
+                PdpError::Dispatch("opa: step requires a string `query` argument".to_owned())
             })?;
         let module = args
             .and_then(|m| m.get(serde_yaml::Value::String("module".into())))
@@ -445,7 +456,7 @@ impl PdpResolver for OpaResolver {
         //    evaluate on a blocking thread — Rego eval is synchronous and can
         //    be CPU-heavy, and must not monopolize an async worker.
         let input_json = bag_to_input(bag).to_string();
-        let query = query.to_string();
+        let query = query.to_owned();
         let decision_field = self.decision_field.clone();
         let outcome = tokio::task::spawn_blocking(move || {
             let mut engine = engine;
@@ -484,7 +495,7 @@ fn merge_data(
     value: &serde_yaml::Value,
 ) -> Result<(), BuildError> {
     let to_err = |cause: String| BuildError::DataParse {
-        name: name.to_string(),
+        name: name.to_owned(),
         cause,
     };
     let json = serde_json::to_string(value).map_err(|e| to_err(e.to_string()))?;
@@ -499,11 +510,11 @@ fn merge_data(
 /// config error rather than a silent default, matching the strictness applied
 /// to unknown keys and non-sequence `modules`.
 fn read_string(map: &serde_yaml::Mapping, key: &str) -> Result<Option<String>, BuildError> {
-    match map.get(serde_yaml::Value::String(key.to_string())) {
+    match map.get(serde_yaml::Value::String(key.to_owned())) {
         None => Ok(None),
         Some(serde_yaml::Value::Null) => Ok(None),
         Some(value) => match value.as_str() {
-            Some(s) => Ok(Some(s.to_string())),
+            Some(s) => Ok(Some(s.to_owned())),
             None => Err(BuildError::ConfigShape(format!("`{key}` must be a string"))),
         },
     }
@@ -514,7 +525,7 @@ fn read_string(map: &serde_yaml::Mapping, key: &str) -> Result<Option<String>, B
 /// integer is a config error rather than a silent default, matching the
 /// strictness applied to the string fields.
 fn read_usize(map: &serde_yaml::Mapping, key: &str) -> Result<Option<usize>, BuildError> {
-    match map.get(serde_yaml::Value::String(key.to_string())) {
+    match map.get(serde_yaml::Value::String(key.to_owned())) {
         None | Some(serde_yaml::Value::Null) => Ok(None),
         Some(value) => value
             .as_u64()
@@ -530,7 +541,7 @@ fn read_usize(map: &serde_yaml::Mapping, key: &str) -> Result<Option<usize>, Bui
 /// vec; a present-but-non-sequence value, or a non-string element, is a config
 /// error.
 fn read_string_seq(map: &serde_yaml::Mapping, key: &str) -> Result<Vec<String>, BuildError> {
-    let Some(value) = map.get(serde_yaml::Value::String(key.to_string())) else {
+    let Some(value) = map.get(serde_yaml::Value::String(key.to_owned())) else {
         return Ok(Vec::new());
     };
     if value.is_null() {
@@ -542,13 +553,19 @@ fn read_string_seq(map: &serde_yaml::Mapping, key: &str) -> Result<Vec<String>, 
     seq.iter()
         .map(|item| {
             item.as_str()
-                .map(|s| s.to_string())
+                .map(std::borrow::ToOwned::to_owned)
                 .ok_or_else(|| BuildError::ConfigShape(format!("`{key}` entries must be strings")))
         })
         .collect()
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unwrap_used,
+    reason = "tests"
+)]
 mod tests {
     use super::*;
 
@@ -674,7 +691,11 @@ data:
 
     /// A distinct temp file path per test, so parallel tests never collide.
     fn temp_path(name: &str, ext: &str) -> std::path::PathBuf {
-        std::env::temp_dir().join(format!("cpex_opa_{}_{}.{ext}", std::process::id(), name))
+        std::env::temp_dir().join(format!(
+            "praxis_policy_opa_{}_{}.{ext}",
+            std::process::id(),
+            name
+        ))
     }
 
     #[test]
@@ -694,7 +715,7 @@ data:
             .unwrap();
         assert_eq!(
             engine
-                .eval_rule("data.authz.allow".to_string())
+                .eval_rule("data.authz.allow".to_owned())
                 .unwrap()
                 .as_bool()
                 .copied()
@@ -719,7 +740,7 @@ data:
             .unwrap();
         assert_eq!(
             engine
-                .eval_rule("data.authz.allow".to_string())
+                .eval_rule("data.authz.allow".to_owned())
                 .unwrap()
                 .as_bool()
                 .copied()
@@ -740,6 +761,12 @@ data:
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unwrap_used,
+    reason = "tests"
+)]
 mod eval_tests {
     use super::*;
     use std::sync::Arc;
@@ -757,7 +784,7 @@ mod eval_tests {
     }
 
     fn sv(s: &str) -> serde_yaml::Value {
-        serde_yaml::Value::String(s.to_string())
+        serde_yaml::Value::String(s.to_owned())
     }
 
     /// Build a resolver from raw config YAML, for tests exercising config keys
@@ -831,7 +858,7 @@ msg := "not a decision"
     }
 
     /// Undefined (non-match with no `default`) is a clean deny even under
-    /// on_error: allow — it must never fail open.
+    /// `on_error`: allow — it must never fail open.
     #[tokio::test]
     async fn undefined_denies_even_with_on_error_allow() {
         let r = resolver(&[ALLOW_NO_DEFAULT], OnError::Allow);
@@ -881,7 +908,7 @@ msg := "not a decision"
     }
 
     /// A value that carries no decision (a bare string) is degenerate → routes
-    /// through on_error: deny by default, allow when configured.
+    /// through `on_error`: deny by default, allow when configured.
     #[tokio::test]
     async fn non_decision_value_routes_through_on_error() {
         let deny_r = resolver(&[STRING_RESULT], OnError::Deny);
@@ -900,7 +927,7 @@ msg := "not a decision"
     }
 
     /// An inline module with a Rego syntax error always denies, even under
-    /// on_error: allow — malformed policy never flips to allow.
+    /// `on_error`: allow — malformed policy never flips to allow.
     #[tokio::test]
     async fn inline_compile_error_always_denies() {
         let r = resolver(&[], OnError::Allow);
@@ -921,7 +948,7 @@ msg := "not a decision"
 
     /// An inline module whose package collides with a global-module package is
     /// rejected fail-closed — it must not be able to merge into (and override)
-    /// operator policy, even under on_error: allow.
+    /// operator policy, even under `on_error`: allow.
     #[tokio::test]
     async fn inline_module_cannot_override_global_package() {
         let r = resolver(&[ALLOW_WITH_DEFAULT], OnError::Allow);
@@ -965,7 +992,7 @@ msg := "not a decision"
     }
 
     /// At the inline-module cache cap, a new distinct inline module is rejected
-    /// and routed through on_error; an already-cached module still evaluates.
+    /// and routed through `on_error`; an already-cached module still evaluates.
     #[tokio::test]
     async fn inline_cache_cap_rejects_new_modules() {
         let r = resolver(&[], OnError::Deny).with_max_cache_entries(1);
@@ -1051,7 +1078,7 @@ modules:
     }
 
     /// A cache-full rejection is a resource limit, not a policy outcome, so it
-    /// denies even under on_error: allow — it must not fail open.
+    /// denies even under `on_error`: allow — it must not fail open.
     #[tokio::test]
     async fn inline_cache_cap_denies_even_under_on_error_allow() {
         let r = resolver(&[], OnError::Allow).with_max_cache_entries(1);

@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Authors: Fred Araujo
 #
-# cpex-pdp-opa — a `PdpResolver` that evaluates OPA/Rego policy in-process via
+# praxis-policy-pdp-opa — a `PdpResolver` that evaluates OPA/Rego policy in-process via
 # the pure-Rust `regorus` interpreter. Global and/or inline Rego modules plus
 # external `data`; the request `AttributeBag` maps to the Rego `input`
 # document; the configured query resolves to allow/deny.
@@ -13,12 +13,12 @@
 # base-engine / clone-per-request evaluation model.
 
 [package]
-name = "cpex-pdp-opa"
+name = "praxis-policy-pdp-opa"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
-description = "CPEX PDP — embedded OPA/Rego policy evaluation via regorus."
+description = "PPE PDP — embedded OPA/Rego policy evaluation via regorus."
 repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
@@ -26,7 +26,7 @@ categories.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-apl-core = { workspace = true }
+praxis-policy-apl-core = { workspace = true }
 # regorus — Microsoft's pure-Rust Rego interpreter (Apache-2.0).
 #
 # `default-features = false` is deliberate. regorus's `default`
@@ -34,7 +34,7 @@ apl-core = { workspace = true }
 # `jsonschema` builtins. Inline Rego is authored by a less-trusted actor than
 # the operator, so this crate opts out of that surface and enables only the
 # pure, local builtins an authorization predicate needs — the same discipline
-# `cpex-pdp-cel` applies when it pins CEL features explicitly. Excluded on
+# `praxis-policy-pdp-cel` applies when it pins CEL features explicitly. Excluded on
 # purpose:
 #   - http        → `http.send` network egress
 #   - net         → ipnet/CIDR builtins
@@ -74,19 +74,19 @@ tracing = { workspace = true }
 # large `data`, expensive builtins). The resolver runs each eval on
 # `tokio::task::spawn_blocking` so one request cannot monopolize an async
 # worker thread. This couples the crate to a tokio runtime at eval time — a
-# deliberate divergence from `cpex-pdp-cel` (which evaluates inline), justified
-# because Rego eval is materially heavier than a CEL predicate. The CPEX host
+# deliberate divergence from `praxis-policy-pdp-cel` (which evaluates inline), justified
+# because Rego eval is materially heavier than a CEL predicate. The host
 # already runs on tokio.
 tokio = { workspace = true, features = ["rt"] }
 
 [dev-dependencies]
-# End-to-end integration tests wire the opa factory through the apl-cpex
+# End-to-end integration tests wire the opa factory through the praxis-policy-apl-runtime
 # visitor and exercise it against a real `PluginManager`. These dev-dep edges
-# only exist for tests — the crate depends only on apl-core (plus its engine
+# only exist for tests — the crate depends only on praxis-policy-apl-core (plus its engine
 # and runtime deps) at compile time, so it can be used standalone.
-apl-cmf = { workspace = true }
-apl-cpex = { workspace = true }
-cpex-core = { workspace = true }
+praxis-policy-apl-cmf = { workspace = true }
+praxis-policy-apl-runtime = { workspace = true }
+praxis-policy-core = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
 
 [lints]
