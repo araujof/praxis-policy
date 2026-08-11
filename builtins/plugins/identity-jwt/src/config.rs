@@ -116,15 +116,24 @@ pub enum DecodingKeySource {
     /// Inline PEM-encoded public key (RSA / EC). Useful for tests
     /// and dev configs; production deployments usually prefer
     /// `pem_file` so keys don't appear in checked-in configs.
-    Pem { pem: String },
+    Pem {
+        /// The PEM-encoded key.
+        pem: String,
+    },
 
     /// Path to a PEM file. Read at construction time. Path is
     /// resolved relative to the host's working directory unless
     /// absolute.
-    PemFile { path: PathBuf },
+    PemFile {
+        /// Path to a PEM file on disk.
+        path: PathBuf,
+    },
 
     /// Inline JWK (JSON Web Key) — full JWK structure as JSON.
-    Jwk { jwk: serde_json::Value },
+    Jwk {
+        /// The key as an inline JWK.
+        jwk: serde_json::Value,
+    },
 
     /// OIDC JWKS endpoint — the standard way to wire to a real `IdP`
     /// (Keycloak / Auth0 / Cognito / Okta / Authentik …). Fetched
@@ -149,17 +158,23 @@ pub enum DecodingKeySource {
     /// to work as long as one of the previously-fetched keys
     /// matches the inbound token's `kid`.
     JwksUrl {
+        /// The JWKS endpoint.
         url: String,
         #[serde(default)]
+        /// Permits plaintext HTTP, for local development only.
         insecure_http: bool,
         #[serde(default = "default_refresh_secs")]
+        /// How often the background task refetches the key set.
         refresh_secs: u64,
     },
 
     /// Symmetric HMAC secret (HS256 / HS384 / HS512 only). Not
     /// recommended for production; signature verifiers need the
     /// same secret, which makes key distribution painful.
-    Secret { secret: String },
+    Secret {
+        /// The shared secret, for HMAC algorithms.
+        secret: String,
+    },
 }
 
 impl DecodingKeySource {

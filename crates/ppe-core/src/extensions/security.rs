@@ -18,9 +18,13 @@ use super::monotonic::MonotonicSet;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SubjectType {
+    /// A human user.
     User,
+    /// An autonomous agent.
     Agent,
+    /// A service acting on its own behalf.
     Service,
+    /// The platform itself.
     System,
 }
 

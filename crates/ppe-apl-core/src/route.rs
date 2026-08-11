@@ -39,15 +39,19 @@ use crate::step::{
 /// `Some` once the tool/resource has produced a value).
 #[derive(Debug, Clone)]
 pub struct RoutePayload {
+    /// The call arguments.
     pub args: serde_json::Value,
+    /// The response, once the call has been made.
     pub result: Option<serde_json::Value>,
 }
 
 impl RoutePayload {
+    /// A pre-call payload carrying only arguments.
     pub fn new(args: serde_json::Value) -> Self {
         Self { args, result: None }
     }
 
+    /// A post-call payload carrying both arguments and response.
     pub fn with_result(args: serde_json::Value, result: serde_json::Value) -> Self {
         Self {
             args,
@@ -65,6 +69,7 @@ impl RoutePayload {
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct RouteDecision {
+    /// The verdict for the phase.
     pub decision: Decision,
     /// Taints accumulated from any phase. Empty unless a pipeline emitted them.
     pub taints: Vec<TaintEvent>,

@@ -119,15 +119,18 @@ pub struct BagBuilder {
 }
 
 impl BagBuilder {
+    /// A builder over an empty bag.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Bridge identity, roles, and labels into the bag.
     pub fn with_security(mut self, sec: &SecurityExtension) -> Self {
         extract_security(sec, &mut self.bag);
         self
     }
 
+    /// Bridge the delegation chain into the bag.
     pub fn with_delegation(mut self, del: &DelegationExtension) -> Self {
         extract_delegation(del, &mut self.bag);
         self
@@ -141,11 +144,13 @@ impl BagBuilder {
         self
     }
 
+    /// Bridge the call arguments into `args.*` keys.
     pub fn with_args(mut self, args: &serde_json::Value) -> Self {
         extract_args(args, &mut self.bag);
         self
     }
 
+    /// Bridge the response into `result.*` keys.
     pub fn with_result(mut self, result: &serde_json::Value) -> Self {
         extract_result(result, &mut self.bag);
         self
@@ -171,6 +176,7 @@ impl BagBuilder {
         self
     }
 
+    /// The finished bag.
     pub fn build(self) -> AttributeBag {
         self.bag
     }

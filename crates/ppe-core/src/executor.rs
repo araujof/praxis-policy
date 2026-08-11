@@ -1118,9 +1118,13 @@ impl Default for Executor {
 /// executor extracts it via [`extract_erased()`] to read the
 /// control flow fields without knowing the concrete payload type.
 pub struct ErasedResultFields {
+    /// Whether the pipeline continues past this handler.
     pub continue_processing: bool,
+    /// The payload the handler produced, when it changed one.
     pub modified_payload: Option<Box<dyn PluginPayload>>,
+    /// The extensions the handler produced, when it changed them.
     pub modified_extensions: Option<crate::hooks::payload::OwnedExtensions>,
+    /// The violation, when the handler denied.
     pub violation: Option<crate::error::PluginViolation>,
 }
 

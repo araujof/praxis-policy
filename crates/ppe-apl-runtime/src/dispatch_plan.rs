@@ -65,6 +65,7 @@ use praxis_policy_apl_core::rules::{CompiledRoute, Effect};
 /// `tool_pre_invoke` and `tool_post_invoke`) to a single entry.
 #[derive(Clone)]
 pub struct RoutePluginEntry {
+    /// The plugin this entry dispatches to.
     pub plugin_name: String,
     /// All hook entries the plugin registered, keyed by hook name.
     /// Per-call overrides (route-level config / caps / `on_error`) are
@@ -114,6 +115,7 @@ impl RoutePluginEntry {
 /// per-call rather than per-route-chain.
 #[derive(Clone, Default)]
 pub struct RouteDispatchPlan {
+    /// Per-plugin dispatch entries, keyed by plugin name.
     pub plugins: HashMap<String, RoutePluginEntry>,
     /// Plugin name → resolved `token.delegate` hook entry for routes
     /// that declared `delegate(...)` steps. Empty when the route has
@@ -489,6 +491,7 @@ pub struct DispatchCache {
 }
 
 impl DispatchCache {
+    /// An empty plan.
     pub fn new() -> Self {
         Self::default()
     }

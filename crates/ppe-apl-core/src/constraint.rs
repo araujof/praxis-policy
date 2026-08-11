@@ -67,6 +67,7 @@ pub struct CandidateConstraint {
     /// order. `None` = no tier ceiling.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     /// Ceiling on cost tier. The host orders the tier names.
+    /// Ceiling on cost tier, before resolution.
     pub max_cost_tier: Option<String>,
 
     /// Arbitrary backend labels the candidate must carry, matched by plain
@@ -74,11 +75,13 @@ pub struct CandidateConstraint {
     /// backend attributes without a typed field above. Empty = none.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     /// Host-defined constraints, passed through unread.
+    /// Host-defined constraints, before resolution.
     pub custom: BTreeMap<String, String>,
 
     /// What the host should do if the constraint prunes every candidate.
     /// Fail-closed by default (see [`OnEmpty`]).
     #[serde(default)]
+    /// What the host does when nothing qualifies.
     /// What the host does when nothing qualifies.
     pub on_empty: OnEmpty,
 }

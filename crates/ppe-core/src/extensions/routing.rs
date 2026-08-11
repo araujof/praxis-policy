@@ -210,8 +210,11 @@ pub const CAP_WRITE_CANDIDATE_CONSTRAINT: &str = "write_candidate_constraint";
 /// Well-known backend label keys the typed constraint fields match
 /// against. Everything else in a backend's label set is `custom`.
 pub const LABEL_MODEL: &str = "model";
+/// Backend label naming its region.
 pub const LABEL_REGION: &str = "region";
+/// Backend label naming its site.
 pub const LABEL_SITE: &str = "site";
+/// Backend label naming its cost tier.
 pub const LABEL_COST_TIER: &str = "cost_tier";
 
 /// A backend's labels, looked up by key — the input to

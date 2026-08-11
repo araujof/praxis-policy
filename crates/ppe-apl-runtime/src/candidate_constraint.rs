@@ -19,8 +19,11 @@ use std::collections::{BTreeMap, BTreeSet};
 /// this to a fail-closed deny (never silently drops a requirement).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConstraintConflict {
+    /// The custom key two constraints disagree on.
     pub key: String,
+    /// The value already required.
     pub existing: String,
+    /// The conflicting value.
     pub incoming: String,
 }
 

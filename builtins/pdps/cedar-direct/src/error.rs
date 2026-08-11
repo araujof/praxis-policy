@@ -42,7 +42,9 @@ pub enum BuildError {
     /// "file found but unparseable" without grepping the message.
     #[error("failed to read Cedar policy file '{path}': {source}")]
     PolicyFile {
+        /// The path that could not be read.
         path: String,
+        /// The underlying I/O failure.
         #[source]
         source: std::io::Error,
     },
@@ -54,7 +56,9 @@ pub enum BuildError {
     /// I/O failure reading a schema file from disk.
     #[error("failed to read Cedar schema file '{path}': {source}")]
     SchemaFile {
+        /// The path that could not be read.
         path: String,
+        /// The underlying I/O failure.
         #[source]
         source: std::io::Error,
     },

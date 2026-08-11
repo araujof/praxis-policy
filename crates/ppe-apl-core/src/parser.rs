@@ -39,6 +39,7 @@ pub enum ParseError {
     #[error("YAML parse error: {0}")]
     Yaml(#[from] serde_yaml::Error),
 
+    /// A rule line does not match any accepted form.
     #[error("rule '{rule}': {msg}")]
     Rule {
         /// The rule text as written.
@@ -47,6 +48,7 @@ pub enum ParseError {
         msg: String,
     },
 
+    /// The step name is not one this build recognizes.
     #[error("unsupported step `{kind}` in rule '{rule}'")]
     UnsupportedStep {
         /// The rule text as written.
@@ -55,6 +57,7 @@ pub enum ParseError {
         kind: String,
     },
 
+    /// A predicate does not lex or parse.
     #[error("predicate '{predicate}': {msg}")]
     Predicate {
         /// The predicate text as written.
@@ -63,6 +66,9 @@ pub enum ParseError {
         msg: String,
     },
 
+    /// The document uses a field name that has since been renamed. Rejected
+    /// rather than ignored, because an unknown field is dropped silently and its
+    /// steps would never run.
     #[error("in `{location}`: config field `{old}` was renamed to `{new}` — update your config")]
     RenamedField {
         /// Where in the document the stale field appears.
@@ -73,6 +79,8 @@ pub enum ParseError {
         new: String,
     },
 
+    /// The same phase is declared both nested and flat, which would run its
+    /// effects twice.
     #[error(
         "in `{location}`: `{phase}` is declared both nested under `authorization:` and flat on \
          the section — use one form, not both (declaring both runs the effects twice)"

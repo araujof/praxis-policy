@@ -321,8 +321,11 @@ pub struct DelegationKey {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub client_id: Option<String>,
 
+    /// The audience the token is for.
     pub audience: String,
+    /// The scopes it carries.
     pub scopes: Vec<String>,
+    /// How it was obtained.
     pub mode: DelegationMode,
 }
 
@@ -392,6 +395,7 @@ pub struct RawDelegatedToken {
 }
 
 impl RawDelegatedToken {
+    /// A token with its audience, scopes, outbound header, and expiry.
     pub fn new(
         token: impl Into<String>,
         outbound_header: impl Into<String>,

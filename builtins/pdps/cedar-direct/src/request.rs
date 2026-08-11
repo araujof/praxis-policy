@@ -47,8 +47,11 @@ use serde_json::{Map, Value, json};
 /// struct so the resolver can sequence "build entities → build request"
 /// without a giant function signature.
 pub struct ParsedCall<'a> {
+    /// The Cedar action being authorized.
     pub action: EntityUid,
+    /// The Cedar context for the request.
     pub context: cedar_policy::Context,
+    /// The raw resource arguments, used to build the resource entity.
     pub resource_args: &'a serde_yaml::Value,
 }
 

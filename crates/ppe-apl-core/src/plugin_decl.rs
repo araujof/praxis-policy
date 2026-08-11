@@ -60,10 +60,12 @@ pub struct PluginDeclaration {
     /// Opaque per-plugin config. Passed to the plugin verbatim by the
     /// PPE runtime; praxis-policy-apl-core doesn't interpret it.
     #[serde(default)]
+    /// The plugin's own settings, passed through unread.
     pub config: Option<serde_yaml::Value>,
 
     /// `fail | ignore | disable`. Defaults to `fail` per spec when None.
     #[serde(default)]
+    /// What happens when the plugin errors: fail, ignore, or disable.
     pub on_error: Option<String>,
 
     /// Catch-all for `source`, `priority`, `mode`, transport blocks,
@@ -80,12 +82,15 @@ pub struct PluginDeclaration {
 /// key-value pairs are not merged into `config` implicitly."
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PluginOverride {
+    /// Replaces the plugin's `config:` wholesale, rather than merging into it.
     #[serde(default)]
     pub config: Option<serde_yaml::Value>,
 
+    /// Replaces the granted capabilities.
     #[serde(default)]
     pub capabilities: Option<Vec<String>>,
 
+    /// Replaces the error policy.
     #[serde(default)]
     pub on_error: Option<String>,
 }
@@ -102,7 +107,9 @@ pub type PluginRegistry = HashMap<String, PluginDeclaration>;
 /// dispatch sites.
 #[derive(Debug, Clone)]
 pub struct EffectivePlugin<'a> {
+    /// The plugin's registered name.
     pub name: &'a str,
+    /// Its factory kind.
     pub kind: &'a str,
     /// NOT overridable per spec — always from the global declaration.
     pub hooks: &'a [String],
@@ -128,6 +135,7 @@ pub enum CapsView<'a> {
 }
 
 impl<'a> CapsView<'a> {
+    /// The capabilities as a slice.
     pub fn as_slice(&self) -> &'a [String] {
         match self {
             Self::Global(s) | Self::Override(s) => s,

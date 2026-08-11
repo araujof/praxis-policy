@@ -106,8 +106,11 @@ pub enum AttributeError {
     /// conflict the source refuses to silently resolve (fail-fast merge).
     #[error("attribute conflict at `{path}`: `{existing}` vs `{incoming}`")]
     Conflict {
+        /// Where in the tree the documents disagree.
         path: String,
+        /// The type already present.
         existing: String,
+        /// The type the later document brought.
         incoming: String,
     },
 }
