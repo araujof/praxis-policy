@@ -198,7 +198,6 @@ fn merge_into(target: &mut Value, overlay: Value) {
     }
 }
 
-#[allow(dead_code)]
 fn _bag_typed_value(v: &AttributeValue) -> Value {
     // Reserved for future use — keeps the import alive while parts of
     // the bag→JSON translation are stubbed.

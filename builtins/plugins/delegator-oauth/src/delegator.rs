@@ -622,7 +622,6 @@ fn jwt_payload_omits_act(access_token: &str) -> bool {
 // Silence unused-import warning when only a subset of these is
 // reached in any given config path. Kept as a single place so the
 // crate's surface is visible at a glance.
-#[allow(dead_code)]
 fn _force_link(_: Arc<()>) {}
 
 /// Reject `http://` for endpoints that carry credentials. Allows
@@ -655,15 +654,7 @@ fn require_https(url: &str, insecure_http: bool) -> Result<(), String> {
 }
 
 #[cfg(test)]
-#[allow(
-    clippy::expect_used,
-    clippy::indexing_slicing,
-    clippy::panic,
-    clippy::print_stderr,
-    clippy::print_stdout,
-    clippy::unwrap_used,
-    reason = "tests"
-)]
+#[allow(clippy::unwrap_used, reason = "tests")]
 mod scheme_tests {
     use super::require_https;
 
@@ -695,15 +686,6 @@ mod scheme_tests {
 }
 
 #[cfg(test)]
-#[allow(
-    clippy::expect_used,
-    clippy::indexing_slicing,
-    clippy::panic,
-    clippy::print_stderr,
-    clippy::print_stdout,
-    clippy::unwrap_used,
-    reason = "tests"
-)]
 mod act_claim_tests {
     use super::jwt_payload_omits_act;
     use base64::Engine as _;

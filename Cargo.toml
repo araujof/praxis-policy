@@ -365,7 +365,15 @@ needless_pass_by_ref_mut = "allow"          # parked: api, 1
 ref_patterns = "allow"                      # parked: style, 24
 multiple_inherent_impl = "allow"            # parked: hygiene, 1
 map_err_ignore = "deny"
-allow_attributes = "allow"                  # parked: attributes, 13
+# Tried and reverted, with the measurement recorded in docs/ratchet.md.
+# Converting `#[allow]` to `#[expect]` makes a suppression an assertion that the
+# lint still fires, and two suppressions here cannot satisfy that under every
+# feature set: `register_builtins` and `builtin_pdps` have bodies that are
+# entirely `#[cfg(feature)]`-gated, so `unused_variables` and `unused_mut` fire
+# with no features on and not with all of them. No single attribute is correct
+# for both. The conversion did surface 63 genuinely stale suppression entries,
+# which were removed and stay removed.
+allow_attributes = "allow"                  # parked: attributes, 58
 allow_attributes_without_reason = "allow"   # parked: attributes, 13
 cast_lossless = "deny"
 cast_possible_truncation = "deny"

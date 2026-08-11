@@ -187,7 +187,6 @@ impl HookHandler<CmfHook> for AuditLogger {
 }
 
 // Silence import-unused warning if Arc isn't used elsewhere.
-#[allow(dead_code)]
 fn _force_link_arc(_: Arc<()>) {}
 
 #[cfg(test)]

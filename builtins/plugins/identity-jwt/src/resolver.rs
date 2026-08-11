@@ -752,9 +752,6 @@ fn classify_jwt_error(e: &jsonwebtoken::errors::Error) -> (&'static str, String)
 #[allow(
     clippy::expect_used,
     clippy::indexing_slicing,
-    clippy::panic,
-    clippy::print_stderr,
-    clippy::print_stdout,
     clippy::unwrap_used,
     reason = "tests"
 )]

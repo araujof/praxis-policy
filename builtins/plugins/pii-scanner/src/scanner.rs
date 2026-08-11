@@ -212,7 +212,6 @@ impl HookHandler<CmfHook> for PiiScanner {
 
 // Silence unused-import in case a feature is added later that needs
 // Arc — kept for parity with how other crates structure their imports.
-#[allow(dead_code)]
 fn _force_link_arc(_: Arc<()>) {}
 
 #[cfg(test)]
