@@ -264,7 +264,9 @@ fn registry() -> &'static RwLock<HashMap<String, HookMetadata>> {
 /// unregistered hooks still dispatch via the conservative wildcard
 /// in [`HookMetadata::matches`].
 pub fn lookup(hook_name: &str) -> HookMetadata {
-    let r = registry().read().unwrap_or_else(|p| p.into_inner());
+    let r = registry()
+        .read()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     r.get(hook_name).copied().unwrap_or(HookMetadata::unknown())
 }
 
@@ -276,7 +278,9 @@ pub fn lookup(hook_name: &str) -> HookMetadata {
 /// Thread-safe; intended to be called at startup. Concurrent calls
 /// are serialized via the registry's `RwLock`.
 pub fn register_hook_metadata(hook_name: impl Into<String>, meta: HookMetadata) {
-    let mut w = registry().write().unwrap_or_else(|p| p.into_inner());
+    let mut w = registry()
+        .write()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     w.insert(hook_name.into(), meta);
 }
 

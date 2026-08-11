@@ -132,14 +132,20 @@ impl MemorySessionStore {
     /// callers should go through the trait so the backing implementation
     /// stays swappable.
     pub fn snapshot(&self) -> HashMap<String, HashSet<String>> {
-        self.inner.read().unwrap_or_else(|p| p.into_inner()).clone()
+        self.inner
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
     }
 }
 
 #[async_trait]
 impl SessionStore for MemorySessionStore {
     async fn load_labels(&self, session_id: &str) -> Result<Vec<String>, SessionStoreError> {
-        let r = self.inner.read().unwrap_or_else(|p| p.into_inner());
+        let r = self
+            .inner
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         Ok(r.get(session_id)
             .map(|s| s.iter().cloned().collect())
             .unwrap_or_default())
@@ -153,7 +159,10 @@ impl SessionStore for MemorySessionStore {
         if labels.is_empty() {
             return Ok(());
         }
-        let mut w = self.inner.write().unwrap_or_else(|p| p.into_inner());
+        let mut w = self
+            .inner
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let entry = w.entry(session_id.to_owned()).or_default();
         for l in labels {
             entry.insert(l.clone());

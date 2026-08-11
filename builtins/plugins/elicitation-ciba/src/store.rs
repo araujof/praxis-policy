@@ -72,14 +72,14 @@ impl CorrelationStore for InMemoryCorrelationStore {
     fn put(&self, id: &str, correlation: Correlation) {
         self.inner
             .lock()
-            .unwrap_or_else(|p| p.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .insert(id.to_owned(), correlation);
     }
 
     fn get(&self, id: &str) -> Option<Correlation> {
         self.inner
             .lock()
-            .unwrap_or_else(|p| p.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .get(id)
             .cloned()
     }
@@ -88,7 +88,7 @@ impl CorrelationStore for InMemoryCorrelationStore {
         if let Some(c) = self
             .inner
             .lock()
-            .unwrap_or_else(|p| p.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .get_mut(id)
         {
             c.resolved_approver = Some(approver);

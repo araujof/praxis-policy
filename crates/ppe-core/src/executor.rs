@@ -822,7 +822,7 @@ impl Executor {
         // `BranchData` that the orchestrator's `is_deny` predicate can
         // inspect without further type knowledge.
         let mut branches: Vec<ErasedBranch<BranchData>> = Vec::with_capacity(entries.len());
-        for entry in entries.iter() {
+        for entry in entries {
             let handler = Arc::clone(&entry.handler);
             let payload_clone = Arc::clone(&shared_payload);
             let plugin_id = entry.plugin_ref.id();

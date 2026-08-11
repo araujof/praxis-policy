@@ -1047,7 +1047,10 @@ fn plan_with_narrowed_caps(
         .expect("plugin registered");
     let (_hook_name, base_entry) = base;
     let mut merged = base_entry.plugin_ref.trusted_config().clone();
-    merged.capabilities = narrowed_caps.iter().map(|s| s.to_string()).collect();
+    merged.capabilities = narrowed_caps
+        .iter()
+        .map(std::string::ToString::to_string)
+        .collect();
     let override_ref = Arc::new(PluginRef::new(
         Arc::clone(base_entry.plugin_ref.plugin()),
         merged,

@@ -75,7 +75,10 @@ fn security_with_roles(id: &str, roles: &[&str]) -> SecurityExtension {
         subject: Some(SubjectExtension {
             id: Some(id.to_owned()),
             subject_type: Some(SubjectType::User),
-            roles: roles.iter().map(|r| r.to_string()).collect::<HashSet<_>>(),
+            roles: roles
+                .iter()
+                .map(std::string::ToString::to_string)
+                .collect::<HashSet<_>>(),
             ..Default::default()
         }),
         ..Default::default()

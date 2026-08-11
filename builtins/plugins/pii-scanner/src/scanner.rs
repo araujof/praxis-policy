@@ -114,7 +114,7 @@ impl PiiScanner {
     /// Rewrite the message's content: replace any string value that
     /// matches a pattern with `[PII]`. Used in `redact` mode.
     fn redact_message(&self, message: &mut Message) {
-        for part in message.content.iter_mut() {
+        for part in &mut message.content {
             match part {
                 ContentPart::ToolCall { content } => {
                     for v in content.arguments.values_mut() {

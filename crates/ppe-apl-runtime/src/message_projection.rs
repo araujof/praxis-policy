@@ -35,7 +35,7 @@ use praxis_policy_core::cmf::{ContentPart, Message};
 /// text part, append one. Mirrors what `MessagePayload`'s normal
 /// modify-path does for single-view v0.
 pub(crate) fn rewrite_message_text(msg: &mut Message, new_text: &str) {
-    for part in msg.content.iter_mut() {
+    for part in &mut msg.content {
         if let ContentPart::Text { text } = part {
             *text = new_text.to_owned();
             return;
@@ -91,7 +91,7 @@ pub(crate) fn extract_args_from_message(msg: &Message) -> Value {
 /// the upstream just sees the original unmodified content rather
 /// than a malformed rewrite.
 pub(crate) fn write_args_back_to_message(msg: &mut Message, args: &Value) {
-    for part in msg.content.iter_mut() {
+    for part in &mut msg.content {
         match part {
             ContentPart::ToolCall { content } => {
                 if let Some(obj) = args.as_object() {
@@ -136,7 +136,7 @@ pub(crate) fn extract_result_from_message(msg: &Message) -> Value {
 /// out of the ContentPart and folds it back into the JSON-RPC
 /// `result.content[*].text` payload.
 pub(crate) fn write_result_back_to_message(msg: &mut Message, result: &Value) {
-    for part in msg.content.iter_mut() {
+    for part in &mut msg.content {
         if let ContentPart::ToolResult { content } = part {
             content.content = result.clone();
             return;

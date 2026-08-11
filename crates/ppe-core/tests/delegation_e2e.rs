@@ -256,7 +256,12 @@ fn build_payload(target: &str, audience: &str, permissions: &[&str]) -> Delegati
     DelegationPayload::new("eyJ.caller.tok", target)
         .with_target_type(TargetType::Tool)
         .with_target_audience(audience)
-        .with_required_permissions(permissions.iter().map(|s| s.to_string()).collect())
+        .with_required_permissions(
+            permissions
+                .iter()
+                .map(std::string::ToString::to_string)
+                .collect(),
+        )
         .with_auth_enforced_by(AuthEnforcedBy::Target)
         .with_route_attenuation(AttenuationConfig {
             capabilities: vec!["audit".into()],
@@ -599,7 +604,7 @@ async fn cap_gating_post_apply_through_cmf_dispatch() {
         on_error: OnError::Fail,
         capabilities: ["read_delegated_tokens", "read_subject"]
             .iter()
-            .map(|s| s.to_string())
+            .map(std::string::ToString::to_string)
             .collect(),
         tags: Vec::new(),
         conditions: Vec::new(),

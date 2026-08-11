@@ -262,7 +262,7 @@ fn parse_schema(text: &str) -> Result<Schema, BuildError> {
 fn read_yaml_string(map: &serde_yaml::Mapping, key: &str) -> Option<String> {
     map.get(serde_yaml::Value::String(key.to_owned()))?
         .as_str()
-        .map(|s| s.to_owned())
+        .map(std::borrow::ToOwned::to_owned)
 }
 
 /// Build the principal `EntityUid` for the Cedar request. Returns the

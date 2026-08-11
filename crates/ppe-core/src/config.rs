@@ -228,7 +228,11 @@ impl PluginRouteRef {
     pub fn name(&self) -> &str {
         match self {
             Self::Name(name) => name,
-            Self::WithOverrides(map) => map.keys().next().map(|s| s.as_str()).unwrap_or(""),
+            Self::WithOverrides(map) => map
+                .keys()
+                .next()
+                .map(std::string::String::as_str)
+                .unwrap_or(""),
         }
     }
 

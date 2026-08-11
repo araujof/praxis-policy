@@ -241,5 +241,5 @@ fn collect_claims(bag: &AttributeBag) -> Map<String, Value> {
 fn yaml_string(map: &serde_yaml::Mapping, key: &str) -> Option<String> {
     map.get(serde_yaml::Value::String(key.to_owned()))?
         .as_str()
-        .map(|s| s.to_owned())
+        .map(std::borrow::ToOwned::to_owned)
 }

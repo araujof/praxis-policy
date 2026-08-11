@@ -188,7 +188,10 @@ impl AplConfigVisitor {
     /// `PdpRouter`; the first registration per dialect wins (matches
     /// `PdpRouter::register` semantics).
     pub fn register_pdp(&self, resolver: Arc<dyn PdpResolver>) {
-        let mut state = self.state.write().unwrap_or_else(|p| p.into_inner());
+        let mut state = self
+            .state
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         state.pdp_router.register(resolver);
     }
 
@@ -202,7 +205,7 @@ impl AplConfigVisitor {
         let mut slot = self
             .attribute_tree
             .write()
-            .unwrap_or_else(|p| p.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         *slot = Arc::new(tree);
     }
 
@@ -252,7 +255,7 @@ impl AplConfigVisitor {
         *self
             .session_store
             .write()
-            .unwrap_or_else(|p| p.into_inner()) = store;
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = store;
         Ok(())
     }
 
@@ -274,7 +277,7 @@ impl AplConfigVisitor {
             let current = self
                 .attribute_tree
                 .read()
-                .unwrap_or_else(|p| p.into_inner());
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             if !current.is_empty() {
                 tracing::info!(
                     "global.apl.attribute_files present but an attribute tree was already \
@@ -302,7 +305,7 @@ impl AplConfigVisitor {
         *self
             .attribute_tree
             .write()
-            .unwrap_or_else(|p| p.into_inner()) = Arc::new(tree);
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Arc::new(tree);
         Ok(())
     }
 
@@ -344,7 +347,10 @@ impl AplConfigVisitor {
         let resolver = factory
             .build(entry)
             .map_err(|e| format!("global.apl.pdp[{index}] (kind='{kind}') failed to build: {e}"))?;
-        let mut state = self.state.write().unwrap_or_else(|p| p.into_inner());
+        let mut state = self
+            .state
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         state.pdp_router.register(resolver);
         Ok(())
     }
@@ -363,7 +369,10 @@ impl AplConfigVisitor {
         Arc<dyn SessionStore>,
     ) {
         let (plugin_registry, pdp_router_arc) = {
-            let state = self.state.read().unwrap_or_else(|p| p.into_inner());
+            let state = self
+                .state
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             (
                 Arc::new(state.plugin_registry.clone()),
                 Arc::new(state.pdp_router.clone()),
@@ -372,7 +381,7 @@ impl AplConfigVisitor {
         let session_store = self
             .session_store
             .read()
-            .unwrap_or_else(|p| p.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
         (plugin_registry, pdp_router_arc, session_store)
     }
@@ -408,7 +417,7 @@ fn default_base_capabilities() -> std::collections::HashSet<String> {
         "read_meta",
     ]
     .iter()
-    .map(|s| s.to_string())
+    .map(std::string::ToString::to_string)
     .collect()
 }
 
@@ -428,7 +437,10 @@ impl ConfigVisitor for AplConfigVisitor {
         // `config` is wrapped in `serde_yaml::Value::Mapping` to match
         // praxis-policy-apl-core's opaque shape. praxis-policy-core has already validated
         // uniqueness by this point so we don't re-check.
-        let mut state = self.state.write().unwrap_or_else(|p| p.into_inner());
+        let mut state = self
+            .state
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         state.plugin_registry.clear();
         for cfg in plugins {
             let decl = PluginDeclaration {
@@ -528,7 +540,7 @@ impl ConfigVisitor for AplConfigVisitor {
             let attribute_tree = self
                 .attribute_tree
                 .read()
-                .unwrap_or_else(|p| p.into_inner())
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .clone();
             // `read_headers` (for `http.*`) is granted to every synthetic policy
             // handler in `install_handler`, so the baseline is passed as-is here.
@@ -552,7 +564,7 @@ impl ConfigVisitor for AplConfigVisitor {
 
         self.state
             .write()
-            .unwrap_or_else(|p| p.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .global_layer = Some(compiled);
         Ok(())
     }
@@ -574,7 +586,7 @@ impl ConfigVisitor for AplConfigVisitor {
             .map_err(|e| -> VisitorError { Box::new(e) })?;
         self.state
             .write()
-            .unwrap_or_else(|p| p.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .default_layers
             .insert(entity_type.to_owned(), compiled);
         Ok(())
@@ -597,7 +609,7 @@ impl ConfigVisitor for AplConfigVisitor {
             .map_err(|e| -> VisitorError { Box::new(e) })?;
         self.state
             .write()
-            .unwrap_or_else(|p| p.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .tag_layers
             .insert(tag.to_owned(), compiled);
         Ok(())
@@ -658,7 +670,10 @@ impl ConfigVisitor for AplConfigVisitor {
                 Some(s) => format!("{entity_type}:{entity_name}@{s}"),
                 None => format!("{entity_type}:{entity_name}"),
             };
-            let state = self.state.read().unwrap_or_else(|p| p.into_inner());
+            let state = self
+                .state
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
 
             // Stack least-to-most-specific. Each apply_layer call appends
             // policy/post_policy steps and merges args/result/plugin_overrides
@@ -756,7 +771,7 @@ impl ConfigVisitor for AplConfigVisitor {
             let attribute_tree = self
                 .attribute_tree
                 .read()
-                .unwrap_or_else(|p| p.into_inner())
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .clone();
 
             // Install Pre + Post handlers. Each handler instance is bound to

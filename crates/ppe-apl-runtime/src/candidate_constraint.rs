@@ -157,7 +157,7 @@ mod tests {
         CandidateConstraint::default()
     }
     fn strs(items: &[&str]) -> Vec<String> {
-        items.iter().map(|s| s.to_string()).collect()
+        items.iter().map(std::string::ToString::to_string).collect()
     }
     fn fold(cs: &[CandidateConstraint]) -> CandidateConstraintExtension {
         fold_candidate_constraints(cs).unwrap().unwrap()

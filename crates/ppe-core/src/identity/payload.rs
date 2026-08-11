@@ -75,10 +75,11 @@ use crate::impl_plugin_payload;
 /// resolver ignores `Bearer` payloads). `Custom(String)` is the
 /// escape hatch for bespoke wire formats.
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum TokenSource {
     /// `Authorization: Bearer <jwt>` style.
+    #[default]
     Bearer,
     /// `X-User-Token` style — explicit user-identity header alongside
     /// a separate gateway-access token in `Authorization`.
@@ -94,12 +95,6 @@ pub enum TokenSource {
     /// Operator-defined extraction path.
     #[serde(untagged)]
     Custom(String),
-}
-
-impl Default for TokenSource {
-    fn default() -> Self {
-        TokenSource::Bearer
-    }
 }
 
 /// State threaded through the IdentityResolve hook chain.

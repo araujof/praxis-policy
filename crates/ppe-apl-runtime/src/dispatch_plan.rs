@@ -518,7 +518,10 @@ impl DispatchCache {
     ) -> Arc<RouteDispatchPlan> {
         let current_gen = manager.config_generation();
         {
-            let r = self.inner.read().unwrap_or_else(|p| p.into_inner());
+            let r = self
+                .inner
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             if let Some((stored_gen, plan)) = r.get(&route.route_key) {
                 if *stored_gen == current_gen {
                     return Arc::clone(plan);
@@ -526,7 +529,10 @@ impl DispatchCache {
             }
         }
         let plan = Arc::new(RouteDispatchPlan::build(route, registry, manager).await);
-        let mut w = self.inner.write().unwrap_or_else(|p| p.into_inner());
+        let mut w = self
+            .inner
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         w.insert(route.route_key.clone(), (current_gen, Arc::clone(&plan)));
         plan
     }

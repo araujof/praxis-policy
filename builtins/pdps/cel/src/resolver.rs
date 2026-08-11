@@ -268,7 +268,7 @@ impl CelResolver {
         if let Some(program) = self
             .cache
             .read()
-            .unwrap_or_else(|p| p.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .get(expr)
         {
             return Ok(Arc::clone(program));
@@ -281,7 +281,10 @@ impl CelResolver {
         // cap. Only the logging moves out, since emitting a warning is not part
         // of the invariant.
         let rejected = {
-            let mut cache = self.cache.write().unwrap_or_else(|p| p.into_inner());
+            let mut cache = self
+                .cache
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             if cache.len() >= self.max_cache_entries && !cache.contains_key(expr) {
                 true
             } else {
@@ -520,7 +523,7 @@ fn bag_namespace_present(bag: &AttributeBag, name: &str) -> bool {
 fn read_yaml_string(map: &serde_yaml::Mapping, key: &str) -> Option<String> {
     map.get(serde_yaml::Value::String(key.to_owned()))?
         .as_str()
-        .map(|s| s.to_owned())
+        .map(std::borrow::ToOwned::to_owned)
 }
 
 #[cfg(test)]

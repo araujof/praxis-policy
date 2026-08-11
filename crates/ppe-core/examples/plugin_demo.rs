@@ -144,7 +144,7 @@ impl HookHandler<ToolPreInvoke> for PiiGuard {
         // Check if the user has PII clearance (simulated via context)
         let has_clearance = ctx
             .get_global("pii_clearance")
-            .and_then(|v| v.as_bool())
+            .and_then(serde_json::Value::as_bool)
             .unwrap_or(false);
 
         if !has_clearance {
@@ -247,7 +247,11 @@ impl Plugin for RemoteAuthz {
     async fn initialize(&self) -> Result<(), Box<PluginError>> {
         tokio::time::sleep(std::time::Duration::from_millis(2)).await;
         let mut acl = self.allowed_users.write().await;
-        acl.extend(["alice", "bob"].iter().map(|s| s.to_string()));
+        acl.extend(
+            ["alice", "bob"]
+                .iter()
+                .map(std::string::ToString::to_string),
+        );
         println!(
             "  [remote-authz] initialized — ACL cached ({} users)",
             acl.len()
@@ -386,7 +390,7 @@ fn make_tool_extensions(tool_name: &str, tags: &[&str]) -> Extensions {
         meta: Some(Arc::new(MetaExtension {
             entity_type: Some("tool".into()),
             entity_name: Some(tool_name.into()),
-            tags: tags.iter().map(|s| s.to_string()).collect(),
+            tags: tags.iter().map(std::string::ToString::to_string).collect(),
             ..Default::default()
         })),
         ..Default::default()

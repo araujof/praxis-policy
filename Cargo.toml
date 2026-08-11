@@ -315,13 +315,13 @@ missing_docs_in_private_items = "allow"     # parked: docs, 239
 missing_errors_doc = "allow"                # parked: docs, 60
 missing_panics_doc = "allow"                # parked: docs, 1
 uninlined_format_args = "deny"
-redundant_closure_for_method_calls = "allow"# parked: style, 52
+redundant_closure_for_method_calls = "deny"
 manual_let_else = "allow"                   # parked: style, 22
 return_self_not_must_use = "allow"          # parked: api, 40
 items_after_statements = "allow"            # parked: style, 6
 map_unwrap_or = "allow"                     # parked: style, 16
 match_same_arms = "allow"                   # parked: style, 37
-explicit_iter_loop = "allow"                # parked: style, 8
+explicit_iter_loop = "deny"
 unnested_or_patterns = "allow"              # parked: style, 5
 needless_continue = "allow"                 # parked: style, 5
 assigning_clones = "allow"                  # parked: perf, 5
@@ -380,14 +380,14 @@ print_stderr = "deny"
 unreachable = "deny"
 get_unwrap = "deny"
 # Style, parked to keep the import free of mechanical churn.
-derivable_impls = "allow"                   # parked: style, 3
+derivable_impls = "deny"
 doc_lazy_continuation = "allow"             # parked: docs, 6
 doc_overindented_list_items = "allow"       # parked: docs, 5
 extra_unused_type_parameters = "allow"      # parked: hygiene, 1
 field_reassign_with_default = "allow"       # parked: style, 0 production (36 in tests)
 large_enum_variant = "allow"                # parked: perf, 1
 let_underscore_must_use = "allow"           # parked: hygiene, 1
-manual_repeat_n = "allow"                   # parked: perf, 1
+manual_repeat_n = "deny"
 rc_buffer = "allow"                         # parked: perf, 1
 # Style rather than correctness, and it needs a judgment call per site. The
 # scopes where tightening removed a real hazard are closed: the plugin factory
@@ -396,12 +396,12 @@ rc_buffer = "allow"                         # parked: perf, 1
 # a synchronous call on purpose and say so, and `await_holding_lock` above
 # already denies the case that actually deadlocks.
 significant_drop_tightening = "allow"       # parked: concurrency, 9
-unnecessary_map_or = "allow"                # parked: style, 6
-unwrap_or_default = "allow"                 # parked: style, 2
+unnecessary_map_or = "deny"
+unwrap_or_default = "deny"
 useless_vec = "allow"                       # parked: perf, 0 production (6 in tests)
 bool_comparison = "allow"                   # parked: style, 0 production (1 in tests)
 collapsible_match = "allow"                 # parked: style, 1
-iter_kv_map = "allow"                       # parked: style, 1
+iter_kv_map = "deny"
 empty_line_after_doc_comments = "allow"     # parked: docs, 0 production (1 in tests)
 collapsible_if = "allow"                    # parked: style, 35, edition 2024
 

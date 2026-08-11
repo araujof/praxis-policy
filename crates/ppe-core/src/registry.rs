@@ -418,7 +418,7 @@ impl PluginRegistry {
     pub fn entries_for_hook(&self, hook_type: &HookType) -> &[HookEntry] {
         self.hook_index
             .get(hook_type)
-            .map(|v| v.as_slice())
+            .map(std::vec::Vec::as_slice)
             .unwrap_or(&[])
     }
 

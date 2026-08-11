@@ -81,7 +81,12 @@ fn build_payload(target: &str, audience: &str, scopes: &[&str]) -> DelegationPay
     DelegationPayload::new("caller-bearer-token-bytes", target)
         .with_target_type(TargetType::Tool)
         .with_target_audience(audience)
-        .with_required_permissions(scopes.iter().map(|s| s.to_string()).collect())
+        .with_required_permissions(
+            scopes
+                .iter()
+                .map(std::string::ToString::to_string)
+                .collect(),
+        )
         .with_auth_enforced_by(AuthEnforcedBy::Target)
         .with_route_attenuation(AttenuationConfig {
             capabilities: vec!["audit".into()],

@@ -177,7 +177,7 @@ fn delegate_cfg_with_caps(name: &str, caps: &[&str]) -> PluginConfig {
         mode: PluginMode::Sequential,
         priority: 10,
         on_error: OnError::Fail,
-        capabilities: caps.iter().map(|s| s.to_string()).collect(),
+        capabilities: caps.iter().map(std::string::ToString::to_string).collect(),
         tags: Vec::new(),
         conditions: Vec::new(),
         config: None,

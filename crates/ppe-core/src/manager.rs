@@ -448,7 +448,7 @@ impl PluginManager {
     ) {
         self.factories
             .write()
-            .unwrap_or_else(|p| p.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .register(kind, factory);
     }
 
@@ -485,7 +485,10 @@ impl PluginManager {
         // We can't use mutate_runtime here because we need to atomically
         // ALSO build a new executor + new cache cap from the same config —
         // the snapshot fields are coupled.
-        let factories = self.factories.read().unwrap_or_else(|p| p.into_inner());
+        let factories = self
+            .factories
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let current = self.runtime.load_full();
         let mut new_registry = current.registry.clone();
 
@@ -514,7 +517,10 @@ impl PluginManager {
     /// matches registration order. Multiple visitors are allowed —
     /// they typically don't share state, so order rarely matters.
     pub fn register_visitor(&self, visitor: Arc<dyn crate::visitor::ConfigVisitor>) {
-        let mut v = self.visitors.write().unwrap_or_else(|p| p.into_inner());
+        let mut v = self
+            .visitors
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         v.push(visitor);
     }
 
@@ -574,7 +580,10 @@ impl PluginManager {
         // Visitor walk. No-op when no visitors registered — the common
         // case for hosts that don't use the orchestrator extension point.
         let visitors = {
-            let v = self.visitors.read().unwrap_or_else(|p| p.into_inner());
+            let v = self
+                .visitors
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             if v.is_empty() {
                 return Ok(());
             }
@@ -1381,7 +1390,7 @@ impl PluginManager {
             let cache = self
                 .route_cache
                 .read()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             if let Some((_, cached)) = cache.raw_entry().from_hash(hash, |key| {
                 key.entity_type == entity_type
                     && key.entity_name == entity_name
@@ -1456,7 +1465,7 @@ impl PluginManager {
             let mut cache = self
                 .route_cache
                 .write()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             if cache.len() >= snapshot.route_cache_max_entries {
                 !self.route_cache_full_warned.swap(true, Ordering::AcqRel)
             } else {
@@ -1596,7 +1605,10 @@ impl PluginManager {
         // host-supplied code and may re-enter the manager; taking the write side
         // while this thread still held a read guard would deadlock.
         let factory = {
-            let factories = self.factories.read().unwrap_or_else(|p| p.into_inner());
+            let factories = self
+                .factories
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             match factories.get(&kind) {
                 Some(f) => f,
                 None => {
@@ -1711,7 +1723,10 @@ impl PluginManager {
         let target_hook = base_entry.handler.hook_type_name();
         // Lock released before `create`, which runs host-supplied factory code.
         let factory = {
-            let factories = self.factories.read().unwrap_or_else(|p| p.into_inner());
+            let factories = self
+                .factories
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             match factories.get(kind) {
                 Some(f) => f,
                 None => return None,
@@ -1780,7 +1795,7 @@ impl PluginManager {
             let mut cache = self
                 .route_cache
                 .write()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             cache.clear();
         }
         // Outside the guard: the latch is an independent atomic and there is no
@@ -1792,7 +1807,7 @@ impl PluginManager {
     pub fn routing_cache_size(&self) -> usize {
         self.route_cache
             .read()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .len()
     }
 
@@ -3508,7 +3523,7 @@ mod tests {
             ) -> Result<Box<dyn std::any::Any + Send + Sync>, Box<PluginError>> {
                 let count = ctx
                     .get_local("call_count")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or(0);
                 ctx.set_local("call_count", serde_json::Value::from(count + 1));
                 let result: PluginResult<TestPayload> = PluginResult::allow();

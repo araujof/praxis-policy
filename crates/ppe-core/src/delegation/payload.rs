@@ -59,9 +59,7 @@ use zeroize::Zeroizing;
 
 use crate::executor::PipelineResult;
 use crate::extensions::raw_credentials::{DelegationMode, TokenRole};
-use crate::extensions::{
-    DelegationExtension, Extensions, RawCredentialsExtension, RawDelegatedToken,
-};
+use crate::extensions::{DelegationExtension, Extensions, RawDelegatedToken};
 use crate::impl_plugin_payload;
 
 /// Which principal a delegation exchange is *for* — the party whose
@@ -146,10 +144,11 @@ impl DelegationSubject {
 /// `Custom(String)` is the escape hatch for host-defined entity
 /// types beyond the well-known shapes.
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum TargetType {
     /// A tool invocation (MCP tool, function call).
+    #[default]
     Tool,
     /// An agent — another LLM-driven actor.
     Agent,
@@ -162,24 +161,19 @@ pub enum TargetType {
     Custom(String),
 }
 
-impl Default for TargetType {
-    fn default() -> Self {
-        TargetType::Tool
-    }
-}
-
 /// Who's responsible for enforcing authorization on the downstream
 /// call. From the `ObjectSecurityProfile` of the target. Determines
 /// whether the gateway brokers credentials (`Caller`), trusts the
 /// target to handle auth itself (`Target`), or both layers enforce
 /// (`Both`).
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthEnforcedBy {
     /// Caller (the gateway / our process) enforces — typical for
     /// internal services that trust the gateway's authorization
     /// decision.
+    #[default]
     Caller,
     /// Target enforces — typical for external services with their
     /// own access control. We may still attach credentials but the
@@ -187,12 +181,6 @@ pub enum AuthEnforcedBy {
     Target,
     /// Both layers enforce — defense in depth.
     Both,
-}
-
-impl Default for AuthEnforcedBy {
-    fn default() -> Self {
-        AuthEnforcedBy::Caller
-    }
 }
 
 /// Scope-attenuation config carried from the route DSL. Lets the
@@ -652,7 +640,7 @@ impl DelegationPayload {
                 .raw_credentials
                 .as_ref()
                 .map(|arc| (**arc).clone())
-                .unwrap_or_else(RawCredentialsExtension::default);
+                .unwrap_or_default();
             raw.delegated_tokens.insert(key, token.clone());
             ext.raw_credentials = Some(Arc::new(raw));
         }
@@ -684,6 +672,7 @@ impl_plugin_payload!(DelegationPayload);
 )]
 mod tests {
     use super::*;
+    use crate::extensions::RawCredentialsExtension;
     use crate::extensions::raw_credentials::RawDelegatedToken;
 
     #[test]

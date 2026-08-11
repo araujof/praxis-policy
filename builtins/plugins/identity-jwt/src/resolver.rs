@@ -54,9 +54,7 @@ use serde_json::Value;
 
 use praxis_policy_core::context::PluginContext;
 use praxis_policy_core::error::{PluginError, PluginViolation};
-use praxis_policy_core::extensions::raw_credentials::{
-    RawCredentialsExtension, RawInboundToken, TokenKind, TokenRole,
-};
+use praxis_policy_core::extensions::raw_credentials::{RawInboundToken, TokenKind, TokenRole};
 use praxis_policy_core::hooks::payload::Extensions;
 use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
 use praxis_policy_core::identity::{IdentityHook, IdentityPayload};
@@ -310,7 +308,7 @@ impl Plugin for JwtIdentityResolver {
         let mut issuers = self
             .trusted_issuers
             .write()
-            .unwrap_or_else(|p| p.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let mut new_tasks: Vec<tokio::task::JoinHandle<()>> = Vec::new();
 
         for (cfg, outcome) in resolved {
@@ -401,7 +399,10 @@ impl Plugin for JwtIdentityResolver {
         // Park the handles so Drop can abort them. Held under a
         // std::sync::Mutex because the resolver's outer methods are
         // a mix of sync and async; we don't await while holding it.
-        let mut tasks = self.refresh_tasks.lock().unwrap_or_else(|p| p.into_inner());
+        let mut tasks = self
+            .refresh_tasks
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         tasks.extend(new_tasks);
 
         Ok(())
@@ -461,7 +462,7 @@ impl HookHandler<IdentityHook> for JwtIdentityResolver {
         let issuers = self
             .trusted_issuers
             .read()
-            .unwrap_or_else(|p| p.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let issuer = match issuers.iter().find(|i| i.issuer == iss) {
             Some(i) => i,
             None => {
@@ -590,10 +591,7 @@ impl HookHandler<IdentityHook> for JwtIdentityResolver {
             TokenRole::CallerWorkload => TokenKind::SpiffeJwt,
             _ => TokenKind::Jwt,
         };
-        let mut raw_creds = updated
-            .raw_credentials
-            .clone()
-            .unwrap_or_else(RawCredentialsExtension::default);
+        let mut raw_creds = updated.raw_credentials.clone().unwrap_or_default();
         raw_creds.inbound_tokens.insert(
             self.role.clone(),
             RawInboundToken::new(raw_token, self.header.clone(), kind),
@@ -703,7 +701,7 @@ fn validate_token(
     let keys = issuer
         .keys
         .read()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
 
     if keys.is_empty() {
         return Err(ValidateError::KeysUnavailable);

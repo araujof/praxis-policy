@@ -140,7 +140,10 @@ impl PluginFactoryRegistry {
 
     /// All registered kind names.
     pub fn kinds(&self) -> Vec<&str> {
-        self.factories.keys().map(|s| s.as_str()).collect()
+        self.factories
+            .keys()
+            .map(std::string::String::as_str)
+            .collect()
     }
 }
 

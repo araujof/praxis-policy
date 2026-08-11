@@ -1530,7 +1530,7 @@ fn parse_when_do_rule(m: &serde_yaml::Mapping, source: &str) -> Result<Step, Par
     // beyond `when:` / `do:` (e.g. typo'd `whens:`). `id:` is reserved
     // for a future rule-identifier extension; tolerate it as a
     // pass-through for now.
-    for (k, _) in m.iter() {
+    for (k, _) in m {
         let key = k.as_str().unwrap_or("");
         if !matches!(key, "when" | "do" | "id") {
             return Err(ParseError::Rule {
@@ -1745,7 +1745,7 @@ fn parse_restrict_spec(
 
     let mut spec = RestrictSpec::default();
 
-    for (k, v) in body.iter() {
+    for (k, v) in body {
         let key = k.as_str().ok_or_else(|| ParseError::Rule {
             rule: source.to_owned(),
             msg: "`restrict:` field keys must be strings".to_owned(),
@@ -3864,7 +3864,7 @@ sequential:
     /// A literal `StringSetSpec` for terse assertions.
     fn lit(items: &[&str]) -> Option<crate::constraint::StringSetSpec> {
         Some(crate::constraint::StringSetSpec::Literal(
-            items.iter().map(|s| s.to_string()).collect(),
+            items.iter().map(std::string::ToString::to_string).collect(),
         ))
     }
 

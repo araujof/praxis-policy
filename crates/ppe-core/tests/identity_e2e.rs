@@ -645,7 +645,7 @@ async fn cap_gating_post_apply_through_cmf_dispatch() {
         on_error: OnError::Fail,
         capabilities: ["read_inbound_credentials", "read_subject"]
             .iter()
-            .map(|s| s.to_string())
+            .map(std::string::ToString::to_string)
             .collect(),
         tags: Vec::new(),
         conditions: Vec::new(),

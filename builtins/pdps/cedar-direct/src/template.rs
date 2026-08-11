@@ -263,12 +263,12 @@ count: ${args.count}
         let map = resolved.as_mapping().unwrap();
         assert_eq!(
             map.get(serde_yaml::Value::String("flag".into()))
-                .and_then(|v| v.as_bool()),
+                .and_then(serde_yaml::Value::as_bool),
             Some(true)
         );
         assert_eq!(
             map.get(serde_yaml::Value::String("count".into()))
-                .and_then(|v| v.as_i64()),
+                .and_then(serde_yaml::Value::as_i64),
             Some(42)
         );
     }

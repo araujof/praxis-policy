@@ -616,7 +616,7 @@ fn jwt_payload_omits_act(access_token: &str) -> bool {
     };
     // Treat both a missing `act` and an explicit `"act": null` as absent —
     // a null claim records no actor.
-    claims.is_object() && claims.get("act").map_or(true, serde_json::Value::is_null)
+    claims.is_object() && claims.get("act").is_none_or(serde_json::Value::is_null)
 }
 
 // Silence unused-import warning when only a subset of these is

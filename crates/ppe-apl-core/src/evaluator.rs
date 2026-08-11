@@ -1039,7 +1039,7 @@ fn dispatch_parallel<'a>(
             Vec<crate::constraint::CandidateConstraint>,
         );
         let mut branches: Vec<ErasedBranch<BranchResult>> = Vec::with_capacity(effects.len());
-        for effect in effects.iter() {
+        for effect in effects {
             let effect = effect.clone();
             let fallback = fallback_source.to_owned();
             let mut branch_bag = bag.clone();
@@ -1320,7 +1320,7 @@ pub async fn evaluate_pipeline(
                     };
                 };
                 let len = s.chars().count();
-                if min.map_or(false, |m| len < m) || max.map_or(false, |m| len > m) {
+                if min.is_some_and(|m| len < m) || max.is_some_and(|m| len > m) {
                     return PipelineEvaluation {
                         outcome: FieldOutcome::Deny {
                             reason: format!("length {len} outside [{min:?}, {max:?}]"),
@@ -1343,7 +1343,7 @@ pub async fn evaluate_pipeline(
                         taints,
                     };
                 };
-                if min.map_or(false, |m| n < m) || max.map_or(false, |m| n > m) {
+                if min.is_some_and(|m| n < m) || max.is_some_and(|m| n > m) {
                     return PipelineEvaluation {
                         outcome: FieldOutcome::Deny {
                             reason: format!("value {n} outside [{min:?}, {max:?}]"),
@@ -1448,8 +1448,7 @@ pub async fn evaluate_pipeline(
                 let chars: Vec<char> = s.chars().collect();
                 let keep = (*keep_last).min(chars.len());
                 let mask_count = chars.len() - keep;
-                let masked: String = std::iter::repeat('*')
-                    .take(mask_count)
+                let masked: String = std::iter::repeat_n('*', mask_count)
                     .chain(chars.into_iter().skip(mask_count))
                     .collect();
                 current = serde_json::Value::String(masked);
@@ -1577,11 +1576,11 @@ fn type_check(tc: &TypeCheck, v: &serde_json::Value) -> bool {
         TypeCheck::Float => v.is_f64() || v.is_i64(),
         TypeCheck::Email => v
             .as_str()
-            .map_or(false, |s| s.contains('@') && s.contains('.')),
-        TypeCheck::Url => v.as_str().map_or(false, |s| {
-            s.starts_with("http://") || s.starts_with("https://")
-        }),
-        TypeCheck::Uuid => v.as_str().map_or(false, is_uuid_shape),
+            .is_some_and(|s| s.contains('@') && s.contains('.')),
+        TypeCheck::Url => v
+            .as_str()
+            .is_some_and(|s| s.starts_with("http://") || s.starts_with("https://")),
+        TypeCheck::Uuid => v.as_str().is_some_and(is_uuid_shape),
     }
 }
 
@@ -1735,10 +1734,10 @@ mod tests {
             channel: Some("ciba".into()),
             from: "user.manager".into(),
             purpose: Some("approve payroll adjustment".into()),
-            scope: scope.map(|s| s.to_owned()),
+            scope: scope.map(std::borrow::ToOwned::to_owned),
             timeout: None,
             config_override: None,
-            on_error: on_error.map(|s| s.to_owned()),
+            on_error: on_error.map(std::borrow::ToOwned::to_owned),
             source: "route.test.policy[0]".into(),
         })
     }
@@ -3470,7 +3469,10 @@ mod tests {
         Effect::Restrict {
             spec: RestrictSpec {
                 allow_regions: Some(StringSetSpec::Literal(
-                    regions.iter().map(|s| s.to_string()).collect(),
+                    regions
+                        .iter()
+                        .map(std::string::ToString::to_string)
+                        .collect(),
                 )),
                 ..Default::default()
             },
@@ -3652,7 +3654,10 @@ mod tests {
         Effect::Restrict {
             spec: RestrictSpec {
                 deny_models: Some(StringSetSpec::Literal(
-                    models.iter().map(|s| s.to_string()).collect(),
+                    models
+                        .iter()
+                        .map(std::string::ToString::to_string)
+                        .collect(),
                 )),
                 ..Default::default()
             },

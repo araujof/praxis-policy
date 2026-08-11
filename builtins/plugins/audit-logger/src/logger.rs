@@ -129,8 +129,8 @@ impl AuditLogger {
             if !raw.delegated_tokens.is_empty() {
                 let tokens: Vec<Value> = raw
                     .delegated_tokens
-                    .iter()
-                    .map(|(_key, tok)| {
+                    .values()
+                    .map(|tok| {
                         json!({
                             "audience": tok.audience,
                             "scopes": tok.scopes,

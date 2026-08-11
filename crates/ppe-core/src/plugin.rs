@@ -232,7 +232,7 @@ impl PluginConfig {
             .as_ref()
             .and_then(|s| s.subject.as_ref())
             .and_then(|sub| sub.claims.get("tenant"))
-            .map(|s| s.as_str());
+            .map(std::string::String::as_str);
         let entity_name = extensions
             .meta
             .as_ref()
