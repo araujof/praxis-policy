@@ -206,8 +206,11 @@ impl<'a> Lexer<'a> {
         if self.peek() != Some(quote) {
             return Err(self.err("unterminated string literal"));
         }
-        let s = std::str::from_utf8(&self.bytes[start..self.pos])
-            .map_err(|_| self.err("non-utf8 in string literal"))?
+        let s = self
+            .bytes
+            .get(start..self.pos)
+            .and_then(|b| std::str::from_utf8(b).ok())
+            .ok_or_else(|| self.err("non-utf8 in string literal"))?
             .to_string();
         self.bump(); // closing quote
         Ok(Tok::StringLit(s))
@@ -237,7 +240,10 @@ impl<'a> Lexer<'a> {
                 }
             }
         }
-        let text = &self.src[start..self.pos];
+        let text = self
+            .src
+            .get(start..self.pos)
+            .ok_or_else(|| self.err("bad numeric literal bounds"))?;
         if is_float {
             text.parse::<f64>()
                 .map(Tok::FloatLit)
@@ -287,7 +293,10 @@ impl<'a> Lexer<'a> {
                 break;
             }
         }
-        let s = &self.src[start..self.pos];
+        let s = self
+            .src
+            .get(start..self.pos)
+            .ok_or_else(|| self.err("bad identifier bounds"))?;
         // A path with an interpolation group is never a keyword.
         if has_bracket {
             return Ok(Tok::Ident(s.to_string()));
@@ -336,7 +345,7 @@ impl<'a> PredParser<'a> {
         if p.pos < p.toks.len() {
             return Err(p.err(&format!(
                 "trailing tokens after expression: {:?}",
-                &p.toks[p.pos..]
+                p.toks.get(p.pos..).unwrap_or(&[])
             )));
         }
         Ok(expr)
@@ -358,29 +367,35 @@ impl<'a> PredParser<'a> {
     }
 
     fn parse_or(&mut self) -> Result<Expression, ParseError> {
-        let mut parts = vec![self.parse_and()?];
+        let first = self.parse_and()?;
+        let mut rest = Vec::new();
         while matches!(self.peek(), Some(Tok::Or)) {
             self.bump();
-            parts.push(self.parse_and()?);
+            rest.push(self.parse_and()?);
         }
-        Ok(if parts.len() == 1 {
-            parts.pop().expect("parts.len() == 1 was checked above")
-        } else {
-            Expression::Or(parts)
-        })
+        if rest.is_empty() {
+            return Ok(first);
+        }
+        let mut parts = Vec::with_capacity(rest.len() + 1);
+        parts.push(first);
+        parts.append(&mut rest);
+        Ok(Expression::Or(parts))
     }
 
     fn parse_and(&mut self) -> Result<Expression, ParseError> {
-        let mut parts = vec![self.parse_unary()?];
+        let first = self.parse_unary()?;
+        let mut rest = Vec::new();
         while matches!(self.peek(), Some(Tok::And)) {
             self.bump();
-            parts.push(self.parse_unary()?);
+            rest.push(self.parse_unary()?);
         }
-        Ok(if parts.len() == 1 {
-            parts.pop().expect("parts.len() == 1 was checked above")
-        } else {
-            Expression::And(parts)
-        })
+        if rest.is_empty() {
+            return Ok(first);
+        }
+        let mut parts = Vec::with_capacity(rest.len() + 1);
+        parts.push(first);
+        parts.append(&mut rest);
+        Ok(Expression::And(parts))
     }
 
     fn parse_unary(&mut self) -> Result<Expression, ParseError> {
@@ -453,7 +468,8 @@ impl<'a> PredParser<'a> {
     fn parse_identifier_predicate(&mut self) -> Result<Expression, ParseError> {
         let key = match self.bump() {
             Some(Tok::Ident(s)) => s,
-            _ => unreachable!("parse_atom dispatched here"),
+            // Unreachable: parse_atom only dispatches here on a leading Ident.
+            _ => return Err(self.err("expected an identifier at the start of a predicate")),
         };
 
         // `in` and `not in` — two-key set membership.
@@ -699,15 +715,15 @@ fn parse_require_rule(line: &str) -> Result<Expression, ParseError> {
         ));
     }
 
-    let falses: Vec<Expression> = keys
+    let mut falses: Vec<Expression> = keys
         .into_iter()
         .map(|k| Expression::Condition(Condition::IsFalse { key: k }))
         .collect();
+    // Single key: yield the condition itself rather than a one-element group.
     if falses.len() == 1 {
-        return Ok(falses
-            .into_iter()
-            .next()
-            .expect("falses.len() == 1 was checked above"));
+        if let Some(only) = falses.pop() {
+            return Ok(only);
+        }
     }
     Ok(match sep {
         Some(Tok::Or) => Expression::And(falses), // require(X | Y) → !X & !Y
@@ -839,10 +855,8 @@ fn try_parse_deny_call(s: &str, rule: &str) -> Result<Option<Effect>, ParseError
 /// double quotes too so YAML escaping is forgiving.
 fn strip_string_literal(s: &str, rule: &str) -> Result<String, ParseError> {
     let s = s.trim();
-    if (s.starts_with('\'') && s.ends_with('\'') && s.len() >= 2)
-        || (s.starts_with('"') && s.ends_with('"') && s.len() >= 2)
-    {
-        Ok(s[1..s.len() - 1].to_string())
+    if let Some(inner) = unwrap_quotes(s) {
+        Ok(inner.to_string())
     } else {
         Err(ParseError::Rule {
             rule: rule.to_string(),
@@ -888,7 +902,10 @@ fn parse_step_string(line: &str, source: &str) -> Result<Step, ParseError> {
         if let Stage::Taint { label, scopes } = taint_stage {
             return Ok(Step::Taint { label, scopes });
         }
-        unreachable!("parse_taint always returns Stage::Taint");
+        return Err(ParseError::Rule {
+            rule: trimmed.to_string(),
+            msg: "internal: `taint(...)` did not produce a taint stage".into(),
+        });
     }
 
     // plugin(name) / run(name) — invoke a named plugin. `run` is an
@@ -1324,12 +1341,8 @@ fn parse_delegate_value(s: &str) -> Result<serde_yaml::Value, String> {
         return Ok(serde_yaml::Value::Sequence(out));
     }
     // Quoted string — strip the surrounding quotes.
-    if (trimmed.starts_with('"') && trimmed.ends_with('"') && trimmed.len() >= 2)
-        || (trimmed.starts_with('\'') && trimmed.ends_with('\'') && trimmed.len() >= 2)
-    {
-        return Ok(serde_yaml::Value::String(
-            trimmed[1..trimmed.len() - 1].to_string(),
-        ));
+    if let Some(inner) = unwrap_quotes(trimmed) {
+        return Ok(serde_yaml::Value::String(inner.to_string()));
     }
     // Bool literals.
     if trimmed == "true" {
@@ -1350,19 +1363,26 @@ fn parse_delegate_value(s: &str) -> Result<serde_yaml::Value, String> {
     Ok(serde_yaml::Value::String(trimmed.to_string()))
 }
 
+/// The inner text of a value wrapped in one matching pair of `"` or `'`.
+///
+/// `None` when the input is not wrapped that way, which deliberately includes a
+/// lone quote character. `"` both starts and ends with the same byte, so the
+/// hand-rolled `starts_with(q) && ends_with(q)` test accepts it and the
+/// follow-up `s[1..s.len() - 1]` slices from 1 to 0. Two callers were missing
+/// the length guard that made that safe, and `regex(")` or `enum(")` in a policy
+/// aborted the parser. Expressing the check as a strip pair cannot have that
+/// shape: a lone quote leaves nothing for the suffix strip to remove.
+fn unwrap_quotes(s: &str) -> Option<&str> {
+    ['"', '\'']
+        .into_iter()
+        .find_map(|q| s.strip_prefix(q).and_then(|rest| rest.strip_suffix(q)))
+}
+
 /// Strip a single pair of wrapping `"`/`'` if present. No-op on
 /// unquoted input. Used for the positional plugin name where the
 /// operator may have quoted to escape a hyphen or similar (`delegate("workday-oauth")`).
 fn strip_wrapping_quotes(s: &str) -> &str {
-    let bytes = s.as_bytes();
-    if bytes.len() >= 2 {
-        let first = bytes[0];
-        let last = bytes[bytes.len() - 1];
-        if (first == b'"' && last == b'"') || (first == b'\'' && last == b'\'') {
-            return &s[1..s.len() - 1];
-        }
-    }
-    s
+    unwrap_quotes(s).unwrap_or(s)
 }
 
 fn parse_step_map(m: &serde_yaml::Mapping, source: &str) -> Result<Step, ParseError> {
@@ -2398,13 +2418,7 @@ fn parse_stage_enum(a: &str, bad: &impl Fn(&str) -> ParseError) -> Result<Stage,
         .map(|v| {
             let t = v.trim();
             // Allow either bare identifier or quoted string.
-            if (t.starts_with('"') && t.ends_with('"'))
-                || (t.starts_with('\'') && t.ends_with('\''))
-            {
-                t[1..t.len() - 1].to_string()
-            } else {
-                t.to_string()
-            }
+            unwrap_quotes(t).unwrap_or(t).to_string()
         })
         .filter(|s| !s.is_empty())
         .collect::<Vec<_>>();
@@ -2416,14 +2430,9 @@ fn parse_stage_enum(a: &str, bad: &impl Fn(&str) -> ParseError) -> Result<Stage,
 
 fn parse_stage_regex(a: &str) -> Stage {
     let pattern = a.trim();
-    let pat = if (pattern.starts_with('"') && pattern.ends_with('"'))
-        || (pattern.starts_with('\'') && pattern.ends_with('\''))
-    {
-        pattern[1..pattern.len() - 1].to_string()
-    } else {
-        pattern.to_string()
-    };
-    Stage::Regex { pattern: pat }
+    Stage::Regex {
+        pattern: unwrap_quotes(pattern).unwrap_or(pattern).to_string(),
+    }
 }
 
 // Named-validator dispatch (`validate(name)`) is in the spec
@@ -5478,6 +5487,43 @@ routes:
         assert!(
             msg.contains("ssn_format"),
             "diagnostic should echo the rejected validator name: {msg}",
+        );
+    }
+
+    /// A lone quote character in a stage argument used to abort the parser:
+    /// `"` satisfies both `starts_with('"')` and `ends_with('"')`, and the
+    /// follow-up slice ran from 1 to 0. `parse_pipeline` is public and policy
+    /// text is operator input, so this was a reachable panic rather than a
+    /// theoretical one. Both stages must now parse, treating the quote as a
+    /// literal value.
+    #[test]
+    fn lone_quote_in_stage_argument_does_not_abort() {
+        let regex = parse_pipeline("str | regex(\")").expect("regex stage must parse");
+        assert_eq!(regex.stages.len(), 2);
+
+        let enumerated = parse_pipeline("str | enum(\")").expect("enum stage must parse");
+        assert_eq!(enumerated.stages.len(), 2);
+
+        // Single-quote form, and the two-quote empty-string form, which the
+        // length-guarded siblings already accepted.
+        parse_pipeline("str | regex(')").expect("single-quote regex must parse");
+        parse_pipeline("str | regex(\"\")").expect("empty quoted pattern must parse");
+    }
+
+    #[test]
+    fn quoted_and_bare_stage_arguments_agree_with_prior_behavior() {
+        // Guards the shared quote stripper against changing what it accepts.
+        let p = parse_pipeline("str | regex(\"^[A-Z]+$\")").expect("quoted pattern");
+        assert!(
+            format!("{:?}", p.stages).contains("^[A-Z]+$"),
+            "quotes must be stripped from the pattern: {:?}",
+            p.stages
+        );
+        let bare = parse_pipeline("str | regex(^[A-Z]+$)").expect("bare pattern");
+        assert!(
+            format!("{:?}", bare.stages).contains("^[A-Z]+$"),
+            "an unquoted pattern must survive unchanged: {:?}",
+            bare.stages
         );
     }
 
