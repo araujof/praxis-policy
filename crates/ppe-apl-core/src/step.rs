@@ -291,6 +291,7 @@ pub struct ElicitStep {
 /// schema on `args`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PdpCall {
+    /// Which decision point handles this call.
     pub dialect: PdpDialect,
     /// Dialect-specific call arguments — typically a map for Cedar
     /// (`action`, `resource`, …) or a string for OPA/AuthZen/NeMo
@@ -302,11 +303,15 @@ pub struct PdpCall {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
+/// Which decision point a `Pdp` step routes to.
 pub enum PdpDialect {
     /// Bare Cedar policy evaluation (`praxis-policy-pdp-cedar-direct`).
     Cedar,
+    /// Open Policy Agent, queried by path.
     Opa,
+    /// An `AuthZen` authorization endpoint.
     AuthZen,
+    /// `NeMo` Guardrails.
     NeMo,
     /// CEL (Common Expression Language) evaluation — `praxis-policy-pdp-cel`.
     /// The `cel:` step carries an `expr:` string that must evaluate to a
@@ -317,6 +322,7 @@ pub enum PdpDialect {
     /// `PdpRouter`. The canonical route-YAML form is the block map
     /// `cel: { expr: "..." }`; the `cel:(...)` call form is also accepted.
     Cel,
+    /// A host-registered dialect, named by its config key.
     #[serde(untagged)]
     Custom(String),
 }
@@ -348,6 +354,12 @@ pub trait PdpResolver: Send + Sync {
     /// to the resolver whose `dialect()` matches `Step::Pdp.call.dialect`.
     fn dialect(&self) -> PdpDialect;
 
+    /// Evaluate a call against the bag and return its decision.
+    ///
+    /// # Errors
+    ///
+    /// Returns `PdpError` when the call's arguments are malformed for this
+    /// dialect, or the backend cannot be reached.
     async fn evaluate(
         &self,
         call: &PdpCall,
@@ -405,7 +417,9 @@ pub trait PdpFactory: Send + Sync {
 /// finer than Pre/Post.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DispatchPhase {
+    /// Before the call, addressing arguments.
     Pre,
+    /// After the call, addressing the result.
     Post,
 }
 
@@ -426,7 +440,10 @@ pub enum DispatchPhase {
 pub enum PluginInvocation<'a> {
     /// Called from a `pre_invocation:` or `post_invocation:` step. The plugin operates
     /// on whatever typed payload the invoker was bound to.
-    Step { phase: DispatchPhase },
+    Step {
+        /// Which side of the call this dispatch is on.
+        phase: DispatchPhase,
+    },
     /// Called inside an `args:` / `result:` pipe chain on one field.
     Field {
         /// Dotted path to the field, relative to the args or result root
@@ -435,7 +452,9 @@ pub enum PluginInvocation<'a> {
         /// Every call site uses this convention, so an invoker can read
         /// the field back out of a payload without guessing.
         name: &'a str,
+        /// The field's current value.
         value: &'a serde_json::Value,
+        /// Which side of the call this dispatch is on.
         phase: DispatchPhase,
     },
 }
@@ -502,6 +521,7 @@ pub trait DelegationInvoker: Send + Sync {
 /// `delegation.granted` flag is not set (absent → falsy).
 #[derive(Debug, Clone)]
 pub struct DelegationOutcome {
+    /// Whether the exchange was permitted.
     pub decision: Decision,
     /// Permissions the `IdP` actually granted on the minted token. Empty
     /// when the call failed or the plugin returned no token.
@@ -527,11 +547,14 @@ impl DelegationOutcome {
 }
 
 #[derive(Debug, Error)]
+/// Why a delegation invocation could not complete.
 pub enum DelegationError {
     #[error("no delegation invoker available for plugin `{0}`")]
+    /// No handler is registered under the named plugin.
     NotFound(String),
 
     #[error("delegation dispatch failed: {0}")]
+    /// The handler was reached but failed.
     Dispatch(String),
 
     /// A delegation step key was present but held an invalid value — a
@@ -660,7 +683,10 @@ pub enum ElicitationStatus {
     Pending,
     /// The human responded. `outcome` carries approved/denied; the
     /// runtime still calls `validate` before honoring an `Approved`.
-    Resolved { outcome: ElicitationOutcome },
+    Resolved {
+        /// Whether the human approved or declined.
+        outcome: ElicitationOutcome,
+    },
     /// The elicitation timed out before a response — the runtime fails
     /// closed (subject to the step's `on_error`).
     Expired,
@@ -669,7 +695,9 @@ pub enum ElicitationStatus {
 /// The human's decision once an elicitation resolves.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ElicitationOutcome {
+    /// The human approved.
     Approved,
+    /// The human declined.
     Denied,
 }
 
@@ -729,8 +757,10 @@ pub struct PendingElicitation {
 }
 
 #[derive(Debug, Error)]
+/// Why an elicitation invocation could not complete.
 pub enum ElicitationError {
     #[error("no elicitation invoker available for plugin `{0}`")]
+    /// No handler is registered under the named plugin.
     NotFound(String),
 
     /// The handler failed to service an operation (dispatch / check /
@@ -832,6 +862,7 @@ impl ElicitationInvoker for AutoApprovingElicitor {
 /// What a PDP returned.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PdpDecision {
+    /// Whether the plugin permitted the call.
     pub decision: Decision,
     /// Optional diagnostic info: matched policy IDs, error codes, etc.
     /// Surfaces in audit logs; not used for control flow.
@@ -841,6 +872,7 @@ pub struct PdpDecision {
 /// What a plugin returned.
 #[derive(Debug, Clone)]
 pub struct PluginOutcome {
+    /// Whether the decision point permitted the call.
     pub decision: Decision,
     /// Plugins may apply taint labels as a side effect. Same shape as
     /// config-emitted taints (`Step::Taint` / `Stage::Taint`) so the
@@ -874,20 +906,26 @@ impl PluginOutcome {
 }
 
 #[derive(Debug, Error)]
+/// Why a decision point call could not complete.
 pub enum PdpError {
     #[error("no PDP resolver registered for dialect {0:?}")]
+    /// No resolver is registered for the requested dialect.
     NoResolver(PdpDialect),
 
     #[error("PDP dispatch failed: {0}")]
+    /// The resolver was reached but failed.
     Dispatch(String),
 }
 
 #[derive(Debug, Error)]
+/// Why a plugin step could not complete.
 pub enum PluginError {
     #[error("no plugin invoker available for `{0}`")]
+    /// No handler is registered under the named plugin.
     NotFound(String),
 
     #[error("plugin dispatch failed: {0}")]
+    /// The handler was reached but failed.
     Dispatch(String),
 }
 
