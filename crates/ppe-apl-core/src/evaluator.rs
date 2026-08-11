@@ -1104,10 +1104,10 @@ fn dispatch_parallel<'a>(
                     // so order-independent — safe to concatenate).
                     taints.extend(branch_taints);
                     constraints.extend(branch_constraints);
-                    if first_halt.is_none() {
-                        if let EffectOutcome::Halt(d) = effect_outcome {
-                            first_halt = Some(d);
-                        }
+                    if first_halt.is_none()
+                        && let EffectOutcome::Halt(d) = effect_outcome
+                    {
+                        first_halt = Some(d);
                     }
                 },
                 BranchOutcome::Aborted => {

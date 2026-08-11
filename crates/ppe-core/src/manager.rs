@@ -855,13 +855,13 @@ impl PluginManager {
                     error!("Failed to initialize plugin '{}': {}", plugin_name, e);
 
                     for init_name in initialized_plugins.iter().rev() {
-                        if let Some(pr) = snapshot.registry.get(init_name) {
-                            if let Err(shutdown_err) = pr.plugin().shutdown().await {
-                                error!(
-                                    "Error shutting down plugin '{}' during rollback: {}",
-                                    init_name, shutdown_err
-                                );
-                            }
+                        if let Some(pr) = snapshot.registry.get(init_name)
+                            && let Err(shutdown_err) = pr.plugin().shutdown().await
+                        {
+                            error!(
+                                "Error shutting down plugin '{}' during rollback: {}",
+                                init_name, shutdown_err
+                            );
                         }
                     }
 
@@ -1311,34 +1311,33 @@ impl PluginManager {
         // semantics instead of praxis-policy-core's imperative chain. Underlying
         // `plugins:` entries stay in the registry for the orchestrator
         // to dispatch into by-name via `invoke_entries`.
-        if !snapshot.route_annotations.is_empty() {
-            if let Some(meta) = &extensions.meta {
-                if let (Some(et), Some(en)) = (&meta.entity_type, &meta.entity_name) {
-                    // Scoped lookup first (specific wins); unscoped lookup
-                    // falls back as a "global default" — matches the
-                    // specificity tiebreaker `find_matching_route` uses.
-                    // Lookup is keyed on the hook name as well, so a route
-                    // can install distinct handlers per phase.
-                    let scoped = meta.scope.as_ref().and_then(|s| {
-                        snapshot.route_annotations.get(&AnnotationKey {
-                            entity_type: et.clone(),
-                            entity_name: en.clone(),
-                            scope: Some(s.clone()),
-                            hook_name: hook_name.to_owned(),
-                        })
-                    });
-                    let candidate = scoped.or_else(|| {
-                        snapshot.route_annotations.get(&AnnotationKey {
-                            entity_type: et.clone(),
-                            entity_name: en.clone(),
-                            scope: None,
-                            hook_name: hook_name.to_owned(),
-                        })
-                    });
-                    if let Some(entry) = candidate {
-                        return Arc::new(vec![entry.clone()]);
-                    }
-                }
+        if !snapshot.route_annotations.is_empty()
+            && let Some(meta) = &extensions.meta
+            && let (Some(et), Some(en)) = (&meta.entity_type, &meta.entity_name)
+        {
+            // Scoped lookup first (specific wins); unscoped lookup
+            // falls back as a "global default" — matches the
+            // specificity tiebreaker `find_matching_route` uses.
+            // Lookup is keyed on the hook name as well, so a route
+            // can install distinct handlers per phase.
+            let scoped = meta.scope.as_ref().and_then(|s| {
+                snapshot.route_annotations.get(&AnnotationKey {
+                    entity_type: et.clone(),
+                    entity_name: en.clone(),
+                    scope: Some(s.clone()),
+                    hook_name: hook_name.to_owned(),
+                })
+            });
+            let candidate = scoped.or_else(|| {
+                snapshot.route_annotations.get(&AnnotationKey {
+                    entity_type: et.clone(),
+                    entity_name: en.clone(),
+                    scope: None,
+                    hook_name: hook_name.to_owned(),
+                })
+            });
+            if let Some(entry) = candidate {
+                return Arc::new(vec![entry.clone()]);
             }
         }
 
@@ -1609,16 +1608,15 @@ impl PluginManager {
                 .factories
                 .read()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            match factories.get(&kind) {
-                Some(f) => f,
-                None => {
-                    error!(
-                        plugin = %plugin_name,
-                        kind = %kind,
-                        "build_override_entries: no factory registered for kind",
-                    );
-                    return Vec::new();
-                },
+            if let Some(f) = factories.get(&kind) {
+                f
+            } else {
+                error!(
+                    plugin = %plugin_name,
+                    kind = %kind,
+                    "build_override_entries: no factory registered for kind",
+                );
+                return Vec::new();
             }
         };
         let instance = {
@@ -1752,15 +1750,14 @@ impl PluginManager {
             .into_iter()
             .find(|(name, _)| *name == target_hook)
             .map(|(_, h)| h);
-        let handler = match handler {
-            Some(h) => h,
-            None => {
-                warn!(
-                    "Override instance for '{}' has no handler for hook '{}'",
-                    base_config.name, target_hook
-                );
-                return None;
-            },
+        let handler = if let Some(h) = handler {
+            h
+        } else {
+            warn!(
+                "Override instance for '{}' has no handler for hook '{}'",
+                base_config.name, target_hook
+            );
+            return None;
         };
 
         // Initialize the new instance — without this, plugins that need to

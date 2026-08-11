@@ -146,10 +146,10 @@ impl CandidateConstraintExtension {
             }
         }
         // deny_models: the model must not glob-match any pattern.
-        if let Some(m) = backend.label(LABEL_MODEL) {
-            if self.deny_models.iter().any(|pat| glob_match(pat, m)) {
-                return false;
-            }
+        if let Some(m) = backend.label(LABEL_MODEL)
+            && self.deny_models.iter().any(|pat| glob_match(pat, m))
+        {
+            return false;
         }
         // allow_regions / allow_sites: equality set membership.
         if let Some(allow) = &self.allow_regions {

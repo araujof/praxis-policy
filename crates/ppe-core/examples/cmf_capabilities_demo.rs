@@ -70,13 +70,13 @@ impl HookHandler<CmfHook> for IdentityChecker {
                 .unwrap_or("unknown");
             println!("  [identity-checker] POST-INVOKE: verifying result from '{tool_name}'");
 
-            if let Some(ref security) = extensions.security {
-                if let Some(ref subject) = security.subject {
-                    println!(
-                        "  [identity-checker] Result authorized for subject: {:?}",
-                        subject.id
-                    );
-                }
+            if let Some(ref security) = extensions.security
+                && let Some(ref subject) = security.subject
+            {
+                println!(
+                    "  [identity-checker] Result authorized for subject: {:?}",
+                    subject.id
+                );
             }
             println!("  [identity-checker] POST-INVOKE ALLOWED");
         } else {
@@ -236,10 +236,10 @@ impl HookHandler<CmfHook> for AuditLogger {
             print!("labels={labels:?} ");
         }
 
-        if let Some(ref http) = extensions.http {
-            if let Some(req_id) = http.get_header("X-Request-ID") {
-                print!("request_id='{req_id}' ");
-            }
+        if let Some(ref http) = extensions.http
+            && let Some(req_id) = http.get_header("X-Request-ID")
+        {
+            print!("request_id='{req_id}' ");
         }
 
         if is_result {

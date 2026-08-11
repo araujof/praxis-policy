@@ -347,10 +347,10 @@ impl AnyHookHandler for AplRouteHandler {
         // `redact(result.ssn) when !perm.view_ssn` and `require(...)`
         // gates that branch on the result. Pre phases skip this — the
         // result is `None` by construction.
-        if matches!(self.phase, Phase::Post) {
-            if let Some(result_value) = route_payload.result.as_ref() {
-                extract_result(result_value, &mut bag);
-            }
+        if matches!(self.phase, Phase::Post)
+            && let Some(result_value) = route_payload.result.as_ref()
+        {
+            extract_result(result_value, &mut bag);
         }
 
         // Real delegation invoker, sharing the CMF invoker's
@@ -537,11 +537,8 @@ impl AnyHookHandler for AplRouteHandler {
             None
         };
 
-        let mut modified_extensions = if extensions_changed(extensions, &final_extensions) {
-            Some(final_extensions.cow_copy())
-        } else {
-            None
-        };
+        let mut modified_extensions =
+            extensions_changed(extensions, &final_extensions).then(|| final_extensions.cow_copy());
 
         // Write the folded constraint into the typed
         // `candidate_constraint` extension slot so the host router reads

@@ -125,24 +125,24 @@ impl AuditLogger {
         // point of including this: it makes the audit trail show
         // "we exchanged for workday-api with scope=read_compensation",
         // which is the proof that delegation enforcement happened.
-        if let Some(raw) = ext.raw_credentials.as_ref() {
-            if !raw.delegated_tokens.is_empty() {
-                let tokens: Vec<Value> = raw
-                    .delegated_tokens
-                    .values()
-                    .map(|tok| {
-                        json!({
-                            "audience": tok.audience,
-                            "scopes": tok.scopes,
-                            "outbound_header": tok.outbound_header,
-                            "expires_at": tok.expires_at.to_rfc3339_opts(
-                                chrono::SecondsFormat::Secs, true,
-                            ),
-                        })
+        if let Some(raw) = ext.raw_credentials.as_ref()
+            && !raw.delegated_tokens.is_empty()
+        {
+            let tokens: Vec<Value> = raw
+                .delegated_tokens
+                .values()
+                .map(|tok| {
+                    json!({
+                        "audience": tok.audience,
+                        "scopes": tok.scopes,
+                        "outbound_header": tok.outbound_header,
+                        "expires_at": tok.expires_at.to_rfc3339_opts(
+                            chrono::SecondsFormat::Secs, true,
+                        ),
                     })
-                    .collect();
-                record.insert("delegated_tokens".into(), json!(tokens));
-            }
+                })
+                .collect();
+            record.insert("delegated_tokens".into(), json!(tokens));
         }
 
         Value::Object(record)

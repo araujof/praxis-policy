@@ -398,42 +398,38 @@ impl PluginInvoker for CmfPluginInvoker {
         let modified_value = if !result.payload_modified {
             None
         } else if let Some(mp_boxed) = result.modified_payload.as_ref() {
-            match mp_boxed.as_any().downcast_ref::<MessagePayload>() {
-                Some(modified) => {
-                    *self.payload.lock().await = modified.clone();
-                    // Record the mutation for the host. `Release` so the
-                    // flag is visible to `payload_was_modified` even when
-                    // this call ran on a `dispatch_parallel` branch task.
-                    self.payload_modified.store(true, Ordering::Release);
-                    match invocation {
-                        PluginInvocation::Field { name, phase, .. } => {
-                            let rewritten =
-                                field_value_from_message(&modified.message, name, phase)
-                                    .filter(|new_value| field_before.as_ref() != Some(new_value));
-                            if rewritten.is_none() {
-                                tracing::debug!(
-                                    plugin = %plugin_name,
-                                    field = %name,
-                                    "plugin mutated the payload but not this field; \
-                                     leaving the field value alone"
-                                );
-                            }
-                            rewritten
-                        },
-                        PluginInvocation::Step { .. } => None,
-                    }
-                },
-                None => {
-                    // Left out of `payload_modified` on purpose: nothing
-                    // was written, so the host must keep forwarding the
-                    // payload it already has.
-                    tracing::warn!(
-                        plugin = %plugin_name,
-                        "CmfPluginInvoker: modified_payload was not MessagePayload \
-                         (downcast failed) — dropping the mutation"
-                    );
-                    None
-                },
+            if let Some(modified) = mp_boxed.as_any().downcast_ref::<MessagePayload>() {
+                *self.payload.lock().await = modified.clone();
+                // Record the mutation for the host. `Release` so the
+                // flag is visible to `payload_was_modified` even when
+                // this call ran on a `dispatch_parallel` branch task.
+                self.payload_modified.store(true, Ordering::Release);
+                match invocation {
+                    PluginInvocation::Field { name, phase, .. } => {
+                        let rewritten = field_value_from_message(&modified.message, name, phase)
+                            .filter(|new_value| field_before.as_ref() != Some(new_value));
+                        if rewritten.is_none() {
+                            tracing::debug!(
+                                plugin = %plugin_name,
+                                field = %name,
+                                "plugin mutated the payload but not this field; \
+                                 leaving the field value alone"
+                            );
+                        }
+                        rewritten
+                    },
+                    PluginInvocation::Step { .. } => None,
+                }
+            } else {
+                // Left out of `payload_modified` on purpose: nothing
+                // was written, so the host must keep forwarding the
+                // payload it already has.
+                tracing::warn!(
+                    plugin = %plugin_name,
+                    "CmfPluginInvoker: modified_payload was not MessagePayload \
+                     (downcast failed) — dropping the mutation"
+                );
+                None
             }
         } else {
             None

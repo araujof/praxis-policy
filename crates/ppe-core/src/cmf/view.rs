@@ -366,11 +366,9 @@ impl<'a> MessageView<'a> {
         }
 
         // Content
-        if include_content {
-            if let Some(text) = self.content() {
-                result.insert(FIELD_SIZE_BYTES.into(), serde_json::json!(text.len()));
-                result.insert(FIELD_CONTENT.into(), serde_json::json!(text));
-            }
+        if include_content && let Some(text) = self.content() {
+            result.insert(FIELD_SIZE_BYTES.into(), serde_json::json!(text.len()));
+            result.insert(FIELD_CONTENT.into(), serde_json::json!(text));
         }
 
         if let Some(mime) = self.mime_type() {
@@ -383,118 +381,113 @@ impl<'a> MessageView<'a> {
         }
 
         // Extensions context
-        if include_context {
-            if let Some(ext) = self.extensions {
-                let mut ext_map = serde_json::Map::new();
+        if include_context && let Some(ext) = self.extensions {
+            let mut ext_map = serde_json::Map::new();
 
-                // Subject
-                if let Some(ref sec) = ext.security {
-                    if let Some(ref subject) = sec.subject {
-                        let mut sub_map = serde_json::Map::new();
-                        if let Some(ref id) = subject.id {
-                            sub_map.insert(FIELD_ID.into(), serde_json::json!(id));
-                        }
-                        if let Some(ref st) = subject.subject_type {
-                            sub_map.insert(FIELD_TYPE.into(), serde_json::json!(st));
-                        }
-                        if !subject.roles.is_empty() {
-                            let mut roles: Vec<&String> = subject.roles.iter().collect();
-                            roles.sort();
-                            sub_map.insert(FIELD_ROLES.into(), serde_json::json!(roles));
-                        }
-                        if !subject.permissions.is_empty() {
-                            let mut perms: Vec<&String> = subject.permissions.iter().collect();
-                            perms.sort();
-                            sub_map.insert(FIELD_PERMISSIONS.into(), serde_json::json!(perms));
-                        }
-                        if !subject.teams.is_empty() {
-                            let mut teams: Vec<&String> = subject.teams.iter().collect();
-                            teams.sort();
-                            sub_map.insert(FIELD_TEAMS.into(), serde_json::json!(teams));
-                        }
-                        if !sub_map.is_empty() {
-                            ext_map
-                                .insert(FIELD_SUBJECT.into(), serde_json::Value::Object(sub_map));
-                        }
+            // Subject
+            if let Some(ref sec) = ext.security {
+                if let Some(ref subject) = sec.subject {
+                    let mut sub_map = serde_json::Map::new();
+                    if let Some(ref id) = subject.id {
+                        sub_map.insert(FIELD_ID.into(), serde_json::json!(id));
                     }
-
-                    // Labels
-                    if !sec.labels.is_empty() {
-                        let mut labels: Vec<&String> = sec.labels.iter().collect();
-                        labels.sort();
-                        ext_map.insert(FIELD_LABELS.into(), serde_json::json!(labels));
+                    if let Some(ref st) = subject.subject_type {
+                        sub_map.insert(FIELD_TYPE.into(), serde_json::json!(st));
+                    }
+                    if !subject.roles.is_empty() {
+                        let mut roles: Vec<&String> = subject.roles.iter().collect();
+                        roles.sort();
+                        sub_map.insert(FIELD_ROLES.into(), serde_json::json!(roles));
+                    }
+                    if !subject.permissions.is_empty() {
+                        let mut perms: Vec<&String> = subject.permissions.iter().collect();
+                        perms.sort();
+                        sub_map.insert(FIELD_PERMISSIONS.into(), serde_json::json!(perms));
+                    }
+                    if !subject.teams.is_empty() {
+                        let mut teams: Vec<&String> = subject.teams.iter().collect();
+                        teams.sort();
+                        sub_map.insert(FIELD_TEAMS.into(), serde_json::json!(teams));
+                    }
+                    if !sub_map.is_empty() {
+                        ext_map.insert(FIELD_SUBJECT.into(), serde_json::Value::Object(sub_map));
                     }
                 }
 
-                // Environment
-                if let Some(ref req) = ext.request {
-                    if let Some(ref env) = req.environment {
-                        ext_map.insert(FIELD_ENVIRONMENT.into(), serde_json::json!(env));
-                    }
+                // Labels
+                if !sec.labels.is_empty() {
+                    let mut labels: Vec<&String> = sec.labels.iter().collect();
+                    labels.sort();
+                    ext_map.insert(FIELD_LABELS.into(), serde_json::json!(labels));
                 }
+            }
 
-                // Request headers (strip sensitive)
-                if let Some(ref http) = ext.http {
-                    let safe: std::collections::HashMap<&String, &String> = http
-                        .request_headers
-                        .iter()
-                        .filter(|(k, _)| {
-                            !Self::SENSITIVE_HEADERS.contains(&k.to_lowercase().as_str())
-                        })
-                        .collect();
-                    if !safe.is_empty() {
-                        ext_map.insert(FIELD_HEADERS.into(), serde_json::json!(safe));
-                    }
-                }
+            // Environment
+            if let Some(ref req) = ext.request
+                && let Some(ref env) = req.environment
+            {
+                ext_map.insert(FIELD_ENVIRONMENT.into(), serde_json::json!(env));
+            }
 
-                // Agent context
-                if let Some(ref agent) = ext.agent {
-                    let mut agent_map = serde_json::Map::new();
-                    if let Some(ref input) = agent.input {
-                        agent_map.insert(FIELD_INPUT.into(), serde_json::json!(input));
-                    }
-                    if let Some(ref sid) = agent.session_id {
-                        agent_map.insert(FIELD_SESSION_ID.into(), serde_json::json!(sid));
-                    }
-                    if let Some(ref cid) = agent.conversation_id {
-                        agent_map.insert(FIELD_CONVERSATION_ID.into(), serde_json::json!(cid));
-                    }
-                    if let Some(turn) = agent.turn {
-                        agent_map.insert(FIELD_TURN.into(), serde_json::json!(turn));
-                    }
-                    if let Some(ref aid) = agent.agent_id {
-                        agent_map.insert(FIELD_AGENT_ID.into(), serde_json::json!(aid));
-                    }
-                    if let Some(ref paid) = agent.parent_agent_id {
-                        agent_map.insert(FIELD_PARENT_AGENT_ID.into(), serde_json::json!(paid));
-                    }
-                    if !agent_map.is_empty() {
-                        ext_map.insert(FIELD_AGENT.into(), serde_json::Value::Object(agent_map));
-                    }
+            // Request headers (strip sensitive)
+            if let Some(ref http) = ext.http {
+                let safe: std::collections::HashMap<&String, &String> = http
+                    .request_headers
+                    .iter()
+                    .filter(|(k, _)| !Self::SENSITIVE_HEADERS.contains(&k.to_lowercase().as_str()))
+                    .collect();
+                if !safe.is_empty() {
+                    ext_map.insert(FIELD_HEADERS.into(), serde_json::json!(safe));
                 }
+            }
 
-                // Meta
-                if let Some(ref meta) = ext.meta {
-                    let mut meta_map = serde_json::Map::new();
-                    if let Some(ref et) = meta.entity_type {
-                        meta_map.insert(FIELD_ENTITY_TYPE.into(), serde_json::json!(et));
-                    }
-                    if let Some(ref en) = meta.entity_name {
-                        meta_map.insert(FIELD_ENTITY_NAME.into(), serde_json::json!(en));
-                    }
-                    if !meta.tags.is_empty() {
-                        let mut tags: Vec<&String> = meta.tags.iter().collect();
-                        tags.sort();
-                        meta_map.insert(FIELD_TAGS.into(), serde_json::json!(tags));
-                    }
-                    if !meta_map.is_empty() {
-                        ext_map.insert(FIELD_META.into(), serde_json::Value::Object(meta_map));
-                    }
+            // Agent context
+            if let Some(ref agent) = ext.agent {
+                let mut agent_map = serde_json::Map::new();
+                if let Some(ref input) = agent.input {
+                    agent_map.insert(FIELD_INPUT.into(), serde_json::json!(input));
                 }
+                if let Some(ref sid) = agent.session_id {
+                    agent_map.insert(FIELD_SESSION_ID.into(), serde_json::json!(sid));
+                }
+                if let Some(ref cid) = agent.conversation_id {
+                    agent_map.insert(FIELD_CONVERSATION_ID.into(), serde_json::json!(cid));
+                }
+                if let Some(turn) = agent.turn {
+                    agent_map.insert(FIELD_TURN.into(), serde_json::json!(turn));
+                }
+                if let Some(ref aid) = agent.agent_id {
+                    agent_map.insert(FIELD_AGENT_ID.into(), serde_json::json!(aid));
+                }
+                if let Some(ref paid) = agent.parent_agent_id {
+                    agent_map.insert(FIELD_PARENT_AGENT_ID.into(), serde_json::json!(paid));
+                }
+                if !agent_map.is_empty() {
+                    ext_map.insert(FIELD_AGENT.into(), serde_json::Value::Object(agent_map));
+                }
+            }
 
-                if !ext_map.is_empty() {
-                    result.insert(FIELD_EXTENSIONS.into(), serde_json::Value::Object(ext_map));
+            // Meta
+            if let Some(ref meta) = ext.meta {
+                let mut meta_map = serde_json::Map::new();
+                if let Some(ref et) = meta.entity_type {
+                    meta_map.insert(FIELD_ENTITY_TYPE.into(), serde_json::json!(et));
                 }
+                if let Some(ref en) = meta.entity_name {
+                    meta_map.insert(FIELD_ENTITY_NAME.into(), serde_json::json!(en));
+                }
+                if !meta.tags.is_empty() {
+                    let mut tags: Vec<&String> = meta.tags.iter().collect();
+                    tags.sort();
+                    meta_map.insert(FIELD_TAGS.into(), serde_json::json!(tags));
+                }
+                if !meta_map.is_empty() {
+                    ext_map.insert(FIELD_META.into(), serde_json::Value::Object(meta_map));
+                }
+            }
+
+            if !ext_map.is_empty() {
+                result.insert(FIELD_EXTENSIONS.into(), serde_json::Value::Object(ext_map));
             }
         }
 

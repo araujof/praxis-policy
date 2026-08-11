@@ -976,10 +976,10 @@ pub fn resolve_identity_plugins_for_route(
         // resolver would extend the signature; deferred until needed.
         if let Some(route) = route {
             for tag in route_static_tags(route) {
-                if let Some(bundle) = config.global.policies.get(tag) {
-                    if let Some(bundle_identity) = bundle.identity.as_ref() {
-                        steps.extend(bundle_identity.steps.iter().cloned());
-                    }
+                if let Some(bundle) = config.global.policies.get(tag)
+                    && let Some(bundle_identity) = bundle.identity.as_ref()
+                {
+                    steps.extend(bundle_identity.steps.iter().cloned());
                 }
             }
         }

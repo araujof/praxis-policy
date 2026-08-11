@@ -626,14 +626,11 @@ impl ConfigVisitor for AplConfigVisitor {
         // without inherited layers contributes nothing — skip.
         reject_legacy_apl_keys("route", yaml)?;
         let route_apl = apl_subblock(yaml);
-        let (entity_type, entity_names) = match entity_identity(parsed) {
-            Some(e) => e,
-            None => {
-                tracing::warn!(
-                    "APL visitor: route has no tool/resource/prompt/llm match — skipping",
-                );
-                return Ok(());
-            },
+        let (entity_type, entity_names) = if let Some(e) = entity_identity(parsed) {
+            e
+        } else {
+            tracing::warn!("APL visitor: route has no tool/resource/prompt/llm match — skipping",);
+            return Ok(());
         };
         if let Some(block) = &route_apl {
             warn_if_global_only_key_at_nonglobal_scope(&format!("routes.{entity_type}"), block);
@@ -754,16 +751,15 @@ impl ConfigVisitor for AplConfigVisitor {
             // entity_identity() already filtered out unknown types, but
             // hook_pair_for_entity returning None would just skip the
             // annotation rather than crash — defense in depth.
-            let (hook_pre, hook_post) = match hook_pair_for_entity(entity_type) {
-                Some(pair) => pair,
-                None => {
-                    tracing::warn!(
-                        entity_type,
-                        entity_name,
-                        "APL visitor: no CMF hook pair for entity_type — skipping route",
-                    );
-                    continue;
-                },
+            let (hook_pre, hook_post) = if let Some(pair) = hook_pair_for_entity(entity_type) {
+                pair
+            } else {
+                tracing::warn!(
+                    entity_type,
+                    entity_name,
+                    "APL visitor: no CMF hook pair for entity_type — skipping route",
+                );
+                continue;
             };
 
             // Snapshot the static attribute tree (set before the walk).
@@ -1109,13 +1105,13 @@ fn apl_subblock(yaml: &serde_yaml::Value) -> Option<serde_yaml::Value> {
     }
     // `plugins` only in its apl-override (map) shape; a list is the
     // structural plugin-ref form and belongs to the section's own parse.
-    if let Some(value) = yaml.get("plugins") {
-        if value.is_mapping() {
-            block.insert(
-                serde_yaml::Value::String("plugins".to_owned()),
-                value.clone(),
-            );
-        }
+    if let Some(value) = yaml.get("plugins")
+        && value.is_mapping()
+    {
+        block.insert(
+            serde_yaml::Value::String("plugins".to_owned()),
+            value.clone(),
+        );
     }
 
     if block.is_empty() {

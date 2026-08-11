@@ -145,16 +145,17 @@ impl RouteDispatchPlan {
     ) -> Self {
         let mut plan = Self::default();
         for name in collect_plugin_names(route) {
-            let eff = match EffectivePlugin::resolve(&name, registry, &route.plugin_overrides) {
-                Some(e) => e,
-                None => {
-                    tracing::warn!(
-                        plugin = %name,
-                        route = %route.route_key,
-                        "APL route references plugin not in `plugins:` block — skipping",
-                    );
-                    continue;
-                },
+            let eff = if let Some(e) =
+                EffectivePlugin::resolve(&name, registry, &route.plugin_overrides)
+            {
+                e
+            } else {
+                tracing::warn!(
+                    plugin = %name,
+                    route = %route.route_key,
+                    "APL route references plugin not in `plugins:` block — skipping",
+                );
+                continue;
             };
 
             // Pull the three overrideable values off the effective view.
@@ -162,14 +163,11 @@ impl RouteDispatchPlan {
             // so the captures here are slice / Option<&Value> refs.
             let override_block = route.plugin_overrides.get(&name);
             let config_override = override_block.and_then(|o| o.config.as_ref());
-            let caps_override: Option<std::collections::HashSet<String>> = if matches!(
+            let caps_override: Option<std::collections::HashSet<String>> = matches!(
                 eff.capabilities,
                 praxis_policy_apl_core::plugin_decl::CapsView::Override(_)
-            ) {
-                Some(eff.capabilities.as_slice().iter().cloned().collect())
-            } else {
-                None
-            };
+            )
+            .then(|| eff.capabilities.as_slice().iter().cloned().collect());
             let on_error_override = override_block
                 .and_then(|o| o.on_error.as_deref())
                 .and_then(parse_on_error);
@@ -348,10 +346,10 @@ pub(crate) fn collect_delegate_plugin_names(route: &CompiledRoute) -> Vec<String
     let mut out: Vec<String> = Vec::new();
     let mut seen: HashSet<String> = HashSet::new();
     let mut visit = |e: &Effect| {
-        if let Effect::Delegate(ds) = e {
-            if seen.insert(ds.plugin_name.clone()) {
-                out.push(ds.plugin_name.clone());
-            }
+        if let Effect::Delegate(ds) = e
+            && seen.insert(ds.plugin_name.clone())
+        {
+            out.push(ds.plugin_name.clone());
         }
     };
     walk_effects(&route.policy, &mut visit);
@@ -369,10 +367,10 @@ pub(crate) fn collect_elicit_plugin_names(route: &CompiledRoute) -> Vec<String> 
     let mut out: Vec<String> = Vec::new();
     let mut seen: HashSet<String> = HashSet::new();
     let mut visit = |e: &Effect| {
-        if let Effect::Elicit(es) = e {
-            if seen.insert(es.plugin_name.clone()) {
-                out.push(es.plugin_name.clone());
-            }
+        if let Effect::Elicit(es) = e
+            && seen.insert(es.plugin_name.clone())
+        {
+            out.push(es.plugin_name.clone());
         }
     };
     walk_effects(&route.policy, &mut visit);
@@ -388,20 +386,20 @@ pub(crate) fn collect_plugin_names(route: &CompiledRoute) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     let mut seen: HashSet<String> = HashSet::new();
     let mut visit = |e: &Effect| {
-        if let Effect::Plugin { name } = e {
-            if seen.insert(name.clone()) {
-                out.push(name.clone());
-            }
+        if let Effect::Plugin { name } = e
+            && seen.insert(name.clone())
+        {
+            out.push(name.clone());
         }
     };
     walk_effects(&route.policy, &mut visit);
     walk_effects(&route.post_policy, &mut visit);
     for fr in route.args.iter().chain(route.result.iter()) {
         for stage in &fr.pipeline.stages {
-            if let Stage::Plugin { name } = stage {
-                if seen.insert(name.clone()) {
-                    out.push(name.clone());
-                }
+            if let Stage::Plugin { name } = stage
+                && seen.insert(name.clone())
+            {
+                out.push(name.clone());
             }
         }
     }
@@ -522,10 +520,10 @@ impl DispatchCache {
                 .inner
                 .read()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            if let Some((stored_gen, plan)) = r.get(&route.route_key) {
-                if *stored_gen == current_gen {
-                    return Arc::clone(plan);
-                }
+            if let Some((stored_gen, plan)) = r.get(&route.route_key)
+                && *stored_gen == current_gen
+            {
+                return Arc::clone(plan);
             }
         }
         let plan = Arc::new(RouteDispatchPlan::build(route, registry, manager).await);

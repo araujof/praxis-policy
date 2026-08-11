@@ -207,10 +207,10 @@ fn qualify_type(bare: &str, namespace: Option<&str>) -> String {
 fn collect_prefixed_bools(bag: &AttributeBag, prefix: &str) -> Vec<String> {
     let mut out: HashSet<String> = HashSet::new();
     for (key, value) in bag.iter() {
-        if let Some(name) = key.strip_prefix(prefix) {
-            if matches!(value, AttributeValue::Bool(true)) {
-                out.insert(name.to_owned());
-            }
+        if let Some(name) = key.strip_prefix(prefix)
+            && matches!(value, AttributeValue::Bool(true))
+        {
+            out.insert(name.to_owned());
         }
     }
     let mut v: Vec<String> = out.into_iter().collect();

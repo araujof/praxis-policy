@@ -478,18 +478,18 @@ impl<'a> PredParser<'a> {
         // `not in` shows up as Ident("not") + Tok::In. Treat that as a
         // grammar phrase here; bare `not` outside this context is not a
         // DSL keyword (use `!` for predicate negation).
-        if let Some(Tok::Ident(maybe_not)) = self.peek() {
-            if maybe_not == "not" {
-                let saved_pos = self.pos;
-                self.bump(); // consume "not"
-                if matches!(self.peek(), Some(Tok::In)) {
-                    self.bump();
-                    return self.finish_in_set(key, true);
-                }
-                // Not "not in" — rewind so the downstream error reports
-                // the trailing-ident properly.
-                self.pos = saved_pos;
+        if let Some(Tok::Ident(maybe_not)) = self.peek()
+            && maybe_not == "not"
+        {
+            let saved_pos = self.pos;
+            self.bump(); // consume "not"
+            if matches!(self.peek(), Some(Tok::In)) {
+                self.bump();
+                return self.finish_in_set(key, true);
             }
+            // Not "not in" — rewind so the downstream error reports
+            // the trailing-ident properly.
+            self.pos = saved_pos;
         }
 
         let op = match self.peek() {
@@ -594,39 +594,38 @@ pub fn parse_rule(line: &str, source: &str) -> Result<Rule, ParseError> {
         });
     }
 
-    let (predicate_str, effects) = match split_predicate_action(trimmed) {
-        Some((p, a)) => (p, parse_action(a, trimmed)?),
-        None => {
-            // No `:` — bare action (unconditional) or bare predicate (default deny).
-            if let Some(effects) = try_bare_action(trimmed) {
-                return Ok(Rule {
-                    condition: Expression::Always,
-                    effects,
-                    source: source.to_owned(),
-                });
-            }
-            // Unconditional `deny('reason')` / `deny('reason', 'code')` —
-            // the call form of a bare deny. Lets reaction lists
-            // (`on_deny: [...]` / `on_allow: [...]`) and standalone rule
-            // lines attach a reason/code without a guard predicate. A
-            // malformed `deny(...)` surfaces its own error here rather
-            // than being misread as a predicate downstream.
-            if let Some(deny) = try_parse_deny_call(trimmed, trimmed)? {
-                return Ok(Rule {
-                    condition: Expression::Always,
-                    effects: vec![deny],
-                    source: source.to_owned(),
-                });
-            }
-            // Default: bare predicate denies.
-            (
-                trimmed,
-                vec![Effect::Deny {
-                    reason: None,
-                    code: None,
-                }],
-            )
-        },
+    let (predicate_str, effects) = if let Some((p, a)) = split_predicate_action(trimmed) {
+        (p, parse_action(a, trimmed)?)
+    } else {
+        // No `:` — bare action (unconditional) or bare predicate (default deny).
+        if let Some(effects) = try_bare_action(trimmed) {
+            return Ok(Rule {
+                condition: Expression::Always,
+                effects,
+                source: source.to_owned(),
+            });
+        }
+        // Unconditional `deny('reason')` / `deny('reason', 'code')` —
+        // the call form of a bare deny. Lets reaction lists
+        // (`on_deny: [...]` / `on_allow: [...]`) and standalone rule
+        // lines attach a reason/code without a guard predicate. A
+        // malformed `deny(...)` surfaces its own error here rather
+        // than being misread as a predicate downstream.
+        if let Some(deny) = try_parse_deny_call(trimmed, trimmed)? {
+            return Ok(Rule {
+                condition: Expression::Always,
+                effects: vec![deny],
+                source: source.to_owned(),
+            });
+        }
+        // Default: bare predicate denies.
+        (
+            trimmed,
+            vec![Effect::Deny {
+                reason: None,
+                code: None,
+            }],
+        )
     };
 
     let condition = parse_predicate(predicate_str).map_err(|e| ParseError::Rule {
@@ -682,7 +681,7 @@ fn parse_require_rule(line: &str) -> Result<Expression, ParseError> {
     loop {
         match iter.next() {
             Some(Tok::RParen) => break,
-            Some(t @ Tok::Comma) | Some(t @ Tok::Or) => {
+            Some(t @ (Tok::Comma | Tok::Or)) => {
                 match &sep {
                     None => sep = Some(t),
                     Some(prev) if std::mem::discriminant(prev) == std::mem::discriminant(&t) => {},
@@ -717,10 +716,10 @@ fn parse_require_rule(line: &str) -> Result<Expression, ParseError> {
         .map(|k| Expression::Condition(Condition::IsFalse { key: k }))
         .collect();
     // Single key: yield the condition itself rather than a one-element group.
-    if falses.len() == 1 {
-        if let Some(only) = falses.pop() {
-            return Ok(only);
-        }
+    if falses.len() == 1
+        && let Some(only) = falses.pop()
+    {
+        return Ok(only);
     }
     Ok(match sep {
         Some(Tok::Or) => Expression::And(falses), // require(X | Y) → !X & !Y
@@ -763,7 +762,7 @@ fn split_predicate_action(s: &str) -> Option<(&str, &str)> {
         match (in_quote, b) {
             (Some(q), c) if c == q => in_quote = None,
             (Some(_), _) => {},
-            (None, b'"') | (None, b'\'') => in_quote = Some(b),
+            (None, b'"' | b'\'') => in_quote = Some(b),
             (None, b'(') => depth += 1,
             (None, b')') => depth -= 1,
             (None, b':') if depth == 0 => last_colon = Some(i),
@@ -1641,14 +1640,14 @@ fn parse_effect_value(val: &serde_yaml::Value, source: &str) -> Result<Effect, P
             // map whose key is `sequential` / `parallel` and whose
             // value is a list of effects.
             let mut entries = m.iter();
-            if let (Some((k, v)), None) = (entries.next(), entries.next()) {
-                if let Some(key_str) = k.as_str() {
-                    match key_str.trim() {
-                        "sequential" => return parse_sequential_effect(v, source),
-                        "parallel" => return parse_parallel_effect(v, source),
-                        "restrict" => return parse_restrict_effect(v, source),
-                        _ => {},
-                    }
+            if let (Some((k, v)), None) = (entries.next(), entries.next())
+                && let Some(key_str) = k.as_str()
+            {
+                match key_str.trim() {
+                    "sequential" => return parse_sequential_effect(v, source),
+                    "parallel" => return parse_parallel_effect(v, source),
+                    "restrict" => return parse_restrict_effect(v, source),
+                    _ => {},
                 }
             }
             // Otherwise reuse the existing step-map parser for
@@ -1921,12 +1920,11 @@ fn parse_effect_string(s: &str, source: &str) -> Result<Effect, ParseError> {
     // associated condition. Same parsing as the right-hand side of a
     // shorthand `predicate: action` rule.
     let trimmed = s.trim();
-    if let Some(mut effects) = try_bare_action(trimmed) {
-        if effects.len() == 1 {
-            if let Some(only) = effects.pop() {
-                return Ok(only);
-            }
-        }
+    if let Some(mut effects) = try_bare_action(trimmed)
+        && effects.len() == 1
+        && let Some(only) = effects.pop()
+    {
+        return Ok(only);
     }
     if let Some(effect) = try_parse_deny_call(trimmed, s)? {
         return Ok(effect);
@@ -2312,9 +2310,9 @@ fn split_top_level(s: &str, delim: u8) -> Vec<&str> {
         match (in_quote, b) {
             (Some(q), c) if c == q => in_quote = None,
             (Some(_), _) => {},
-            (None, b'"') | (None, b'\'') => in_quote = Some(b),
-            (None, b'(') | (None, b'[') => depth += 1,
-            (None, b')') | (None, b']') => depth -= 1,
+            (None, b'"' | b'\'') => in_quote = Some(b),
+            (None, b'(' | b'[') => depth += 1,
+            (None, b')' | b']') => depth -= 1,
             (None, c) if c == delim && depth == 0 => {
                 if let Some(segment) = s.get(start..i) {
                     out.push(segment);
@@ -2563,11 +2561,10 @@ fn split_head_args(s: &str) -> Option<(&str, Option<String>)> {
         }
         let args = s.get(open + 1..close)?.to_owned();
         // Reject trailing garbage after the closing paren.
-        if s.get(close + 1..)?.trim().is_empty() {
-            Some((head, Some(args)))
-        } else {
-            None
-        }
+        s.get(close + 1..)?
+            .trim()
+            .is_empty()
+            .then_some((head, Some(args)))
     } else {
         let head = s.trim();
         if head.is_empty() {

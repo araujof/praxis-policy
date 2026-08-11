@@ -155,14 +155,13 @@ fn check_plugin_mode<L: PluginModeLookup + ?Sized>(
     registry: &L,
     errors: &mut Vec<String>,
 ) {
-    let mode = match registry.mode_for(name) {
-        Some(m) => m,
-        None => {
-            errors.push(format!(
-                "{location}: `parallel:` references unknown plugin `{name}`"
-            ));
-            return;
-        },
+    let mode = if let Some(m) = registry.mode_for(name) {
+        m
+    } else {
+        errors.push(format!(
+            "{location}: `parallel:` references unknown plugin `{name}`"
+        ));
+        return;
     };
     if !is_safe_in_parallel(mode) {
         errors.push(format!(

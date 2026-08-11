@@ -258,9 +258,10 @@ impl RestrictSpec {
         // reference denies the request. A literal deny-list always resolves.
         let deny_models = match self.deny_models.as_ref() {
             None => Vec::new(),
-            Some(spec) => match spec.resolve(bag) {
-                Some(v) => v,
-                None => {
+            Some(spec) => {
+                if let Some(v) = spec.resolve(bag) {
+                    v
+                } else {
                     let path = match spec {
                         StringSetSpec::Ref(p) => p.clone(),
                         // A literal always resolves to `Some`, so this is
@@ -271,7 +272,7 @@ impl RestrictSpec {
                         field: "deny_models",
                         path,
                     });
-                },
+                }
             },
         };
 

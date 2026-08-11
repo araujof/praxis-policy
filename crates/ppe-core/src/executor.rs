@@ -491,11 +491,12 @@ impl Executor {
             match result {
                 Ok(Ok(result_box)) => {
                     if let Some(erased) = extract_erased(result_box) {
-                        if !erased.continue_processing && can_block {
-                            if let Some(mut v) = erased.violation {
-                                v.plugin_name = Some(plugin_name.to_owned());
-                                return Some(v);
-                            }
+                        if !erased.continue_processing
+                            && can_block
+                            && let Some(mut v) = erased.violation
+                        {
+                            v.plugin_name = Some(plugin_name.to_owned());
+                            return Some(v);
                         }
 
                         // Accept modifications
@@ -1129,12 +1130,11 @@ pub struct ErasedResultFields {
 /// Logs a warning if the downcast fails (indicates a handler returned
 /// the wrong type — a framework bug, not a plugin error).
 pub fn extract_erased(result: Box<dyn Any + Send + Sync>) -> Option<ErasedResultFields> {
-    match result.downcast::<ErasedResultFields>() {
-        Ok(b) => Some(*b),
-        Err(_) => {
-            warn!("extract_erased: downcast failed — handler returned unexpected type");
-            None
-        },
+    if let Ok(b) = result.downcast::<ErasedResultFields>() {
+        Some(*b)
+    } else {
+        warn!("extract_erased: downcast failed — handler returned unexpected type");
+        None
     }
 }
 

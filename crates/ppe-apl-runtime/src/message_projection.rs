@@ -229,12 +229,11 @@ pub(crate) fn apply_changed_paths(base: &mut Value, pre: &Value, post: &Value) {
                     .get_mut(key)
                     .filter(|base_value| base_value.is_object())
                     .filter(|_| pre_value.is_object() && post_value.is_object());
-                match nested {
-                    Some(base_value) => apply_changed_paths(base_value, pre_value, post_value),
-                    None => {
-                        warn_on_conflict(base_map.get(key), pre_value, key);
-                        base_map.insert(key.clone(), post_value.clone());
-                    },
+                if let Some(base_value) = nested {
+                    apply_changed_paths(base_value, pre_value, post_value);
+                } else {
+                    warn_on_conflict(base_map.get(key), pre_value, key);
+                    base_map.insert(key.clone(), post_value.clone());
                 }
             },
             None => {

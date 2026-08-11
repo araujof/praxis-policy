@@ -413,10 +413,10 @@ fn build_filtered_security(
     // Subject — granular capability-gated. The slot appears iff any
     // subject sub-cap is held; individual sub-fields then check
     // their own caps in `build_filtered_subject`.
-    if let Some(ref subject) = security.subject {
-        if has_any_subject_capability(capabilities) {
-            filtered.subject = Some(build_filtered_subject(subject, capabilities));
-        }
+    if let Some(ref subject) = security.subject
+        && has_any_subject_capability(capabilities)
+    {
+        filtered.subject = Some(build_filtered_subject(subject, capabilities));
     }
 
     // Client (OAuth application identity) — gated under `read_client`.

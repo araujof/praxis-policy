@@ -131,29 +131,24 @@ pub fn resolve_session(ext: &Extensions) -> Option<(String, SessionSource)> {
     // sources, but subject-bound here rather than trusted raw: the raw value
     // is attacker-chosen, so it only ever scopes state WITHIN the
     // authenticated subject. Falls through when no subject is present.
-    if let Some(agent) = ext.agent.as_deref() {
-        if let Some(sid) = agent.session_id.as_deref() {
-            if !sid.is_empty() {
-                if let Some(bound) = subject_scoped(subject_id, sid) {
-                    return Some((bound, SessionSource::Agent));
-                }
-            }
-        }
+    if let Some(agent) = ext.agent.as_deref()
+        && let Some(sid) = agent.session_id.as_deref()
+        && !sid.is_empty()
+        && let Some(bound) = subject_scoped(subject_id, sid)
+    {
+        return Some((bound, SessionSource::Agent));
     }
 
     // Tier 1: explicit JWT `session_id` claim — also subject-bound. Even a
     // signed claim is per-issuer and could repeat across principals, so the
     // store key must still incorporate the subject.
-    if let Some(sec) = ext.security.as_deref() {
-        if let Some(subj) = sec.subject.as_ref() {
-            if let Some(sid) = subj.claims.get("session_id") {
-                if !sid.is_empty() {
-                    if let Some(bound) = subject_scoped(subject_id, sid) {
-                        return Some((bound, SessionSource::TokenClaim));
-                    }
-                }
-            }
-        }
+    if let Some(sec) = ext.security.as_deref()
+        && let Some(subj) = sec.subject.as_ref()
+        && let Some(sid) = subj.claims.get("session_id")
+        && !sid.is_empty()
+        && let Some(bound) = subject_scoped(subject_id, sid)
+    {
+        return Some((bound, SessionSource::TokenClaim));
     }
 
     // Tier 2: identity-derived. Hash the triple

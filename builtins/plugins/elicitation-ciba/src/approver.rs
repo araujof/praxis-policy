@@ -150,10 +150,10 @@ impl CibaApprover {
             ("login_hint", login_hint),
             ("requested_expiry", &requested_expiry),
         ];
-        if let Some(bm) = &binding_message {
-            if !bm.is_empty() {
-                form.push(("binding_message", bm));
-            }
+        if let Some(bm) = &binding_message
+            && !bm.is_empty()
+        {
+            form.push(("binding_message", bm));
         }
 
         let response = match self
@@ -241,13 +241,13 @@ impl CibaApprover {
         // retry after a `peek` already resolved approval — must NOT re-poll
         // (the spent id would come back `invalid_grant`). Replay the cached
         // approved result instead; `validate` re-compares the approver.
-        if let Some(corr) = self.store.get(id) {
-            if corr.resolved_approver.is_some() {
-                let mut out = payload.clone();
-                out.status = Some(ElicitationStatusKind::Resolved);
-                out.outcome = Some(ElicitationOutcomeKind::Approved);
-                return PluginResult::modify_payload(out);
-            }
+        if let Some(corr) = self.store.get(id)
+            && corr.resolved_approver.is_some()
+        {
+            let mut out = payload.clone();
+            out.status = Some(ElicitationStatusKind::Resolved);
+            out.outcome = Some(ElicitationOutcomeKind::Approved);
+            return PluginResult::modify_payload(out);
         }
 
         let form: Vec<(&str, &str)> = vec![("grant_type", GRANT_TYPE_CIBA), ("auth_req_id", id)];
@@ -297,12 +297,12 @@ impl CibaApprover {
             };
             // Prefer the id_token (carries user claims); fall back to the
             // access_token. Extract the approver claim and drop the token.
-            if let Some(token) = parsed.id_token.or(parsed.access_token) {
-                if let Some(approver) = decode_jwt_claim(&token, &self.typed.approver_claim) {
-                    self.store.set_resolved_approver(id, approver);
-                }
-                // token dropped here — never persisted.
+            if let Some(token) = parsed.id_token.or(parsed.access_token)
+                && let Some(approver) = decode_jwt_claim(&token, &self.typed.approver_claim)
+            {
+                self.store.set_resolved_approver(id, approver);
             }
+            // token dropped here — never persisted.
             let mut out = payload.clone();
             out.status = Some(ElicitationStatusKind::Resolved);
             out.outcome = Some(ElicitationOutcomeKind::Approved);

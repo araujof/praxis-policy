@@ -192,21 +192,9 @@ impl Extensions {
             delegation: self.delegation.as_ref().map(|arc| (**arc).clone()),
             custom: self.custom.as_ref().map(|arc| (**arc).clone()),
 
-            http_write_token: if self.http_write_token.is_some() {
-                Some(WriteToken::new())
-            } else {
-                None
-            },
-            labels_write_token: if self.labels_write_token.is_some() {
-                Some(WriteToken::new())
-            } else {
-                None
-            },
-            delegation_write_token: if self.delegation_write_token.is_some() {
-                Some(WriteToken::new())
-            } else {
-                None
-            },
+            http_write_token: self.http_write_token.is_some().then(WriteToken::new),
+            labels_write_token: self.labels_write_token.is_some().then(WriteToken::new),
+            delegation_write_token: self.delegation_write_token.is_some().then(WriteToken::new),
         }
     }
 
@@ -401,10 +389,10 @@ impl Extensions {
         let canonical = self.delegation.as_ref().map(|arc| (**arc).clone());
         let mut merged = canonical.clone().unwrap_or_default();
 
-        if let Some(canonical) = canonical.as_ref() {
-            if !chain_extends(&canonical.chain, &owned.chain) {
-                return;
-            }
+        if let Some(canonical) = canonical.as_ref()
+            && !chain_extends(&canonical.chain, &owned.chain)
+        {
+            return;
         }
         merged.chain = owned.chain;
 

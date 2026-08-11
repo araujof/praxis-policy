@@ -151,27 +151,27 @@ impl ValkeyConfig {
         // once. This store carries session taint, so the visible effect of an
         // absurd TTL would be taint quietly failing to persist between
         // requests, which is a downgrade rather than an outage.
-        if let Some(ttl) = self.ttl_seconds {
-            if i64::try_from(ttl).is_err() {
-                return Err(BuildError::Config(format!(
-                    "`ttl_seconds` of {ttl} exceeds the maximum valkey accepts ({}); a TTL that \
+        if let Some(ttl) = self.ttl_seconds
+            && i64::try_from(ttl).is_err()
+        {
+            return Err(BuildError::Config(format!(
+                "`ttl_seconds` of {ttl} exceeds the maximum valkey accepts ({}); a TTL that \
                      large cannot be expressed as an expiry and would delete the session key \
                      immediately",
-                    i64::MAX
-                )));
-            }
+                i64::MAX
+            )));
         }
 
-        if let (Some(ttl), Some(life)) = (self.ttl_seconds, self.max_session_lifetime_seconds) {
-            if ttl < life {
-                tracing::warn!(
-                    alarm = "session_store_ttl_unsound",
-                    ttl_seconds = ttl,
-                    max_session_lifetime_seconds = life,
-                    "valkey session_store TTL is shorter than the declared max session lifetime; \
+        if let (Some(ttl), Some(life)) = (self.ttl_seconds, self.max_session_lifetime_seconds)
+            && ttl < life
+        {
+            tracing::warn!(
+                alarm = "session_store_ttl_unsound",
+                ttl_seconds = ttl,
+                max_session_lifetime_seconds = life,
+                "valkey session_store TTL is shorter than the declared max session lifetime; \
                      accumulated taint can silently expire (downgrade-by-waiting)"
-                );
-            }
+            );
         }
         Ok(())
     }

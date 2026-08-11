@@ -126,10 +126,8 @@ impl PiiScanner {
                         self.redact_value(v);
                     }
                 },
-                ContentPart::Text { text } => {
-                    if self.match_str(text).is_some() {
-                        *text = "[PII]".to_owned();
-                    }
+                ContentPart::Text { text } if self.match_str(text).is_some() => {
+                    *text = "[PII]".to_owned();
                 },
                 _ => {},
             }
@@ -137,10 +135,10 @@ impl PiiScanner {
     }
 
     fn redact_value(&self, v: &mut Value) {
-        if let Value::String(s) = v {
-            if self.match_str(s).is_some() {
-                *v = Value::String("[PII]".to_owned());
-            }
+        if let Value::String(s) = v
+            && self.match_str(s).is_some()
+        {
+            *v = Value::String("[PII]".to_owned());
         }
     }
 }
