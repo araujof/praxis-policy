@@ -125,6 +125,11 @@ impl JwtIdentityResolver {
     /// Returns `PluginError::Config` for any config-time failure:
     /// missing config block, malformed JSON, no trusted issuers,
     /// unparseable decoding key, unknown claim mapper, etc.
+    /// # Errors
+    ///
+    /// Returns `PluginError::Config` when the `config:` block is absent or does
+    /// not deserialize into this plugin's settings, and when a validated field
+    /// is out of range.
     pub fn new(cfg: PluginConfig) -> Result<Self, Box<PluginError>> {
         let raw_config = cfg.config.as_ref().ok_or_else(|| {
             Box::new(PluginError::Config {

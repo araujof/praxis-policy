@@ -59,6 +59,11 @@ use praxis_policy_apl_core::step::PdpError;
 /// Recursively walk `value`, substituting any `${<bag-key>}` scalar with
 /// the corresponding bag value. Mappings and sequences recurse. Other
 /// scalars pass through unchanged.
+/// # Errors
+///
+/// Returns `PdpError::Dispatch` when a `${key}` reference names a key the bag
+/// does not hold. An unresolved reference is rejected rather than substituted
+/// empty, since an empty resource or action would change which policy matches.
 pub fn resolve_refs(
     value: &serde_yaml::Value,
     bag: &AttributeBag,

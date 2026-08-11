@@ -58,6 +58,10 @@ impl ValkeySessionStore {
     /// Build from validated config. The pool is created lazily, so this
     /// does not dial Valkey — connection failures surface on first use
     /// and correctly fail the request closed.
+    /// # Errors
+    ///
+    /// Returns `BuildError` when the connection URL cannot be built or the client
+    /// cannot be constructed from it.
     pub fn from_config(cfg: &ValkeyConfig) -> Result<Self, BuildError> {
         Ok(Self {
             pool: build_pool(cfg)?,

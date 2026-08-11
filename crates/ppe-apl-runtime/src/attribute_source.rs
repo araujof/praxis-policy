@@ -62,6 +62,10 @@ fn label(path: &Path) -> String {
 /// `String` is a source label used in error messages. Pure and
 /// in-memory-testable — [`FileAttributeSource::load`] just reads the
 /// files first.
+/// # Errors
+///
+/// Returns `AttributeError` when a document is not a mapping under `data:`, or
+/// when two documents disagree on the type at the same path.
 pub fn merge_attribute_docs<I>(docs: I) -> Result<AttributeTree, AttributeError>
 where
     I: IntoIterator<Item = (String, Value)>,

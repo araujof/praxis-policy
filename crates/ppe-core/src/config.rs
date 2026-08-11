@@ -611,6 +611,10 @@ impl StringOrList {
 }
 
 /// Load and parse a PPE config from a YAML file.
+/// # Errors
+///
+/// Returns `PluginError::Config` when the file cannot be read, and whatever
+/// [`parse_config`] reports for its contents.
 pub fn load_config(path: &Path) -> Result<PolicyConfig, Box<PluginError>> {
     let content = std::fs::read_to_string(path).map_err(|e| PluginError::Config {
         message: format!("failed to read config file '{}': {}", path.display(), e),
@@ -619,6 +623,12 @@ pub fn load_config(path: &Path) -> Result<PolicyConfig, Box<PluginError>> {
 }
 
 /// Parse a PPE config from a YAML string.
+/// # Errors
+///
+/// Returns `PluginError::Config` when the YAML does not deserialize, and when it
+/// carries a renamed legacy key. That second case is rejected rather than
+/// ignored: an unknown field is dropped silently, so a stale `identity:` block
+/// would leave its authentication steps unrun, which fails open.
 pub fn parse_config(yaml: &str) -> Result<PolicyConfig, Box<PluginError>> {
     // Scan the raw YAML for renamed legacy keys before the typed parse:
     // `RouteEntry` / `GlobalConfig` / `PolicyGroup` silently ignore unknown

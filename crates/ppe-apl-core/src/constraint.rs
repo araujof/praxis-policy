@@ -238,6 +238,13 @@ impl RestrictSpec {
     ///   integrity failure — a deny-list has no "empty = deny everything"
     ///   value, so we cannot safely route with an unknown one. Returns `Err`
     ///   and the evaluator denies the request.
+    /// # Errors
+    ///
+    /// Returns `RestrictResolveError` when a deny-list reference cannot be
+    /// resolved. Only deny-lists error: an allow-list shrinks to empty instead,
+    /// which qualifies nothing and leaves the decision to the host's `on_empty`,
+    /// whereas a deny-list has no value meaning "deny everything", so routing
+    /// with an unknown entry would silently permit what it named.
     pub fn resolve(&self, bag: &AttributeBag) -> Result<CandidateConstraint, RestrictResolveError> {
         // Allow-lists fail closed by shrinking to empty — `None` (unresolved)
         // collapses to `Some([])`, preserving the pre-reference behavior.

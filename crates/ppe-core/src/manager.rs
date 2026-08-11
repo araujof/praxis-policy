@@ -467,6 +467,10 @@ impl PluginManager {
     /// manager.load_config_file(Path::new("plugins/config.yaml"))?;
     /// manager.initialize().await?;
     /// ```
+    /// # Errors
+    ///
+    /// Returns `PluginError::Config` when the file cannot be read or parsed, and
+    /// whatever [`Self::load_config`] reports for the parsed contents.
     pub fn load_config_file(&self, path: &Path) -> Result<(), Box<PluginError>> {
         let policy_config = config::load_config(path)?;
         self.load_config(policy_config)
@@ -477,6 +481,12 @@ impl PluginManager {
     /// Looks up each plugin's `kind` in the factory registry,
     /// instantiates the plugins, and registers them with their
     /// hook names from the config.
+    /// # Errors
+    ///
+    /// Returns `PluginError::Config` when a plugin's `kind` has no registered
+    /// factory, when a factory rejects the plugin's config, or when a
+    /// registration conflicts with one already present. The existing snapshot is
+    /// left in place, so a failed load does not disturb in-flight requests.
     pub fn load_config(&self, policy_config: PolicyConfig) -> Result<(), Box<PluginError>> {
         warn_on_inactive_settings(&policy_config);
 
@@ -543,6 +553,13 @@ impl PluginManager {
     /// snapshot stays at the post-`load_config` state (partial load is
     /// not rolled back; operators should treat any error from this
     /// method as a hard stop).
+    /// # Errors
+    ///
+    /// Returns `PluginError::Config` when the YAML does not parse, when it does
+    /// not deserialize into a policy document, when plugin loading fails as in
+    /// [`Self::load_config`], or when a config visitor rejects a section. A
+    /// visitor error aborts the load and is not rolled back: treat it as a hard
+    /// stop rather than retrying on top of it.
     pub fn load_config_yaml(self: &Arc<Self>, yaml: &str) -> Result<(), Box<PluginError>> {
         // Parse once into a Value so the raw shape is available to
         // visitors. Then deserialize from that Value into PolicyConfig —
@@ -707,6 +724,11 @@ impl PluginManager {
     /// Note: for route-level config overrides to create new instances
     /// at runtime, use `register_factory()` + `load_config()` instead
     /// so the manager owns the factories.
+    /// # Errors
+    ///
+    /// Returns `PluginError::Config` for the same reasons as
+    /// [`Self::load_config`]: an unknown plugin `kind`, a factory that rejects
+    /// its config, or a conflicting registration.
     pub fn from_config(
         policy_config: PolicyConfig,
         factories: &PluginFactoryRegistry,
@@ -749,6 +771,10 @@ impl PluginManager {
     /// ```rust,ignore
     /// manager.register_handler::<CmfHook, _>(plugin, config)?;
     /// ```
+    /// # Errors
+    ///
+    /// Returns `PluginError::Config` when a plugin of the same name is already
+    /// registered for this hook.
     pub fn register_handler<H, P>(
         &self,
         plugin: Arc<P>,
@@ -783,6 +809,10 @@ impl PluginManager {
     ///     &["cmf.tool_pre_invoke", "cmf.llm_input", "cmf.llm_output"],
     /// )?;
     /// ```
+    /// # Errors
+    ///
+    /// Returns `PluginError::Config` when a plugin of the same name is already
+    /// registered under any of the given hook names.
     pub fn register_handler_for_names<H, P>(
         &self,
         plugin: Arc<P>,
@@ -810,6 +840,10 @@ impl PluginManager {
     /// For cases where the automatic adapter doesn't fit — e.g.,
     /// Python/WASM bridge hosts that implement `AnyHookHandler` directly.
     /// Most callers should use `register_handler` instead.
+    /// # Errors
+    ///
+    /// Returns `PluginError::Config` when a plugin of the same name is already
+    /// registered for this hook.
     pub fn register_raw<H: HookTypeDef>(
         &self,
         plugin: Arc<dyn Plugin>,
@@ -830,6 +864,11 @@ impl PluginManager {
     /// Calls `plugin.initialize()` on each registered plugin. Must be
     /// called before invoking any hooks. Idempotent — calling twice
     /// has no effect.
+    /// # Errors
+    ///
+    /// Returns `PluginError::Execution` when a plugin's `initialize` fails.
+    /// Plugins already initialized in this call are shut down first, so the
+    /// manager does not come up half-started.
     pub async fn initialize(&self) -> Result<(), Box<PluginError>> {
         if self.initialized.load(Ordering::Acquire) {
             return Ok(());

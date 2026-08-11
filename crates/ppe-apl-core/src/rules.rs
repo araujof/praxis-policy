@@ -340,6 +340,12 @@ impl Effect {
     /// lives directly or transitively under a `Parallel` node. Returns
     /// the path string of the first violation found (or `Ok(())` if
     /// the tree is clean). Run at config-load.
+    /// # Errors
+    ///
+    /// Returns the path of the first `FieldOp` or `Delegate` found under a
+    /// `Parallel` node. Both would have their effect discarded there, since a
+    /// parallel branch works on a clone, so this is rejected at config load
+    /// rather than silently dropped at runtime.
     pub fn validate_parallel_purity(&self) -> Result<(), String> {
         match self {
             Effect::Parallel(effects) => {

@@ -105,6 +105,11 @@ impl OAuthDelegator {
     /// Build a delegator from a `PluginConfig`. Reads `cfg.config`
     /// into [`OAuthDelegatorConfig`], resolves the client secret,
     /// constructs the shared `reqwest::Client`.
+    /// # Errors
+    ///
+    /// Returns `PluginError::Config` when the `config:` block is absent or does
+    /// not deserialize into this plugin's settings, and when a validated field
+    /// is out of range.
     pub fn new(cfg: PluginConfig) -> Result<Self, Box<PluginError>> {
         let raw = cfg.config.as_ref().ok_or_else(|| {
             Box::new(PluginError::Config {

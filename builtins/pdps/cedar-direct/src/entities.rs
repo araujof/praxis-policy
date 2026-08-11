@@ -39,6 +39,10 @@ use crate::cedar_attrs::{
 
 /// Build the entity set for one Cedar request. Returns owned
 /// `Entities` (Cedar takes them by reference at authorization time).
+/// # Errors
+///
+/// Returns `PdpError::Dispatch` when the principal or resource cannot be built,
+/// and `PdpError::Schema` when an entity does not satisfy the configured schema.
 pub fn build(
     bag: &AttributeBag,
     resource_args: &serde_yaml::Value,
@@ -64,6 +68,11 @@ pub fn build(
 /// Operators with custom claim attributes write their Cedar policies
 /// against `principal.claims.foo` — those land via the `claim.foo` bag
 /// key, populated upstream by praxis-policy-apl-cmf from `SubjectExtension.claims`.
+/// # Errors
+///
+/// Returns `PdpError::Dispatch` when `subject.id` is absent, since Cedar cannot
+/// authorize without a principal, or when an attribute value has no Cedar
+/// equivalent.
 pub fn build_principal(
     bag: &AttributeBag,
     schema: Option<&Schema>,
@@ -147,6 +156,10 @@ pub fn build_principal(
 ///     classification: internal
 ///     owner: 'User::"alice"'
 /// ```
+/// # Errors
+///
+/// Returns `PdpError::Dispatch` when the argument is not a map, when `type` or
+/// `id` is missing, or when an attribute value has no Cedar equivalent.
 pub fn build_resource(
     resource_args: &serde_yaml::Value,
     schema: Option<&Schema>,

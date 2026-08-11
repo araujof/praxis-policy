@@ -81,6 +81,10 @@ impl Default for AttributeTree {
 /// likewise deferred.
 pub trait AttributeSource: Send + Sync {
     /// Load the full attribute tree (a snapshot).
+    /// # Errors
+    ///
+    /// Returns `AttributeError` when the source is unreachable or its contents
+    /// do not parse into an attribute tree.
     fn load(&self) -> Result<AttributeTree, AttributeError>;
 }
 

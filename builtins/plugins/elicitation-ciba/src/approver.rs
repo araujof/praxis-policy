@@ -75,6 +75,11 @@ impl CibaApprover {
     /// Build from a `PluginConfig`: parse `cfg.config` into [`CibaConfig`],
     /// validate endpoints (https unless `insecure_http`), resolve the
     /// client secret, and build the shared HTTP client.
+    /// # Errors
+    ///
+    /// Returns `PluginError::Config` when the `config:` block is absent or does
+    /// not deserialize into this plugin's settings, and when a validated field
+    /// is out of range.
     pub fn new(cfg: PluginConfig) -> Result<Self, Box<PluginError>> {
         let raw = cfg
             .config

@@ -363,7 +363,7 @@ doc_lazy_continuation = "deny"
 doc_markdown = "deny"
 doc_overindented_list_items = "deny"
 missing_docs_in_private_items = "allow"
-missing_errors_doc = "allow"
+missing_errors_doc = "deny"
 #
 # style: Formatting and idiom preference. No effect on behavior.
 default_trait_access = "allow"

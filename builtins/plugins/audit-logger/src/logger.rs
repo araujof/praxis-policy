@@ -27,6 +27,11 @@ pub struct AuditLogger {
 }
 
 impl AuditLogger {
+    /// # Errors
+    ///
+    /// Returns `PluginError::Config` when the `config:` block is absent or does
+    /// not deserialize into this plugin's settings, and when a validated field
+    /// is out of range.
     pub fn new(cfg: PluginConfig) -> Result<Self, Box<PluginError>> {
         let typed: AuditLoggerConfig = match cfg.config.as_ref() {
             Some(raw) => serde_json::from_value(raw.clone()).map_err(|e| {

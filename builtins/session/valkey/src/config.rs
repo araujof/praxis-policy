@@ -82,6 +82,11 @@ pub struct ValkeyConfig {
 
 impl ValkeyConfig {
     /// Parse from the YAML config block, then validate.
+    /// # Errors
+    ///
+    /// Returns `BuildError` when the block does not deserialize, or when
+    /// validation rejects it: a non-localhost endpoint without TLS,
+    /// contradictory credentials, or a TTL too large to express as an expiry.
     pub fn from_value(value: &serde_yaml::Value) -> Result<Self, BuildError> {
         let cfg: ValkeyConfig =
             serde_yaml::from_value(value.clone()).map_err(|e| BuildError::Config(e.to_string()))?;
@@ -189,6 +194,11 @@ impl ValkeyConfig {
     /// intent. A fully-formed endpoint URL is parsed (and trusted for its
     /// own embedded credentials); a bare `host:port` is assembled with
     /// the configured scheme and any separate `username`/`password`.
+    /// # Errors
+    ///
+    /// Returns `BuildError::Config` when the endpoint is not a valid URL or
+    /// cannot carry the configured credentials. The endpoint is redacted in the
+    /// message, so a password in the URL is never disclosed.
     pub fn connection_url(&self) -> Result<String, BuildError> {
         if self.endpoint.starts_with("redis://") || self.endpoint.starts_with("rediss://") {
             // Validate it parses; trust the operator's embedded scheme +

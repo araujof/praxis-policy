@@ -378,6 +378,10 @@ pub trait PdpFactory: Send + Sync {
     /// Build a resolver from the rest of the PDP config block (everything
     /// under the same map level as `kind`). Implementations parse their
     /// own config shape; missing or malformed fields surface here.
+    /// # Errors
+    ///
+    /// Returns the implementation's own error when a field of its config block is
+    /// missing or malformed.
     fn build(
         &self,
         config: &serde_yaml::Value,

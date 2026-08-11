@@ -137,6 +137,10 @@ impl ClientSecretSource {
     /// Resolve the secret at runtime, returning the raw bytes.
     /// Errors as a string so the caller wraps in `PluginError::Config`
     /// with context.
+    /// # Errors
+    ///
+    /// Returns a message when the named environment variable is unset or the
+    /// file cannot be read. The secret itself never appears in the error.
     pub fn resolve(&self) -> Result<String, String> {
         match self {
             Self::EnvVar { name } => {

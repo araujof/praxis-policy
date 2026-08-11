@@ -103,6 +103,10 @@ impl CibaConfig {
 impl ClientSecretSource {
     /// Resolve the secret at construction time. Errors as a string the
     /// caller wraps in `PluginError::Config`.
+    /// # Errors
+    ///
+    /// Returns a message when the named environment variable is unset or the
+    /// file cannot be read. The secret itself never appears in the error.
     pub fn resolve(&self) -> Result<String, String> {
         match self {
             Self::EnvVar { name } => {

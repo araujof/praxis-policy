@@ -46,6 +46,10 @@ impl std::fmt::Display for ConstraintConflict {
 /// min), `custom` **union**, `on_empty` takes the **strictest**
 /// (`Deny` beats `Fallback`). A `custom` key required to hold two
 /// different values is an unsatisfiable contradiction → `Err`.
+/// # Errors
+///
+/// Returns `ConstraintConflict` when two constraints require the same `custom`
+/// key to hold different values, which no backend selection can satisfy.
 pub fn fold_candidate_constraints(
     constraints: &[CandidateConstraint],
 ) -> Result<Option<CandidateConstraintExtension>, ConstraintConflict> {

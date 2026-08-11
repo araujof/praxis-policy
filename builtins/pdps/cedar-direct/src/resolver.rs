@@ -72,6 +72,10 @@ impl CedarDirectResolver {
     /// Build a resolver from inline Cedar policy text. Use this for
     /// tests, demos, and configs where the policy is small enough to
     /// embed in YAML.
+    /// # Errors
+    ///
+    /// Returns `BuildError` when the policy text does not parse as a Cedar
+    /// policy set.
     pub fn from_policy_text(policies: &str) -> Result<Self, BuildError> {
         let policy_set: PolicySet = policies
             .parse()
@@ -88,6 +92,10 @@ impl CedarDirectResolver {
     /// Build a resolver from a Cedar policy file on disk. Convenience
     /// over `from_policy_text` for the production layout where policies
     /// live in their own versioned files.
+    /// # Errors
+    ///
+    /// Returns `BuildError` when the file cannot be read or its contents do not
+    /// parse as a Cedar policy set.
     pub fn from_policy_file(path: impl AsRef<Path>) -> Result<Self, BuildError> {
         let path = path.as_ref();
         let text = std::fs::read_to_string(path).map_err(|source| BuildError::PolicyFile {
@@ -115,6 +123,11 @@ impl CedarDirectResolver {
     /// Same for `schema_text` over `schema_file`. Called by
     /// `AplConfigVisitor` when it sees a Cedar PDP block in the
     /// unified-config YAML.
+    /// # Errors
+    ///
+    /// Returns `BuildError` when the block names neither inline policies nor a
+    /// policy file, when the file cannot be read, or when the policies or schema
+    /// do not parse.
     pub fn from_config(value: &serde_yaml::Value) -> Result<Self, BuildError> {
         let map = value
             .as_mapping()

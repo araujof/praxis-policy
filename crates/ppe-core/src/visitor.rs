@@ -76,6 +76,10 @@ pub trait ConfigVisitor: Send + Sync {
     /// hook / capability / `on_error` metadata can populate it here
     /// without re-parsing the YAML — praxis-policy-core has already validated
     /// the block (no duplicate names, etc.) by this point.
+    /// # Errors
+    ///
+    /// Returns `VisitorError` when the implementor rejects this section. The
+    /// error aborts the config load, and earlier sections are not rolled back.
     fn visit_plugins(
         &self,
         _mgr: &Arc<PluginManager>,
@@ -86,6 +90,10 @@ pub trait ConfigVisitor: Send + Sync {
 
     /// Visit the top-level `global:` block. `yaml` is the raw value at
     /// that path, or `Value::Null` if `global:` is absent.
+    /// # Errors
+    ///
+    /// Returns `VisitorError` when the implementor rejects this section. The
+    /// error aborts the config load, and earlier sections are not rolled back.
     fn visit_global(
         &self,
         _mgr: &Arc<PluginManager>,
@@ -97,6 +105,10 @@ pub trait ConfigVisitor: Send + Sync {
     /// Visit one entry in `global.defaults`. Called once per
     /// `(entity_type, default_block)` pair. `yaml` is the raw value at
     /// `global.defaults.<entity_type>`.
+    /// # Errors
+    ///
+    /// Returns `VisitorError` when the implementor rejects this section. The
+    /// error aborts the config load, and earlier sections are not rolled back.
     fn visit_default(
         &self,
         _mgr: &Arc<PluginManager>,
@@ -109,6 +121,10 @@ pub trait ConfigVisitor: Send + Sync {
     /// Visit one entry in `global.policies` (a named tag bundle).
     /// Called once per `(tag, policy_group)` pair. `yaml` is the raw
     /// value at `global.policies.<tag>`.
+    /// # Errors
+    ///
+    /// Returns `VisitorError` when the implementor rejects this section. The
+    /// error aborts the config load, and earlier sections are not rolled back.
     fn visit_policy_bundle(
         &self,
         _mgr: &Arc<PluginManager>,
@@ -123,6 +139,10 @@ pub trait ConfigVisitor: Send + Sync {
     /// is the typed `RouteEntry` praxis-policy-core deserialized (so the
     /// orchestrator can read `tool`/`resource`/`prompt`/`llm`,
     /// `meta.scope`, `meta.tags`, etc. without re-parsing).
+    /// # Errors
+    ///
+    /// Returns `VisitorError` when the implementor rejects this section. The
+    /// error aborts the config load, and earlier sections are not rolled back.
     fn visit_route(
         &self,
         _mgr: &Arc<PluginManager>,

@@ -212,6 +212,10 @@ impl CelResolver {
     /// `load_config_yaml` against their config and exercises one
     /// request per `cel:` step; this resolver doesn't carry an
     /// eager-compile knob of its own.
+    /// # Errors
+    ///
+    /// Returns `BuildError` when the block is not a mapping or a setting is out
+    /// of range, such as a zero cache cap.
     pub fn from_config(value: &serde_yaml::Value) -> Result<Self, BuildError> {
         let map = value
             .as_mapping()

@@ -58,6 +58,10 @@ pub trait PluginFactory: Send + Sync {
     /// Create a plugin instance and its handler from config.
     ///
     /// The `config` is the plugin's entry from the YAML file.
+    /// # Errors
+    ///
+    /// Returns `PluginError::Config` when the entry's settings are missing,
+    /// malformed, or out of range for this plugin.
     fn create(&self, config: &PluginConfig) -> Result<PluginInstance, Box<PluginError>>;
 }
 

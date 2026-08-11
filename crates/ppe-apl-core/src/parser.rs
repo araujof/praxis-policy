@@ -550,6 +550,11 @@ impl<'a> PredParser<'a> {
 }
 
 /// Parse a predicate string into the IR. Public for tests.
+/// # Errors
+///
+/// Returns `ParseError::Predicate` when the expression does not lex, when an
+/// operator or operand is missing, or when tokens remain after a complete
+/// expression.
 pub fn parse_predicate(src: &str) -> Result<Expression, ParseError> {
     PredParser::parse(src.trim())
 }
@@ -567,6 +572,10 @@ pub fn parse_predicate(src: &str) -> Result<Expression, ParseError> {
 /// are handled by `parse_step`, not here. This function specifically parses
 /// predicate-and-action rules; callers that don't know which they have
 /// should use `parse_step` instead.
+/// # Errors
+///
+/// Returns `ParseError::Rule` when the line matches none of the accepted forms,
+/// or `ParseError::Predicate` when its predicate half does not parse.
 pub fn parse_rule(line: &str, source: &str) -> Result<Rule, ParseError> {
     let trimmed = line.trim();
 
@@ -872,6 +881,11 @@ fn strip_string_literal(s: &str, rule: &str) -> Result<String, ParseError> {
 /// - **Map entry** (single-key map) — PDP call with optional reactions.
 ///   - `cedar: { action: read, resource: e, on_deny: [...] }` → `Step::Pdp`
 ///   - `opa("path"): { on_deny: [...] }` → `Step::Pdp`
+/// # Errors
+///
+/// Returns `ParseError::Rule` when the value is neither a string nor a
+/// single-key map, when the step name is unknown, or when its arguments are
+/// malformed.
 pub fn parse_step(value: &serde_yaml::Value, source: &str) -> Result<Step, ParseError> {
     match value {
         serde_yaml::Value::String(s) => parse_step_string(s, source),
@@ -2287,6 +2301,11 @@ fn extract_call_args(line: &str, name: &str) -> Option<String> {
 /// Splits on `|` (outside parens/quotes), trims each stage, parses each.
 /// Empty pipelines (empty string or whitespace) are valid — they produce
 /// `Pipeline { stages: vec![] }`.
+/// # Errors
+///
+/// Returns `ParseError::Predicate` when a stage name is unknown or its
+/// arguments do not parse. A `validate` stage is rejected here because it is
+/// only meaningful on a field rule.
 pub fn parse_pipeline(src: &str) -> Result<Pipeline, ParseError> {
     let mut pipeline = Pipeline::new();
     for seg in split_top_level(src.trim(), b'|') {
@@ -2730,6 +2749,11 @@ pub struct CompiledConfig {
 /// A route-level `plugins:` override block alone is not enough — overrides
 /// only have meaning when the route actually dispatches plugins via APL
 /// steps, so an override-only route is treated as legacy.
+/// # Errors
+///
+/// Returns `ParseError::Yaml` when the document does not deserialize, or the
+/// per-rule error from any route whose policy, args, or result block fails to
+/// compile.
 pub fn compile_config(yaml: &str) -> Result<CompiledConfig, ParseError> {
     let cfg: ConfigYaml = serde_yaml::from_str(yaml)?;
     let mut routes = HashMap::with_capacity(cfg.routes.len());
@@ -2893,6 +2917,10 @@ fn compile_apl_blocks(source: &str, raw: RouteYaml) -> Result<CompiledRoute, Par
 /// Returns an empty `CompiledRoute` when the value is null or contains
 /// no APL fields — callers that want a "is this empty?" gate can check
 /// `declared_phases().is_empty()` on the result.
+/// # Errors
+///
+/// Returns `ParseError::Yaml` when the block does not deserialize into the route
+/// shape, or the per-rule error from a rule or pipeline that fails to compile.
 pub fn compile_policy_block_value(
     source: &str,
     block: &serde_yaml::Value,

@@ -195,6 +195,13 @@ impl DecodingKeySource {
     /// the JWKS spec is the source of truth for which kids exist.
     ///
     /// [`build_async`]: Self::build_async
+    /// # Errors
+    ///
+    /// Returns a message when the key material does not parse, when a PEM file
+    /// cannot be read, or when the source is `jwks_url`, which needs
+    /// [`build_async`].
+    ///
+    /// [`build_async`]: Self::build_async
     pub fn build(&self) -> Result<KeyStore, String> {
         let key = match self {
             Self::Pem { pem } => build_from_pem_bytes(pem.as_bytes(), "inline PEM")?,
@@ -234,6 +241,10 @@ impl DecodingKeySource {
     /// * No automatic rotation — the store is bound at initialize
     ///   time. A background refresh task keeps `IdP` key
     ///   rolls from requiring a gateway restart.
+    /// # Errors
+    ///
+    /// Returns a message when the JWKS endpoint is unreachable, answers with a
+    /// non-success status, or returns a document with no usable signature key.
     pub async fn build_async(&self) -> Result<KeyStore, String> {
         match self {
             Self::JwksUrl {
@@ -352,6 +363,11 @@ impl TrustedIssuerConfig {
     /// without resolving the key. Used at construction time as a
     /// fast-fail gate so misshapen YAML is rejected before any
     /// network I/O is attempted.
+    /// # Errors
+    ///
+    /// Returns a message when `issuer` is empty or `algorithms` is empty. An
+    /// issuer with no accepted algorithm can verify nothing, so it is rejected
+    /// here rather than failing every token later.
     pub fn validate(&self) -> Result<(), String> {
         if self.issuer.trim().is_empty() {
             return Err("trusted_issuer.issuer must be non-empty".into());
@@ -369,6 +385,13 @@ impl TrustedIssuerConfig {
     /// inline / on-disk `decoding_key` sources; **errors when
     /// `decoding_key.kind == jwks_url`** — use [`build_async`] for
     /// those.
+    ///
+    /// [`build_async`]: Self::build_async
+    /// # Errors
+    ///
+    /// Returns a message when [`Self::validate`] rejects the shape, or when the
+    /// decoding key cannot be built. A `jwks_url` source needs
+    /// [`build_async`] instead.
     ///
     /// [`build_async`]: Self::build_async
     pub fn build(self) -> Result<TrustedIssuer, String> {
@@ -392,6 +415,10 @@ impl TrustedIssuerConfig {
     /// `decoding_key` variant including `JwksUrl`. Called from
     /// `JwtIdentityResolver::initialize()` for sources that deferred
     /// resolution past construction.
+    /// # Errors
+    ///
+    /// Returns a message when [`Self::validate`] rejects the shape, or when the
+    /// decoding key cannot be fetched or parsed.
     pub async fn build_async(self) -> Result<TrustedIssuer, String> {
         self.validate()?;
         let keys = self.decoding_key.build_async().await.map_err(|e| {

@@ -262,6 +262,11 @@ impl PluginRegistry {
     /// - `plugin` — the plugin implementation (must also implement the handler trait).
     /// - `config` — authoritative config from the config loader.
     /// - `handler` — type-erased handler wrapping the plugin's handler trait impl.
+    /// # Errors
+    ///
+    /// Returns the conflict message when a plugin of the same name is already
+    /// registered. Registration is all-or-nothing: no hook name is recorded when
+    /// any of them conflicts.
     pub fn register<H: HookTypeDef>(
         &mut self,
         plugin: Arc<dyn Plugin>,
@@ -288,6 +293,11 @@ impl PluginRegistry {
                   a hook type, which is what separates this from \
                   register_for_names_with_handler below"
     )]
+    /// # Errors
+    ///
+    /// Returns the conflict message when a plugin of the same name is already
+    /// registered. Registration is all-or-nothing: no hook name is recorded when
+    /// any of them conflicts.
     pub fn register_for_names<H: HookTypeDef>(
         &mut self,
         plugin: Arc<dyn Plugin>,
@@ -304,6 +314,11 @@ impl PluginRegistry {
     /// type parameter. Used by the config-driven factory path where
     /// the hook type is not known at compile time — the factory
     /// provides the handler directly.
+    /// # Errors
+    ///
+    /// Returns the conflict message when a plugin of the same name is already
+    /// registered. Registration is all-or-nothing: no hook name is recorded when
+    /// any of them conflicts.
     pub fn register_for_names_with_handler(
         &mut self,
         plugin: Arc<dyn Plugin>,
@@ -322,6 +337,11 @@ impl PluginRegistry {
     ///
     /// The plugin is registered once in the name index. Each handler
     /// gets its own `HookEntry` in the hook index under the specified name.
+    /// # Errors
+    ///
+    /// Returns the conflict message when a plugin of the same name is already
+    /// registered. Registration is all-or-nothing: no hook name is recorded when
+    /// any of them conflicts.
     pub fn register_multi_handler(
         &mut self,
         plugin: Arc<dyn Plugin>,

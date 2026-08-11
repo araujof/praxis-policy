@@ -55,6 +55,11 @@ pub struct ParsedCall<'a> {
 /// Parse the args + bag into the pieces a Cedar request builder needs.
 /// Schema is optional; when present, the context block is validated
 /// against the action's declared context shape.
+/// # Errors
+///
+/// Returns `PdpError::Dispatch` when the call omits `action` or `resource`, or a
+/// context value has no Cedar equivalent, and `PdpError::Schema` when the context
+/// does not match the action's declared shape.
 pub fn parse<'a>(
     call: &'a PdpCall,
     bag: &AttributeBag,

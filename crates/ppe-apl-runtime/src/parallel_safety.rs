@@ -73,6 +73,12 @@ impl PluginModeLookup for PluginManager {
 /// `;`-separated list of every violation found — running a single pass
 /// over the route surfaces all problems at once instead of stopping
 /// at the first.
+/// # Errors
+///
+/// Returns a `;`-separated list of every plugin inside a `parallel:` block whose
+/// mode would lose its mutations there, or that is not registered at all. The
+/// whole route is checked in one pass so a config load reports all of them
+/// rather than stopping at the first.
 pub fn validate_parallel_plugin_modes<L: PluginModeLookup + ?Sized>(
     route: &CompiledRoute,
     registry: &L,

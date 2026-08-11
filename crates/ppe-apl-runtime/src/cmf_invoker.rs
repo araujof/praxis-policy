@@ -130,6 +130,11 @@ impl CmfPluginInvoker {
     /// Hydrates accumulated session-scoped labels into
     /// `extensions.security.labels` before returning, so the first
     /// plugin sees the full session-monotonic view.
+    /// # Errors
+    ///
+    /// Returns `SessionStoreError` when the accumulated session labels cannot be
+    /// read. Construction fails rather than continuing, because a plugin that ran
+    /// without the session's existing taint would be deciding on a partial view.
     pub async fn for_request(
         manager: Arc<PluginManager>,
         mut extensions: Extensions,
@@ -272,6 +277,12 @@ impl CmfPluginInvoker {
     /// closed. Because this runs after the policy decision is
     /// computed, the route handler converts an append error into a Deny
     /// outcome rather than dropping the accumulated taint silently.
+    /// # Errors
+    ///
+    /// Returns `SessionStoreError` when the labels cannot be appended. The route
+    /// handler turns this into a deny: the decision is already computed by this
+    /// point, so dropping the taint instead would let the next request decide
+    /// without it.
     pub async fn persist_session(&self) -> Result<(), SessionStoreError> {
         let Some(sid) = &self.session_id else {
             return Ok(());

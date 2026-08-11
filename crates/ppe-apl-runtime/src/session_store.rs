@@ -104,6 +104,11 @@ pub trait SessionStoreFactory: Send + Sync {
     /// Build a store from its config block. The whole
     /// `global.apl.session_store` mapping is passed so the factory can
     /// read its own keys (endpoint, TLS, auth, prefix, TTL, …).
+    /// # Errors
+    ///
+    /// Returns the implementation's own error when a field of the
+    /// `session_store` block is missing or malformed, or when the store cannot be
+    /// reached at construction.
     fn build(
         &self,
         config: &serde_yaml::Value,
