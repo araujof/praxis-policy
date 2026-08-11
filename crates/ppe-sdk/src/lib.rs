@@ -11,6 +11,13 @@
 // that WASM plugins compile against.
 
 // Plugin lifecycle
+
+//! Re-exports for plugin authors.
+//!
+//! Depend on this instead of the full runtime to keep a plugin's dependency
+//! tree small. Carries the `Plugin` trait, the hook traits, and the supporting
+//! types, and nothing that only the host needs.
+
 pub use praxis_policy_core::plugin::{OnError, Plugin, PluginConfig, PluginMode};
 
 // Hook system

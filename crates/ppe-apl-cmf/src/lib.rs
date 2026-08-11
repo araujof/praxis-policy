@@ -40,21 +40,44 @@
 //   Request args object            → args.*
 //   Response result object         → result.*
 
+//! Flattens typed extensions into the attribute vocabulary policies are written
+//! against.
+//!
+//! Each bridge is a pure function that reads one typed source and writes flat
+//! keys into a borrowed bag: no async, no I/O. This crate defines which keys a
+//! policy author may reference, so adding one here widens the language.
+
+/// Bridges agent session and lineage into `agent.*` keys.
 pub mod agent;
+/// Maps a plugin capability to the key prefixes it may read.
 pub mod capability_namespaces;
+/// Bridges completion metadata into `completion.*` keys.
 pub mod completion;
+/// The attribute key and capability name constants.
 pub mod constants;
+/// Bridges host-supplied values into `custom.*` keys.
 pub mod custom;
+/// Bridges the delegation chain into `delegation.*` keys.
 pub mod delegation;
+/// Runs every bridge over one extension container.
 pub mod extensions_bridge;
+/// Bridges framework context into `framework.*` keys.
 pub mod framework;
+/// Bridges request and response headers into `http.*` keys.
 pub mod http;
+/// Bridges model identity into `llm.*` keys.
 pub mod llm;
+/// Bridges tool and resource metadata into `mcp.*` keys.
 pub mod mcp;
+/// Bridges operational metadata into `meta.*` keys.
 pub mod meta;
+/// Bridges the message payload into `args.*` and `result.*` keys.
 pub mod payload;
+/// Bridges origin and threading into `provenance.*` keys.
 pub mod provenance;
+/// Bridges execution environment into `request.*` keys.
 pub mod request;
+/// Bridges identity and labels into `subject.*`, `role.*`, and `perm.*` keys.
 pub mod security;
 
 pub use agent::extract_agent;

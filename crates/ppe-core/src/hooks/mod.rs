@@ -16,11 +16,17 @@
 //
 // Hook types are open — hosts define their own using define_hook! alongside the built-ins.
 
+/// Adapters that erase a typed handler behind the dispatch trait.
 pub mod adapter;
+/// The `define_hook!` macro, which declares a hook in one place.
 pub mod macros;
+/// Hook descriptions used for introspection.
 pub mod metadata;
+/// The payload trait and the extension container passed alongside it.
 pub mod payload;
+/// The handler trait and its result type.
 pub mod trait_def;
+/// Hook type identity and the open name registry.
 pub mod types;
 
 // Re-export core types at the hooks level

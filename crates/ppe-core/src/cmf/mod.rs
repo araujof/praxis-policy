@@ -87,10 +87,15 @@
 //   cmf.prompt_pre_fetch, cmf.prompt_post_fetch,
 //   cmf.resource_pre_fetch, cmf.resource_post_fetch
 
+/// Field and role name constants.
 pub mod constants;
+/// Content part bodies: text, tool calls, results, and prompts.
 pub mod content;
+/// Roles, content kinds, and stop reasons.
 pub mod enums;
+/// The `Message` type and its parts.
 pub mod message;
+/// Read-only views over a message, for plugins that only inspect.
 pub mod view;
 
 // Re-export key types at the cmf module level

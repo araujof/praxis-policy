@@ -32,10 +32,21 @@
 // planned OAuth token cache is the trigger to extract a shared layer
 // later, shaped by two real consumers.
 
+//! Valkey-backed session store for security labels.
+//!
+//! Keeps accumulated session taint outside the process so it survives a restart
+//! and is shared across gateway instances. Label sets merge server-side, so
+//! concurrent appends from different nodes cannot lose a label.
+
+/// Store configuration and its validation.
 mod config;
+/// Connection setup, including TLS and authentication.
 mod connection;
+/// Errors raised while building or reaching the store.
 mod error;
+/// Constructs the store from configuration.
 mod factory;
+/// The `SessionStore` implementation.
 mod store;
 
 pub use config::ValkeyConfig;

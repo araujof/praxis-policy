@@ -14,7 +14,9 @@
 // no TokenCacheControl trait (that lands in a follow-up with
 // the cache infrastructure).
 
+/// The token delegation hook.
 pub mod hook;
+/// The payload carrying the exchange request and its minted tokens.
 pub mod payload;
 
 pub use hook::{HOOK_TOKEN_DELEGATE, TokenDelegateHook};

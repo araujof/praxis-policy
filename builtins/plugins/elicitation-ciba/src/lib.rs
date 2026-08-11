@@ -19,9 +19,19 @@
 //   * [`approver`] — the handler + CIBA HTTP.
 //   * [`factory`]  — `kind: elicitation/ciba` registration.
 
+//! Out-of-band human approval over OIDC CIBA.
+//!
+//! Handles the elicitation hook, which a policy selects by name. Each dispatch,
+//! check, and validate maps onto the backchannel authentication flow, so a
+//! request can wait on a person without holding the connection open.
+
+/// The elicitation hook handler.
 pub mod approver;
+/// Plugin configuration and its validation.
 pub mod config;
+/// Constructs the approver from configuration.
 pub mod factory;
+/// Tracks pending approvals across the requests that poll them.
 pub mod store;
 
 pub use approver::CibaApprover;

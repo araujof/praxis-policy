@@ -39,10 +39,22 @@
 //   crate's API surface is the reference shape but nothing
 //   prevents other resolvers from coexisting.
 
+//! Validates inbound JWTs and fills the request's identity slots.
+//!
+//! Checks a token against the configured trusted issuers, then maps its claims
+//! into the subject, client, or workload slot. This is the lightweight identity
+//! path: it establishes who is calling, independent of any decision point that
+//! runs later in the route.
+
+/// Maps validated claims onto the identity slots.
 pub mod claim_map;
+/// Plugin configuration and its validation.
 pub mod config;
+/// Constructs the resolver from configuration.
 pub mod factory;
+/// The identity hook handler.
 pub mod resolver;
+/// A trusted issuer, its key store, and its accepted algorithms.
 pub mod trusted_issuer;
 
 pub use claim_map::{ClaimMap, ClaimMapper, StandardClaimMap};

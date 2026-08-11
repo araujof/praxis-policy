@@ -13,7 +13,9 @@
 // payload and maps the result back to praxis-policy-apl-core's `ElicitationInvoker`
 // return types.
 
+/// The elicitation hook.
 pub mod hook;
+/// The payload carrying the prompt, its state, and the response.
 pub mod payload;
 
 pub use hook::{ElicitationHook, HOOK_ELICIT};

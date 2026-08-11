@@ -16,8 +16,11 @@
 // framework merge-into-Extensions logic, no APL integration. Those
 // land later.
 
+/// The identity resolution hook.
 pub mod hook;
+/// The payload carrying resolved subject, client, and workload.
 pub mod payload;
+/// Per-route identity configuration.
 pub mod route_config;
 
 pub use hook::{HOOK_IDENTITY_RESOLVE, IdentityHook};

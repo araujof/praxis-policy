@@ -31,19 +31,40 @@
 // MessageView attributes. See the APL implementation memory's
 // "list-with-matchers" deferred item.
 
+//! Connects the APL evaluator to the plugin runtime.
+//!
+//! The evaluator's invoker traits are string-typed so the language crate stays
+//! free of runtime dependencies. The typed boundary lives here: one invoker per
+//! hook type, with the payload locked at the impl so the compiler rejects a
+//! mismatched dispatch.
+
+/// Loads external attribute trees for the evaluator.
 pub mod attribute_source;
+/// Applies a route's backend candidate constraint.
 pub mod candidate_constraint;
+/// Dispatches plugin steps to CMF hooks.
 pub mod cmf_invoker;
+/// Dispatches delegation steps to the delegation hook.
 pub mod delegation_invoker;
+/// The per-request plan of which handlers run in which phase.
 pub mod dispatch_plan;
+/// Dispatches elicitation steps to the elicitation hook.
 pub mod elicitation_invoker;
+/// Folds a plugin's payload edits back into the request.
 mod message_projection;
+/// Rejects plugins whose mode is unsafe inside a `parallel:` block.
 pub mod parallel_safety;
+/// Routes a decision point call to the resolver for its dialect.
 pub mod pdp_router;
+/// Wires the runtime into a plugin manager.
 pub mod register;
+/// Runs a compiled route for one hook invocation.
 pub mod route_handler;
+/// Resolves the session identity a taint label attaches to.
 pub mod session_resolver;
+/// The session store trait and its in-memory default.
 pub mod session_store;
+/// Compiles route blocks at config load time.
 pub mod visitor;
 
 pub use attribute_source::{FileAttributeSource, merge_attribute_docs};

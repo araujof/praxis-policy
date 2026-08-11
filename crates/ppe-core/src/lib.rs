@@ -28,18 +28,39 @@
 //                     approval, confirmation, step-up, …)
 // - [`error`] — Error types, violations, and result types
 
+//! The plugin runtime: manager, executor, hook registry, and config parser.
+//!
+//! Pure Rust with no FFI, WASM, or Python bindings. Plugins register against
+//! named hooks and the executor dispatches them in five phases, reading every
+//! scheduling decision from trusted config rather than from the plugin.
+
+/// The common message format: messages, content parts, and read-only views.
 pub mod cmf;
+/// YAML configuration parsing for plugins, routes, and policies.
 pub mod config;
+/// Per-plugin state carried across hook invocations.
 pub mod context;
+/// The token delegation hook and its payload.
 pub mod delegation;
+/// The elicitation hook, for out-of-band human approval.
 pub mod elicitation;
+/// Plugin errors and policy violations.
 pub mod error;
+/// Five-phase plugin dispatch.
 pub mod executor;
+/// Typed request attributes that plugins read and write.
 pub mod extensions;
+/// Config-driven plugin construction.
 pub mod factory;
+/// Hook types, payloads, and the handler traits.
 pub mod hooks;
+/// The identity resolution hook and its payload.
 pub mod identity;
+/// Plugin lifecycle and hook dispatch.
 pub mod manager;
+/// The `Plugin` trait and its trusted configuration.
 pub mod plugin;
+/// Plugin instance and hook registries.
 pub mod registry;
+/// Config visitors, which let a dialect compile its own route blocks at load time.
 pub mod visitor;

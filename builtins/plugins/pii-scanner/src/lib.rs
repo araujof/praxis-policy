@@ -21,8 +21,17 @@
 // The plugin registers on whichever CMF pre-invoke hooks the
 // operator declares in YAML (tool / prompt / llm / resource).
 
+//! Scans tool and prompt arguments for configured PII patterns.
+//!
+//! Three modes decide what a match means: `deny` rejects the request, `taint`
+//! labels the session so later policy can gate on it, and `redact` replaces the
+//! value and continues.
+
+/// Plugin configuration, including the patterns and the mode.
 pub mod config;
+/// Constructs the scanner from configuration.
 pub mod factory;
+/// The CMF hook handler that walks arguments and applies the mode.
 pub mod scanner;
 
 pub use config::{PiiPattern, PiiScanMode, PiiScannerConfig};

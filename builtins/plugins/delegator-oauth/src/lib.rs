@@ -19,8 +19,17 @@
 // Scope: data shapes + module structure only. Actual HTTP exchange
 // logic and mock-IdP integration tests land later.
 
+//! Mints downstream credentials by RFC 8693 token exchange.
+//!
+//! Handles the delegation hook: given the caller's token, a target audience,
+//! and the scopes a route requires, it exchanges at the configured endpoint and
+//! returns a token scoped to that audience alone.
+
+/// Plugin configuration and its validation.
 pub mod config;
+/// The delegation hook handler.
 pub mod delegator;
+/// Constructs the delegator from configuration.
 pub mod factory;
 
 pub use config::{ClientSecretSource, OAuthDelegatorConfig};

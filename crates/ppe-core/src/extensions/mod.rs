@@ -11,24 +11,43 @@
 //
 // Mirrors the Python extensions in cpex/framework/extensions/.
 
+/// Agent session, conversation, and lineage.
 pub mod agent;
+/// RFC 9396 rich authorization request detail.
 pub mod authorization;
+/// LLM completion metadata.
 pub mod completion;
+/// Typed containers holding every extension for one request.
 pub mod container;
+/// The token delegation chain.
 pub mod delegation;
+/// Capability-gated filtering of extension visibility.
 pub mod filter;
+/// Agentic framework context.
 pub mod framework;
+/// Capability-gated write access to a value.
 pub mod guarded;
+/// HTTP request and response headers.
 pub mod http;
+/// Model identity and capabilities.
 pub mod llm;
+/// Tool, resource, and prompt metadata.
 pub mod mcp;
+/// Host-provided operational metadata.
 pub mod meta;
+/// An add-only set, enforced by the type.
 pub mod monotonic;
+/// Message origin and threading.
 pub mod provenance;
+/// Raw token material, kept separate from derived identity.
 pub mod raw_credentials;
+/// Execution environment and tracing identifiers.
 pub mod request;
+/// Backend candidate constraints for a request.
 pub mod routing;
+/// Labels, classification, identity, and data policy.
 pub mod security;
+/// Mutability tiers and capability definitions.
 pub mod tiers;
 
 // Re-export containers

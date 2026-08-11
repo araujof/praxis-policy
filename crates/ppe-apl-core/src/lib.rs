@@ -11,15 +11,25 @@
 
 #![doc = "APL — Authorization Policy Language."]
 
+/// External attribute sources loaded at config time.
 pub mod attribute_source;
+/// The flat attribute bag policies are evaluated against.
 pub mod attributes;
+/// Value constraints used by validation pipelines.
 pub mod constraint;
+/// Evaluates rules and effects against an attribute bag.
 pub mod evaluator;
+/// Parses policy documents into the rule and step forms below.
 pub mod parser;
+/// Field pipelines: the validate, mask, and redact stages.
 pub mod pipeline;
+/// Plugin declarations and their per-route overrides.
 pub mod plugin_decl;
+/// A compiled route and the phases it runs.
 pub mod route;
+/// Rules, predicates, and effects.
 pub mod rules;
+/// Steps: plugin calls, delegation, taint, and decision point calls.
 pub mod step;
 
 pub use attribute_source::{AttributeError, AttributeSource, AttributeTree};

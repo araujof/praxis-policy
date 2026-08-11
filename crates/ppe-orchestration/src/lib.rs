@@ -23,6 +23,14 @@
 // concepts. Each caller adapts its types (HookEntry, EffectOutcome,
 // Decision, …) at the boundary.
 
+//! Runs N async branches concurrently, optionally aborting the rest on the
+//! first deny.
+//!
+//! One generic function, [`run_branches`], shared by the core executor's
+//! concurrent phase and the APL evaluator's `parallel:` block so the two cannot
+//! drift. It speaks `Future` plus an `is_deny` predicate and knows nothing about
+//! policy.
+
 #![deny(rust_2018_idioms)]
 
 use std::collections::{BTreeMap, HashMap};

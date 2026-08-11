@@ -116,9 +116,19 @@
 // load, a given route's `cel:` expression compiles a single time over the
 // process lifetime.
 
+//! CEL decision point, over the `cel` interpreter.
+//!
+//! Serves a route's `cel:` step. Compiles the expression once, caches it under
+//! a bounded cap, and evaluates it against the attribute bag. A non-boolean
+//! result is a policy error rather than a permit.
+
+/// Exposes the attribute bag to the expression as CEL variables.
 pub mod activation;
+/// Errors raised while compiling or evaluating an expression.
 pub mod error;
+/// Constructs the resolver from configuration.
 pub mod factory;
+/// The `PdpResolver` implementation, including the compile cache.
 pub mod resolver;
 
 pub use error::BuildError;

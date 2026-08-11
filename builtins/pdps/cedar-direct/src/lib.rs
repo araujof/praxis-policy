@@ -99,13 +99,27 @@
 // Without `@id` annotations, Cedar generates `policy0`, `policy1`, …
 // which is stable but meaningless. Worth documenting as best practice.
 
+//! Cedar decision point, over the `cedar-policy` crate directly.
+//!
+//! Serves a route's `cedar:(...)` step. Builds Cedar entities from the
+//! attribute bag, evaluates against the configured policy set, and returns a
+//! permit or deny with the determining policy ids.
+
+/// Converts bag values into Cedar attribute values.
 pub mod cedar_attrs;
+/// The decision returned to the evaluator, with determining policy ids.
 pub mod decision;
+/// Builds the Cedar principal, action, and resource entities.
 pub mod entities;
+/// Errors raised while building or evaluating a request.
 pub mod error;
+/// Constructs the resolver from configuration.
 pub mod factory;
+/// Assembles a Cedar authorization request.
 pub mod request;
+/// The `PdpResolver` implementation.
 pub mod resolver;
+/// Substitutes bag references into an authored call signature.
 pub mod template;
 
 pub use error::BuildError;

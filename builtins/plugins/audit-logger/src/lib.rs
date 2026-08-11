@@ -31,8 +31,18 @@
 //   * `read_meta`              — for entity_type / entity_name
 //   * `read_delegated_tokens`  — to surface what got minted
 
+//! Emits one structured JSON audit record per dispatched request.
+//!
+//! Records the subject and client, the entity being called, an argument
+//! summary, and the delegation outcomes. Observation only: it never denies. The
+//! delegation detail is the part that makes the trail evidence, since it shows
+//! which audience received which scopes.
+
+/// Plugin configuration, including the output destination.
 pub mod config;
+/// Constructs the logger from configuration.
 pub mod factory;
+/// Builds and emits the audit record.
 pub mod logger;
 
 pub use config::{AuditDestination, AuditLoggerConfig};
