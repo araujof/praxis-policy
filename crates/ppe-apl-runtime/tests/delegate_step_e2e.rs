@@ -20,6 +20,7 @@
 //     `on_error: continue` lets the pipeline keep going.
 
 #![allow(
+    clippy::field_reassign_with_default,
     trivial_casts,
     clippy::expect_used,
     clippy::indexing_slicing,

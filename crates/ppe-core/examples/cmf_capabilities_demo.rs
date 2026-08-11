@@ -11,6 +11,7 @@
 // Run with: cargo run --example cmf_capabilities_demo
 
 #![allow(
+    clippy::unreadable_literal,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

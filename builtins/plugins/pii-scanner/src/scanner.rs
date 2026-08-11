@@ -216,6 +216,7 @@ fn _force_link_arc(_: Arc<()>) {}
 
 #[cfg(test)]
 #[allow(
+    clippy::needless_raw_strings,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

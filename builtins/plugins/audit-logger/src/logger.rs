@@ -149,6 +149,7 @@ impl AuditLogger {
     }
 
     #[allow(
+        clippy::field_reassign_with_default,
         clippy::print_stderr,
         reason = "writing the audit record to stderr is what AuditDestination::Stderr \
                   selects; the operator asked for this stream by name"
@@ -192,6 +193,7 @@ fn _force_link_arc(_: Arc<()>) {}
 #[cfg(test)]
 #[allow(
     clippy::expect_used,
+    clippy::field_reassign_with_default,
     clippy::indexing_slicing,
     clippy::panic,
     clippy::print_stderr,

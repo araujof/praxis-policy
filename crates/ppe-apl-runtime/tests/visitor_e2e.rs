@@ -19,6 +19,10 @@
 // executor path).
 
 #![allow(
+    clippy::needless_raw_string_hashes,
+    clippy::empty_line_after_doc_comments,
+    clippy::field_reassign_with_default,
+    clippy::needless_raw_strings,
     trivial_casts,
     clippy::expect_used,
     clippy::indexing_slicing,

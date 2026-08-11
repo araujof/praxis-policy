@@ -23,6 +23,7 @@
 // at the same level. This test exercises both from one loaded config.
 
 #![allow(
+    clippy::field_reassign_with_default,
     trivial_casts,
     clippy::expect_used,
     clippy::indexing_slicing,

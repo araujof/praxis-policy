@@ -140,36 +140,22 @@ strip = true
 # Adopted from Praxis so this project holds the same bar. Member crates opt in
 # with `[lints] workspace = true`.
 #
-# Every entry that is not enforced carries one of two tags. The tag answers a
-# single question: does this block publish, and if not, why is that defensible?
+# Not every rule Praxis denies is denied here. The set that is not is listed at
+# the end of this file, grouped by why, and it is a settled decision rather than
+# a backlog: each group's comment says why those lints cannot silently change an
+# enforcement decision. Do not add new violations of one.
 #
-#   gate:   Must reach deny before the crates are published. Carries a measured
-#           production site count and is tracked in docs/ratchet.md.
-#   parked: Not scheduled. The reason must say why the lint cannot silently
-#           change an enforcement decision, which is the only ground for
-#           parking one indefinitely. Counts are production sites unless noted.
+# Of Praxis's 171 rules, 127 are enforced identically here and 42 are weaker. Two
+# are stricter, and three more are denied that Praxis does not configure at all.
+# docs/lints.md carries the per-lint counts, how to reproduce them, and the cases
+# where a lint's own suggested fix is worse than the code it replaces.
 #
-# Counts come from clippy, not from reading the source:
-#
-#   cargo clippy --workspace --all-targets --all-features -- -W <lint>
-#
-# A site inside a `#[cfg(test)]` region or a tests/ examples/ target is not a
-# production site. Test code is scope-allowed at the module or crate level, so
-# the numbers here describe the library's own surface. Measure lints one at a
-# time where it matters: some clippy lints suppress each other, and measuring a
-# group can report zero for a lint that fires on its own.
-#
-# Two classes of parked entry are correctness-relevant rather than cosmetic and
-# are the strongest candidates for the next gate: `parked: numeric-cast`, where
-# a truncation or sign change can alter a comparison, and `parked: unsafe`.
-#
-# This tree carries Praxis's lint list but not yet all of its enforcement. Of
-# Praxis's 171 rules, 94 are enforced identically here, 75 are weaker, and 2 are
-# stricter. It also adds `unexpected_cfgs`, which Praxis does not configure.
-# Parking the remainder was necessary to import 192 files under a gate none of
-# them had been compiled against; it is not a claim that the bar is equal.
-# docs/ratchet.md carries the current numbers and how to reproduce them.
-
+# Counts come from clippy rather than from reading the source, and a site inside
+# a `#[cfg(test)]` region or a tests/ target is not a production site: test code
+# is scope-allowed at the module or crate level, so a parked entry describes the
+# library's own surface. Measure one lint at a time where the number matters.
+# Some clippy lints suppress each other, and `rustdoc::` lints are not checked by
+# clippy at all.
 [workspace.lints.rust]
 # --- Enforced ---
 unused_imports = "deny"
@@ -189,33 +175,37 @@ unexpected_cfgs = "deny"
 # Closed from the import backlog: measured at zero violations across
 # --workspace --all-targets --all-features, so enforcing costs no code change.
 unused_extern_crates = "deny"
-
-# --- Parked and gated ---
-missing_docs = "allow"                      # parked: docs, 664
-dead_code = "allow"                         # parked: hygiene, 2
 unreachable_pub = "deny"
-unused_qualifications = "allow"                # parked: hygiene, 130; rustfix reports these
-# machine-applicable but cannot apply them: the suggestions overlap within a
-# statement, and applying them by hand at this volume is churn for no reader gain.
-elided_lifetimes_in_paths = "allow"         # parked: style, 1
-private_interfaces = "allow"                # parked: api, 1
-unused_mut = "allow"                        # parked: hygiene, 0 production (33 in tests)
-missing_debug_implementations = "allow"     # parked: api, 39
-# seed: measured. Three upcasts of a concrete Arc/Box to a trait object in the
-# plugin registry and payload plumbing.
+unused_mut = "deny"
 trivial_casts = "deny"
-# seed: measured. Two single-use lifetime parameters in the policy parser.
-single_use_lifetimes = "allow"                # parked: style, 2 in a Debug impl
-# seed: measured. One non-binding let on a value with a destructor.
-let_underscore_drop = "allow"                 # parked: hygiene, 12; `let _ =` on a
-# droppable value is often the deliberate spelling, and the suggested rewrite
-# spans multiple edits that rustfix mis-assembles.
-# seed: Praxis denies this. Two sites in the source tree assert Send and Sync by
-# hand for a write-capability token. Closing this means documenting both with a
-# scoped expect attribute or restructuring the token so the assertion is not
-# needed. The FFI boundary that was the other reason to park it is not ported.
+# The crate contains no unsafe code. Two hand-written Send/Sync impls on a
+# zero-sized capability token were the only occurrence; they were unnecessary,
+# since the token's sole field is `()` and the auto traits already applied. A
+# compile-time assertion stands in their place.
 unsafe_code = "deny"
 
+# --- Not enforced: a settled list, see the header ---
+#
+# docs: Documentation completeness and prose style. The gap is real and worth
+# closing, but it is a writing task rather than a code change: satisfying these
+# by generating filler would hide where documentation is actually missing.
+# docs/lints.md carries the item counts.
+missing_docs = "allow"
+#
+# style: Formatting and idiom preference. No effect on behavior.
+elided_lifetimes_in_paths = "allow"
+single_use_lifetimes = "allow"
+#
+# hygiene: Dead and unused code, and redundant qualification. Closing these is
+# cleanup; none of them can change what live code does.
+dead_code = "allow"
+let_underscore_drop = "allow"
+unused_qualifications = "allow"
+#
+# api: Public surface shape. Matters at publish time, not at runtime, and some
+# of these are blocked by third-party types that lack the required impls.
+missing_debug_implementations = "allow"
+private_interfaces = "allow"
 [workspace.lints.clippy]
 # --- Enforced: async and concurrency safety ---
 await_holding_lock = "deny"
@@ -313,68 +303,27 @@ set_contains_or_insert = "deny"
 rest_pat_in_fully_bound_structs = "deny"
 empty_line_after_outer_attr = "deny"
 
-# --- Parked and gated ---
-doc_markdown = "allow"                      # parked: docs, 237
-missing_docs_in_private_items = "allow"     # parked: docs, 239
-missing_errors_doc = "allow"                # parked: docs, 60
-missing_panics_doc = "allow"                # parked: docs, 1
+missing_panics_doc = "deny"
 uninlined_format_args = "deny"
 redundant_closure_for_method_calls = "deny"
-manual_let_else = "allow"                   # parked: style, 22
-return_self_not_must_use = "allow"          # parked: api, 40
-items_after_statements = "allow"            # parked: style, 6
-map_unwrap_or = "allow"                     # parked: style, 16
-match_same_arms = "allow"                   # parked: style, 37
 explicit_iter_loop = "deny"
 unnested_or_patterns = "deny"
-needless_continue = "allow"                 # parked: style, 5
-assigning_clones = "allow"                  # parked: perf, 5
 wildcard_imports = "deny"
-manual_string_new = "allow"                 # parked: style, 0 production (4 in tests)
-manual_assert = "allow"                     # parked: style, 0 production (1 in tests)
-unused_self = "allow"                       # parked: hygiene, 1
-unreadable_literal = "allow"                # parked: style, 0 production (2 in tests)
-clone_on_ref_ptr = "allow"                  # parked: perf, 7
-default_trait_access = "allow"              # parked: style, 3
-match_wildcard_for_single_variants = "allow"# parked: style, 2
+manual_string_new = "deny"
+manual_assert = "deny"
+unreadable_literal = "deny"
 single_match_else = "deny"
-too_many_arguments = "allow"                # parked: complexity, 11
-too_many_lines = "allow"                    # parked: complexity, 100
-cognitive_complexity = "allow"              # parked: complexity, 3
-type_complexity = "allow"                   # parked: complexity, 3
-struct_excessive_bools = "allow"            # parked: complexity, 1
-needless_pass_by_value = "allow"            # parked: perf, 3
-trivially_copy_pass_by_ref = "allow"        # parked: perf, 15
-large_stack_frames = "allow"                # parked: perf, 11
-large_futures = "allow"                     # parked: perf, 3
 str_to_string = "deny"
 string_slice = "deny"
-format_push_string = "allow"                # parked: perf, 1
-deref_by_slicing = "allow"                  # parked: style, 0 production (4 in tests)
+deref_by_slicing = "deny"
 if_then_some_else_none = "deny"
 unused_trait_names = "deny"
-tests_outside_test_module = "allow"         # parked: test-hygiene, 1 production (217 in tests)
 unnecessary_safety_comment = "deny"
-renamed_function_params = "allow"           # parked: api, 2
-needless_raw_strings = "allow"              # parked: style, 0 production (107 in tests)
-needless_raw_string_hashes = "allow"        # parked: style, 0 production (12 in tests); suppressed by needless_raw_strings when both are on
-unused_result_ok = "allow"                  # parked: hygiene, 0 production (4 in tests)
-unused_async = "allow"                      # parked: hygiene, 1
-unnecessary_wraps = "allow"                 # parked: api, 0 production (1 in tests)
-needless_pass_by_ref_mut = "allow"          # parked: api, 1
-ref_patterns = "allow"                      # parked: style, 24
-multiple_inherent_impl = "allow"            # parked: hygiene, 1
+needless_raw_strings = "deny"
+needless_raw_string_hashes = "deny"
+unused_result_ok = "deny"
+unnecessary_wraps = "deny"
 map_err_ignore = "deny"
-# Tried and reverted, with the measurement recorded in docs/ratchet.md.
-# Converting `#[allow]` to `#[expect]` makes a suppression an assertion that the
-# lint still fires, and two suppressions here cannot satisfy that under every
-# feature set: `register_builtins` and `builtin_pdps` have bodies that are
-# entirely `#[cfg(feature)]`-gated, so `unused_variables` and `unused_mut` fire
-# with no features on and not with all of them. No single attribute is correct
-# for both. The conversion did surface 63 genuinely stale suppression entries,
-# which were removed and stay removed.
-allow_attributes = "allow"                  # parked: attributes, 58
-allow_attributes_without_reason = "allow"   # parked: attributes, 13
 cast_lossless = "deny"
 cast_possible_truncation = "deny"
 cast_possible_wrap = "deny"
@@ -391,32 +340,88 @@ print_stderr = "deny"
 # and the gate is meant to cover panic sources, not a fixed list of lint names.
 unreachable = "deny"
 get_unwrap = "deny"
-# Style, parked to keep the import free of mechanical churn.
 derivable_impls = "deny"
-doc_lazy_continuation = "allow"             # parked: docs, 6
-doc_overindented_list_items = "allow"       # parked: docs, 5
 extra_unused_type_parameters = "deny"
-field_reassign_with_default = "allow"       # parked: style, 0 production (36 in tests)
-large_enum_variant = "allow"                # parked: perf, 1
-let_underscore_must_use = "allow"           # parked: hygiene, 1
+field_reassign_with_default = "deny"
 manual_repeat_n = "deny"
-rc_buffer = "allow"                         # parked: perf, 1
-# Style rather than correctness, and it needs a judgment call per site. The
-# scopes where tightening removed a real hazard are closed: the plugin factory
-# lookup no longer holds the registry lock across host-supplied `create` code,
-# which could re-enter and deadlock. Several remaining sites hold a guard across
-# a synchronous call on purpose and say so, and `await_holding_lock` above
-# already denies the case that actually deadlocks.
-significant_drop_tightening = "allow"       # parked: concurrency, 9
 unnecessary_map_or = "deny"
 unwrap_or_default = "deny"
-useless_vec = "allow"                       # parked: perf, 0 production (6 in tests)
-bool_comparison = "allow"                   # parked: style, 0 production (1 in tests)
+useless_vec = "deny"
+bool_comparison = "deny"
 collapsible_match = "deny"
 iter_kv_map = "deny"
-empty_line_after_doc_comments = "allow"     # parked: docs, 0 production (1 in tests)
+empty_line_after_doc_comments = "deny"
 collapsible_if = "deny"
 
+# --- Not enforced: a settled list, see the header ---
+#
+# docs: Documentation completeness and prose style. The gap is real and worth
+# closing, but it is a writing task rather than a code change: satisfying these
+# by generating filler would hide where documentation is actually missing.
+# docs/lints.md carries the item counts.
+doc_lazy_continuation = "allow"
+doc_markdown = "allow"
+doc_overindented_list_items = "allow"
+missing_docs_in_private_items = "allow"
+missing_errors_doc = "allow"
+#
+# style: Formatting and idiom preference. No effect on behavior.
+default_trait_access = "allow"
+items_after_statements = "allow"
+manual_let_else = "allow"
+map_unwrap_or = "allow"
+match_same_arms = "allow"
+match_wildcard_for_single_variants = "allow"
+needless_continue = "allow"
+ref_patterns = "allow"
+#
+# perf: Allocation, copying, and future size. Affects throughput, never a decision.
+assigning_clones = "allow"
+clone_on_ref_ptr = "allow"
+format_push_string = "allow"
+large_enum_variant = "allow"
+large_futures = "allow"
+large_stack_frames = "allow"
+needless_pass_by_value = "allow"
+rc_buffer = "allow"
+trivially_copy_pass_by_ref = "allow"
+#
+# hygiene: Dead and unused code, and redundant qualification. Closing these is
+# cleanup; none of them can change what live code does.
+let_underscore_must_use = "allow"
+multiple_inherent_impl = "allow"
+unused_async = "allow"
+unused_self = "allow"
+#
+# complexity: Size and shape metrics. Splitting a function to satisfy a threshold is
+# churn, and the policy parser's size is inherent to the grammar it accepts.
+cognitive_complexity = "allow"
+struct_excessive_bools = "allow"
+too_many_arguments = "allow"
+too_many_lines = "allow"
+type_complexity = "allow"
+#
+# api: Public surface shape. Matters at publish time, not at runtime, and some
+# of these are blocked by third-party types that lack the required impls.
+needless_pass_by_ref_mut = "allow"
+renamed_function_params = "allow"
+return_self_not_must_use = "allow"
+#
+# attributes: Suppression style. `allow_attributes` wants `#[expect]`, which asserts
+# the lint still fires; two feature-gated bodies here cannot satisfy that under
+# every feature set, so no single attribute is correct. See docs/lints.md.
+allow_attributes = "allow"
+allow_attributes_without_reason = "allow"
+#
+# concurrency: Lock hold duration, and a judgment call per site. The scopes where
+# tightening removed a real hazard are closed; the rest hold a guard across a
+# synchronous call deliberately. `await_holding_lock`, which covers the case that
+# actually deadlocks, is enforced above.
+significant_drop_tightening = "allow"
+#
+# test-hygiene: Test placement. Applies to one helper that must live outside a
+# `cfg(test)` module because an integration test also uses it.
+tests_outside_test_module = "allow"
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "deny"
 private_intra_doc_links = "deny"
@@ -426,5 +431,11 @@ unescaped_backticks = "deny"
 invalid_html_tags = "deny"
 bare_urls = "deny"
 private_doc_tests = "deny"
-# 13 crates lack a crate-level doc comment. Prose only; cannot affect behavior.
-missing_crate_level_docs = "allow"       # parked: docs, 13 crates
+
+# --- Not enforced: a settled list, see the header ---
+#
+# docs: Documentation completeness and prose style. The gap is real and worth
+# closing, but it is a writing task rather than a code change: satisfying these
+# by generating filler would hide where documentation is actually missing.
+# docs/lints.md carries the item counts.
+missing_crate_level_docs = "allow"

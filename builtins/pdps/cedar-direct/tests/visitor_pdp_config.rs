@@ -23,6 +23,7 @@
 // without writing any glue.
 
 #![allow(
+    clippy::field_reassign_with_default,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

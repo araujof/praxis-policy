@@ -63,6 +63,7 @@ pub fn extract_extensions(ext: &Extensions, bag: &mut AttributeBag) {
 
 #[cfg(test)]
 #[allow(
+    clippy::field_reassign_with_default,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

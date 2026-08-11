@@ -2906,6 +2906,10 @@ pub fn compile_policy_block_value(
 
 #[cfg(test)]
 #[allow(
+    clippy::needless_raw_string_hashes,
+    clippy::deref_by_slicing,
+    clippy::needless_raw_strings,
+    clippy::unnecessary_wraps,
     clippy::expect_used,
     clippy::get_unwrap,
     clippy::indexing_slicing,

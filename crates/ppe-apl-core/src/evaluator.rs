@@ -163,6 +163,8 @@ enum OrderOp {
 }
 
 #[allow(
+    clippy::useless_vec,
+    unused_mut,
     clippy::cast_precision_loss,
     reason = "mixed int/float comparison has no exact common type; the same-type \
               arms above are exact and handle the cases where one exists"
@@ -1628,6 +1630,8 @@ fn value_for_hash(v: &serde_json::Value) -> String {
 #[cfg(test)]
 #[allow(
     trivial_casts,
+    unused_mut,
+    clippy::useless_vec,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

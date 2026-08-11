@@ -20,6 +20,9 @@
 // rejection, apply_to_extensions) live in `identity_e2e.rs`.
 
 #![allow(
+    clippy::needless_raw_string_hashes,
+    clippy::field_reassign_with_default,
+    clippy::needless_raw_strings,
     trivial_casts,
     clippy::expect_used,
     clippy::indexing_slicing,

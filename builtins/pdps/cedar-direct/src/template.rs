@@ -132,6 +132,11 @@ fn substitute(
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::needless_raw_string_hashes,
+    clippy::needless_raw_strings,
+    reason = "tests"
+)]
 #[allow(clippy::unwrap_used, reason = "tests")]
 mod tests {
     use super::*;

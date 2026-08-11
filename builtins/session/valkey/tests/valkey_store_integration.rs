@@ -20,6 +20,7 @@
 //     stops a silent green.
 
 #![allow(
+    clippy::manual_assert,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

@@ -13,6 +13,7 @@
 // `response:` block surfaced on the violation details.
 
 #![allow(
+    clippy::field_reassign_with_default,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

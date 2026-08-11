@@ -1869,6 +1869,8 @@ impl Default for PluginManager {
 
 #[cfg(test)]
 #[allow(
+    clippy::needless_raw_string_hashes,
+    clippy::needless_raw_strings,
     clippy::significant_drop_tightening,
     trivial_casts,
     clippy::expect_used,

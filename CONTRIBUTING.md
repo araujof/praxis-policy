@@ -58,9 +58,24 @@ consequences are worth knowing:
 `docs/port-provenance.md` records the exact source commit the import was taken
 from.
 
-## Lint ratchet
+## Lints
 
-`[workspace.lints]` in `Cargo.toml` carries entries marked `seed:` or with a
-parked reason. These are lints the project intends to enforce but the tree does
-not yet satisfy. Do not add new violations of a parked lint. Closing entries is
-welcome as focused changes, one lint class at a time, separate from feature work.
+`[workspace.lints]` in `Cargo.toml` is the authority. Most rules are denied; the
+ones that are not sit at the end of each section, grouped by why, with a comment
+per group. That list is a settled decision rather than a backlog: every lint that
+could silently change an enforcement decision is already denied.
+
+Two rules for contributors:
+
+- **Do not add new violations of a non-enforced lint.** It is not enforced
+  because the existing violations were judged not worth the churn, which is not
+  an invitation to add more.
+- **Do not suppress a lint at a wider scope than the code that needs it.** A
+  module-level allow that covers lints the module does not violate hides the next
+  real one. Sixty-three such entries were removed once; prefer the narrowest
+  scope, with a `reason`.
+
+Closing a group is welcome as a focused change, one lint at a time, separate from
+feature work. Read `docs/lints.md` first: it records which lints clippy reports as
+machine-fixable but cannot actually fix, and where a lint's suggested rewrite is
+worse than the code it replaces.

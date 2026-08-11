@@ -1,13 +1,12 @@
-# Lint ratchet
+# Lints
 
-The gate adopted from Praxis denies a great deal this tree does not yet enforce.
-Every non-enforced entry in `[workspace.lints]` carries a `parked:` tag naming a
-category, and the reason has to explain why the lint cannot silently change an
-enforcement decision. That is the only defensible ground for parking one.
+`[workspace.lints]` in `Cargo.toml` is the authority on what is enforced. The
+entries that are not enforced are grouped there by why, and that grouping is a
+settled decision rather than a backlog. This document carries the numbers behind
+it, how to reproduce them, and what closing the rest cost or would cost.
 
-A `gate:` tag marks an entry that must reach deny before publish, carrying a
-measured production site count. There are none left; the section below records
-what closing them found.
+There is no longer a moving gate. Every lint that can silently change an
+enforcement decision is denied.
 
 ## How the counts are produced
 
@@ -41,35 +40,60 @@ than one that reports a large number.
 
 ## Where the tree stands against Praxis
 
-Of Praxis's 171 rules, 118 are enforced identically here, 51 are weaker, and 2
-are stricter (`empty_line_after_outer_attr` and `rustdoc::private_doc_tests`,
-both of which Praxis allows). This tree also denies three rules Praxis does not
-configure: `unexpected_cfgs`, `clippy::unreachable`, and `clippy::get_unwrap`.
+Of Praxis's 171 rules, **127 are enforced identically here and 42 are weaker**.
+Two are stricter (`empty_line_after_outer_attr` and `rustdoc::private_doc_tests`,
+both of which Praxis allows), and three more are denied that Praxis does not
+configure at all: `unexpected_cfgs`, `clippy::unreachable`, and
+`clippy::get_unwrap`.
 
-Started at 55 identical and 113 weaker. Both tables now cover the same lint set,
-so every remaining difference is a level rather than an omission.
+Started at 55 identical and 113 weaker. Both tables cover the same lint set, so
+every remaining difference is a level rather than an omission.
 
-The 51 that remain weaker, by the tag each carries:
+Note that Praxis does not deny everything either: it allows
+`missing_debug_implementations`, `empty_line_after_outer_attr`, and
+`rustdoc::private_doc_tests`, and sets `significant_drop_tightening` to `warn`.
 
-| Category | Lints |
-|---|---:|
-| style | 16 |
-| perf | 9 |
-| hygiene | 8 |
-| docs | 6 |
-| api | 4 |
-| complexity | 4 |
-| attributes | 2 |
-| concurrency, test-hygiene | 1 each |
+The 47 entries that are not enforced, by the group they sit in, with production
+sites measured by clippy:
 
-Nothing correctness-relevant is parked. What is left is documentation, cosmetic
-preference, or a deliberate complexity decision.
+| Group | Lints | Production sites |
+|---|---:|---:|
+| docs | 7 | 1,215 |
+| complexity | 5 | 120 |
+| style | 10 | 92 |
+| api | 5 | 83 |
+| hygiene | 7 | 59 |
+| perf | 9 | 50 |
+| attributes | 2 | 29 |
+| concurrency | 1 | 8 |
+| test-hygiene | 1 | 1 |
+| **Total** | **47** | **1,657** |
 
-**Docs is the one category worth spending on despite being parked.** Its 6 lints
-cover roughly 970 undocumented items, `missing_docs` alone accounting for 664
-public ones, and this crate publishes to docs.rs. That is a documentation
-project, not a lint gate: generating filler sentences to satisfy the lint would
-hide where real documentation is missing.
+Forty-two of the 47 are rules Praxis enforces more strictly. The other five are
+lints Praxis also does not enforce, or does not configure.
+
+The docs figure counts six lints; the seventh,
+`rustdoc::missing_crate_level_docs`, is not measured there because clippy does not
+check `rustdoc::` lints. It applies to 13 crates.
+
+**Docs is 73% of the remaining sites and the one group worth spending on.**
+`missing_docs` alone is 665 undocumented public items, and this crate publishes to
+docs.rs, so that list is the published API reference. It is a writing task, not a
+code change: generating filler to satisfy the lint would hide where documentation
+is actually missing. Nothing else in the table is user-facing.
+
+## What closing the cheap remainder found
+
+Fourteen lints were parked with production counts that turned out to be zero:
+they fired only in test code, which is scope-allowed. Those are now enforced, at
+the cost of scoped allows in the affected test modules and no production change
+at all.
+
+The lesson is the measurement order. Each of those fourteen looked like work
+because earlier counts were taken while other lints still failed, and a crate that
+fails to compile blocks its dependents from being linted, so every count taken
+before the tree was clean understated some lints and left others looking larger
+than they were. Re-measure after each class closes.
 
 ## What the machine-applicable sweep taught
 

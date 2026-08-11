@@ -154,6 +154,7 @@ fn type_name(v: &Value) -> &'static str {
 
 #[cfg(test)]
 #[allow(
+    clippy::unused_result_ok,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

@@ -298,6 +298,7 @@ impl ClaimMapper for StandardClaimMap {
 }
 
 #[cfg(test)]
+#[allow(clippy::unreadable_literal, reason = "tests")]
 #[allow(clippy::unwrap_used, reason = "tests")]
 mod tests {
     use super::*;

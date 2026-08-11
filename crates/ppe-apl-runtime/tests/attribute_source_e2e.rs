@@ -9,6 +9,10 @@
 // `${...}` interpolation is exercised separately below.
 
 #![allow(
+    clippy::needless_raw_string_hashes,
+    clippy::field_reassign_with_default,
+    clippy::needless_raw_strings,
+    clippy::unused_result_ok,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,

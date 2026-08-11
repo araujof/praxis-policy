@@ -182,6 +182,8 @@ pub fn resolve_session(ext: &Extensions) -> Option<(String, SessionSource)> {
 
 #[cfg(test)]
 #[allow(
+    clippy::field_reassign_with_default,
+    clippy::manual_string_new,
     clippy::expect_used,
     clippy::indexing_slicing,
     clippy::panic,
