@@ -41,38 +41,70 @@ than one that reports a large number.
 
 ## Where the tree stands against Praxis
 
-Of Praxis's 171 rules, 108 are enforced identically here, 61 are weaker, and 2
+Of Praxis's 171 rules, 118 are enforced identically here, 51 are weaker, and 2
 are stricter (`empty_line_after_outer_attr` and `rustdoc::private_doc_tests`,
-both of which Praxis allows). This tree also adds `unexpected_cfgs` at deny,
-which Praxis does not configure, as a guard against a feature rename silently
-disabling a gated export.
+both of which Praxis allows). This tree also denies three rules Praxis does not
+configure: `unexpected_cfgs`, `clippy::unreachable`, and `clippy::get_unwrap`.
 
-The 61 that remain weaker, by the tag each carries:
+Started at 55 identical and 113 weaker. Both tables now cover the same lint set,
+so every remaining difference is a level rather than an omission.
+
+The 51 that remain weaker, by the tag each carries:
 
 | Category | Lints |
 |---|---:|
-| style | 23 |
-| hygiene | 10 |
-| perf | 10 |
+| style | 16 |
+| perf | 9 |
+| hygiene | 8 |
 | docs | 6 |
 | api | 4 |
 | complexity | 4 |
 | attributes | 2 |
 | concurrency, test-hygiene | 1 each |
 
-Nothing correctness-relevant is left parked. `numeric-cast` and `unsafe` are
-closed; see below. The remainder is cosmetic, documentation, or a deliberate
-complexity decision.
+Nothing correctness-relevant is parked. What is left is documentation, cosmetic
+preference, or a deliberate complexity decision.
 
 **Docs is the one category worth spending on despite being parked.** Its 6 lints
-cover about 970 undocumented items, `missing_docs` alone accounting for 664
+cover roughly 970 undocumented items, `missing_docs` alone accounting for 664
 public ones, and this crate publishes to docs.rs. That is a documentation
-project, not a lint gate: generating 664 filler sentences to satisfy the lint
-would hide where real documentation is missing.
+project, not a lint gate: generating filler sentences to satisfy the lint would
+hide where real documentation is missing.
 
-**About 970 of the remaining sites are machine-applicable** via
-`cargo clippy --fix` across 25 lints, dominated by `str_to_string` (366),
-`doc_markdown` (236), and `uninlined_format_args` (135).
+## What the machine-applicable sweep taught
+
+Clippy reported 718 sites across 22 lints as `MachineApplicable`. Fourteen lints
+closed cleanly. The other eight did not, and the reasons are worth recording
+because the applicability flag is not a promise:
+
+- **`unused_qualifications` (130 sites).** Reported applicable, but rustfix
+  cannot apply the suggestions: they overlap within single statements. Applying
+  them by hand at that volume is churn with no reader gain.
+- **`let_underscore_drop` (12).** The rewrite spans several edits per site, and
+  applying them mechanically produced syntactically broken code. `let _ =` on a
+  droppable value is also often the deliberate spelling.
+- **`wildcard_imports` (4).** The fix expanded a glob into a 48-name import list
+  and still missed three names a test module used. All four globs are sibling
+  modules of one logical unit split across files, where the glob is the better
+  code. They keep their globs with per-site reasons, and the lint is enforced.
+- **`allow_attributes` (58).** Converting `#[allow]` to `#[expect]` turns a
+  suppression into an assertion that the lint still fires. Two suppressions here
+  cannot satisfy that under every feature set: `register_builtins` and
+  `builtin_pdps` have bodies that are entirely `#[cfg(feature)]`-gated, so
+  `unused_variables` and `unused_mut` fire with no features enabled and not with
+  all of them. No single attribute is correct for both, so the lint stays parked.
+
+That last one paid for itself anyway. Because `#[expect]` fails when a lint stops
+firing, the conversion surfaced **63 stale suppression entries** in test-module
+blocks: lints listed in an allow list that no longer occur in that module, so a
+future real violation would have gone unflagged. Those were removed and stay
+removed.
+
+Two smaller lessons from the same sweep. A fix can violate an already-enforced
+lint, as one `single_match_else` rewrite left a tail expression that tripped
+`semicolon_if_nothing_returned`. And `derivable_impls` appends a second
+`#[derive]` rather than merging into the existing one, which compiles but reads
+badly.
 
 ## The numeric-cast and unsafe classes: closed
 
