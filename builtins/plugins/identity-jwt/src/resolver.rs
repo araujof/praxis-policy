@@ -505,6 +505,16 @@ impl HookHandler<IdentityHook> for JwtIdentityResolver {
                 };
                 return PluginResult::deny(PluginViolation::new("auth.unknown_kid", reason));
             },
+            Err(ValidateError::NoAlgorithms) => {
+                return PluginResult::deny(PluginViolation::new(
+                    "auth.no_algorithms",
+                    format!(
+                        "issuer '{iss}' accepts no signature algorithms, so no \
+                         token from it can be verified; this is a configuration \
+                         fault rather than a problem with the token"
+                    ),
+                ));
+            },
             Err(ValidateError::Jwt(e)) => {
                 let (code, reason) = classify_jwt_error(&e);
                 return PluginResult::deny(PluginViolation::new(code, reason));
@@ -641,6 +651,17 @@ enum ValidateError {
     /// alarming `auth.signature_invalid` they'd see if we
     /// silently fell back to e.g. an empty key.
     KeysUnavailable,
+    /// The issuer carries no accepted algorithms, so there is nothing to
+    /// verify a signature against.
+    ///
+    /// `TrustedIssuerConfig::validate` rejects an empty list, and every
+    /// construction path inside this crate runs it, so a configured issuer
+    /// cannot reach this. It stays reachable because `algorithms` is a public
+    /// field: a caller holding `&mut TrustedIssuer` can empty it after a valid
+    /// build. Rejecting the token is the only safe response. Treating an empty
+    /// list as "accept any algorithm" would let an attacker pick the algorithm,
+    /// which is the classic JWT confusion attack.
+    NoAlgorithms,
     /// jsonwebtoken's own validation outcome (signature, exp,
     /// nbf, iss, aud, algorithm).
     Jwt(jsonwebtoken::errors::Error),
@@ -687,7 +708,9 @@ fn validate_token(
         None => return Err(ValidateError::UnknownKid(kid.map(String::from))),
     };
 
-    let primary = issuer.algorithms[0];
+    let Some(&primary) = issuer.algorithms.first() else {
+        return Err(ValidateError::NoAlgorithms);
+    };
     let mut validation = Validation::new(primary);
     validation.algorithms = issuer.algorithms.clone();
     validation.set_issuer(&[&issuer.issuer]);
@@ -749,6 +772,36 @@ mod tests {
             config: Some(config),
             ..Default::default()
         }
+    }
+
+    /// An issuer whose accepted-algorithm list has been emptied after a valid
+    /// build must reject every token rather than abort, and rejecting is the
+    /// only safe answer: an empty list read as "any algorithm is acceptable"
+    /// hands algorithm choice to whoever minted the token.
+    ///
+    /// `TrustedIssuerConfig::validate` blocks this at configuration time, so
+    /// the state is only reachable through the public `algorithms` field. The
+    /// test constructs it directly for that reason.
+    #[test]
+    fn empty_algorithm_list_rejects_the_token() {
+        let issuer = TrustedIssuer {
+            issuer: "https://idp.example".into(),
+            audiences: vec![],
+            keys: std::sync::Arc::new(std::sync::RwLock::new(KeyStore::single_fallback(
+                jsonwebtoken::DecodingKey::from_secret(b"secret"),
+            ))),
+            algorithms: vec![],
+            leeway_seconds: 0,
+        };
+        let token = jwt_with_payload(r#"{"iss":"https://idp.example","sub":"alice"}"#);
+
+        let err = validate_token(&token, &issuer)
+            .expect_err("an issuer with no algorithms cannot verify anything");
+        assert!(
+            matches!(err, ValidateError::NoAlgorithms),
+            "an empty algorithm list must surface as NoAlgorithms, not as a \
+             signature or kid failure that hides the configuration fault"
+        );
     }
 
     #[test]
