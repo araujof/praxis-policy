@@ -122,16 +122,26 @@ audit:
 	@command -v cargo-deny >/dev/null 2>&1 || $(CARGO) install cargo-deny --locked
 	@cargo deny check
 
-# Target floor is 95 percent. The imported tree measures just under 90, so the
-# gate currently sits at 89 with a point of headroom for platform and ordering
-# variance, and raising it to 95 is tracked work: roughly 1,400 more covered lines
-# out of about 27,900.
+# Target floor is 95 percent. The imported tree measured just under 90; it now
+# measures a little over 92, and the floor tracks that with a point of headroom
+# for platform and ordering variance. Two unrelated files moved by a line each
+# between consecutive local runs, which is what the headroom is for.
 #
-# The gate is deliberately not set to 95 before the tests exist, because a red
-# required check that nobody can make green teaches people to ignore it.
+# The gate rises as the tests land rather than ahead of them, because a red
+# required check that nobody can make green teaches people to ignore it. Raise
+# this line, do not lower it: a drop means coverage regressed.
+#
+# Note when reading a delta: test-module lines count toward the denominator, so
+# a new test adds total lines as well as covered ones. Test code is close to
+# fully covered, so this still lifts the ratio, by slightly more than retiring
+# the same number of uncovered lines alone would.
+#
+# Remaining to reach 95, measured rather than estimated: about 750 covered
+# lines. The largest single block left is the policy parser, whose gap is not a
+# few big functions but roughly 90 separate error-return sites.
 #
 # Keep this number in sync with the coverage workflow.
-COVERAGE_FLOOR ?= 89
+COVERAGE_FLOOR ?= 92
 COVERAGE_TARGET := 95
 
 .PHONY: coverage

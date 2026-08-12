@@ -278,3 +278,130 @@ impl std::fmt::Display for PluginViolation {
         write!(f, "[{}] {}", self.code, self.reason)
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used, reason = "tests")]
+mod tests {
+    use super::*;
+
+    // `PluginErrorRecord` is what a programmatic consumer actually reads: an
+    // `on_error: ignore` or `on_error: disable` plugin's failure surfaces only
+    // through `PipelineResult.errors`, so a wrong field here makes a real
+    // failure invisible or misattributed to the wrong plugin. The conversion had
+    // no tests, and this file had no test module at all.
+
+    fn execution() -> PluginError {
+        PluginError::Execution {
+            plugin_name: "jwt".into(),
+            message: "signature invalid".into(),
+            source: None,
+            code: Some("invalid_token".into()),
+            details: HashMap::from([("kid".to_owned(), serde_json::json!("abc"))]),
+            proto_error_code: Some(-32_603),
+        }
+    }
+
+    #[test]
+    fn an_execution_error_carries_every_field_across_unchanged() {
+        let rec: PluginErrorRecord = (&execution()).into();
+        assert_eq!(rec.plugin_name, "jwt");
+        assert_eq!(rec.message, "signature invalid");
+        assert_eq!(rec.code.as_deref(), Some("invalid_token"));
+        assert_eq!(rec.details.get("kid"), Some(&serde_json::json!("abc")));
+        assert_eq!(rec.proto_error_code, Some(-32_603));
+    }
+
+    /// A timeout has no message of its own, so the conversion synthesizes one.
+    /// The budget has to appear in it, or an operator reading the record cannot
+    /// tell a slow plugin from a hung one.
+    #[test]
+    fn a_timeout_reports_the_budget_it_exceeded() {
+        let e = PluginError::Timeout {
+            plugin_name: "slow".into(),
+            timeout_ms: 250,
+            proto_error_code: Some(-32_000),
+        };
+        let rec: PluginErrorRecord = (&e).into();
+        assert_eq!(rec.plugin_name, "slow");
+        assert!(rec.message.contains("250"), "{}", rec.message);
+        assert_eq!(rec.code.as_deref(), Some("timeout"));
+        assert_eq!(rec.proto_error_code, Some(-32_000));
+    }
+
+    /// A denial is not a malfunction, and the record has to preserve the
+    /// violation's own code rather than flatten it to a generic one: that code is
+    /// what a caller branches on.
+    #[test]
+    fn a_violation_preserves_the_violation_code_and_details() {
+        let violation = PluginViolation::new("role.hr_required", "not an HR user")
+            .with_details(HashMap::from([(
+                "required".to_owned(),
+                serde_json::json!("hr"),
+            )]))
+            .with_proto_error_code(-32_001);
+        let e = PluginError::Violation {
+            plugin_name: "policy".into(),
+            violation,
+        };
+        let rec: PluginErrorRecord = (&e).into();
+        assert_eq!(rec.code.as_deref(), Some("role.hr_required"));
+        assert!(rec.message.contains("not an HR user"), "{}", rec.message);
+        assert_eq!(rec.details.get("required"), Some(&serde_json::json!("hr")));
+        assert_eq!(rec.proto_error_code, Some(-32_001));
+    }
+
+    /// Config and unknown-hook failures are not attributable to a running
+    /// plugin, so the name is empty rather than a placeholder that would read as
+    /// a real plugin in a dashboard.
+    #[test]
+    fn config_and_unknown_hook_errors_carry_no_plugin_name() {
+        let cfg: PluginErrorRecord = (&PluginError::Config {
+            message: "missing token_endpoint".into(),
+        })
+            .into();
+        assert_eq!(cfg.plugin_name, "");
+        assert_eq!(cfg.code.as_deref(), Some("config"));
+        assert_eq!(cfg.message, "missing token_endpoint");
+        assert_eq!(cfg.proto_error_code, None);
+
+        let unknown: PluginErrorRecord = (&PluginError::UnknownHook {
+            hook_type: "cmf.not_a_hook".into(),
+        })
+            .into();
+        assert_eq!(unknown.plugin_name, "");
+        assert_eq!(unknown.code.as_deref(), Some("unknown_hook"));
+        assert!(
+            unknown.message.contains("cmf.not_a_hook"),
+            "the message must name the hook: {}",
+            unknown.message
+        );
+    }
+
+    /// Errors travel boxed, so the blanket forward exists to keep `(&e).into()`
+    /// working at call sites that hold a `Box`. It must produce the same record.
+    #[test]
+    fn converting_from_a_boxed_error_matches_the_unboxed_conversion() {
+        let boxed = execution().boxed();
+        let from_box: PluginErrorRecord = (&boxed).into();
+        let from_ref: PluginErrorRecord = (&execution()).into();
+        assert_eq!(from_box.plugin_name, from_ref.plugin_name);
+        assert_eq!(from_box.message, from_ref.message);
+        assert_eq!(from_box.code, from_ref.code);
+        assert_eq!(from_box.proto_error_code, from_ref.proto_error_code);
+    }
+
+    #[test]
+    fn a_violation_displays_its_code_and_reason() {
+        let v = PluginViolation::new("pii.detected", "SSN in args");
+        assert_eq!(v.to_string(), "[pii.detected] SSN in args");
+    }
+
+    #[test]
+    fn a_violation_builder_sets_the_optional_fields() {
+        let v = PluginViolation::new("c", "r").with_description("the long form");
+        assert_eq!(v.description.as_deref(), Some("the long form"));
+        // The builders are additive, so the required fields survive.
+        assert_eq!(v.code, "c");
+        assert_eq!(v.reason, "r");
+    }
+}

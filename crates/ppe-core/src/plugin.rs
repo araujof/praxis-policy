@@ -539,3 +539,235 @@ impl fmt::Display for OnError {
         }
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used, reason = "tests")]
+mod tests {
+    use super::*;
+    use crate::extensions::{MCPExtension, MetaExtension, SecurityExtension, SubjectExtension};
+    use crate::hooks::payload::Extensions;
+    use std::sync::Arc;
+
+    // The mode predicates decide whether a plugin is allowed to block the
+    // pipeline or rewrite the payload. Nothing called them, so a wrong answer
+    // would either let an audit-only plugin deny a request or stop a sequential
+    // one from enforcing anything.
+
+    #[test]
+    fn only_blocking_modes_can_block() {
+        assert!(PluginMode::Sequential.can_block());
+        assert!(PluginMode::Concurrent.can_block());
+        for mode in [
+            PluginMode::Transform,
+            PluginMode::Audit,
+            PluginMode::FireAndForget,
+            PluginMode::Disabled,
+        ] {
+            assert!(!mode.can_block(), "{mode} must not be able to block");
+        }
+    }
+
+    /// `Concurrent` can block but must not modify: concurrent plugins race, so a
+    /// payload rewrite would depend on completion order.
+    #[test]
+    fn only_sequential_and_transform_can_modify() {
+        assert!(PluginMode::Sequential.can_modify());
+        assert!(PluginMode::Transform.can_modify());
+        for mode in [
+            PluginMode::Concurrent,
+            PluginMode::Audit,
+            PluginMode::FireAndForget,
+            PluginMode::Disabled,
+        ] {
+            assert!(!mode.can_modify(), "{mode} must not be able to modify");
+        }
+    }
+
+    #[test]
+    fn fire_and_forget_and_disabled_are_not_awaited() {
+        assert!(!PluginMode::FireAndForget.is_awaited());
+        assert!(!PluginMode::Disabled.is_awaited());
+        for mode in [
+            PluginMode::Sequential,
+            PluginMode::Transform,
+            PluginMode::Audit,
+            PluginMode::Concurrent,
+        ] {
+            assert!(mode.is_awaited(), "{mode} must be awaited");
+        }
+    }
+
+    /// The `Display` strings are the serde wire names, so they appear in config
+    /// and in logs. A drift here silently changes what an operator has to write.
+    #[test]
+    fn mode_and_on_error_display_as_their_config_spellings() {
+        assert_eq!(PluginMode::Sequential.to_string(), "sequential");
+        assert_eq!(PluginMode::Transform.to_string(), "transform");
+        assert_eq!(PluginMode::Audit.to_string(), "audit");
+        assert_eq!(PluginMode::Concurrent.to_string(), "concurrent");
+        assert_eq!(PluginMode::FireAndForget.to_string(), "fire_and_forget");
+        assert_eq!(PluginMode::Disabled.to_string(), "disabled");
+
+        assert_eq!(OnError::Fail.to_string(), "fail");
+        assert_eq!(OnError::Ignore.to_string(), "ignore");
+        assert_eq!(OnError::Disable.to_string(), "disable");
+    }
+
+    // ---- conditions -------------------------------------------------------
+
+    fn cfg_with(conditions: Vec<PluginCondition>) -> PluginConfig {
+        PluginConfig {
+            name: "p".into(),
+            conditions,
+            ..Default::default()
+        }
+    }
+
+    fn ext_for_entity(entity_type: &str, entity_name: &str) -> Extensions {
+        Extensions {
+            meta: Some(Arc::new(MetaExtension {
+                entity_type: Some(entity_type.to_owned()),
+                entity_name: Some(entity_name.to_owned()),
+                ..Default::default()
+            })),
+            ..Default::default()
+        }
+    }
+
+    /// No conditions means the plugin always runs. This is the default an
+    /// operator gets by omitting the block, so it must not accidentally gate.
+    #[test]
+    fn no_conditions_always_passes() {
+        assert!(cfg_with(vec![]).passes_conditions(&Extensions::default()));
+    }
+
+    /// The entity name is read from the slot matching `entity_type`, so a tool
+    /// condition must not be satisfied by a prompt of the same name. Otherwise a
+    /// plugin scoped to one entity kind would fire on another.
+    #[test]
+    fn an_entity_name_only_matches_within_its_own_entity_type() {
+        let cfg = cfg_with(vec![PluginCondition {
+            tools: Some(["search".to_owned()].into()),
+            ..Default::default()
+        }]);
+        assert!(cfg.passes_conditions(&ext_for_entity("tool", "search")));
+        assert!(
+            !cfg.passes_conditions(&ext_for_entity("prompt", "search")),
+            "a prompt named `search` must not satisfy a tools condition"
+        );
+        assert!(
+            !cfg.passes_conditions(&ext_for_entity("resource", "search")),
+            "a resource named `search` must not satisfy a tools condition"
+        );
+    }
+
+    #[test]
+    fn prompt_and_resource_conditions_read_their_own_slots() {
+        let prompt_cfg = cfg_with(vec![PluginCondition {
+            prompts: Some(["summarize".to_owned()].into()),
+            ..Default::default()
+        }]);
+        assert!(prompt_cfg.passes_conditions(&ext_for_entity("prompt", "summarize")));
+        assert!(!prompt_cfg.passes_conditions(&ext_for_entity("tool", "summarize")));
+
+        let resource_cfg = cfg_with(vec![PluginCondition {
+            resources: Some(["doc-1".to_owned()].into()),
+            ..Default::default()
+        }]);
+        assert!(resource_cfg.passes_conditions(&ext_for_entity("resource", "doc-1")));
+        assert!(!resource_cfg.passes_conditions(&ext_for_entity("tool", "doc-1")));
+    }
+
+    /// An unknown `entity_type` yields no name in any slot, so a name-based
+    /// condition cannot match. Fail closed rather than matching everything.
+    #[test]
+    fn an_unknown_entity_type_satisfies_no_name_condition() {
+        let cfg = cfg_with(vec![PluginCondition {
+            tools: Some(["search".to_owned()].into()),
+            ..Default::default()
+        }]);
+        assert!(!cfg.passes_conditions(&ext_for_entity("webhook", "search")));
+    }
+
+    /// A condition naming a value the request does not carry at all must not
+    /// pass. This is the case that decides whether an absent field reads as
+    /// "no constraint" or as "does not match", and it has to be the latter.
+    #[test]
+    fn a_condition_on_an_absent_field_does_not_pass() {
+        let cfg = cfg_with(vec![PluginCondition {
+            server_ids: Some(["srv-1".to_owned()].into()),
+            ..Default::default()
+        }]);
+        assert!(
+            !cfg.passes_conditions(&Extensions::default()),
+            "no server_id present, so a server_ids condition must not match"
+        );
+    }
+
+    /// `server_id` is sourced from whichever of tool, resource or prompt carries
+    /// one, so each fallback needs to work.
+    #[test]
+    fn server_id_is_sourced_from_tool_resource_or_prompt() {
+        let cfg = cfg_with(vec![PluginCondition {
+            server_ids: Some(["srv-1".to_owned()].into()),
+            ..Default::default()
+        }]);
+        for slot in ["tool", "resource", "prompt"] {
+            let mut mcp = MCPExtension::default();
+            match slot {
+                "tool" => {
+                    mcp.tool = Some(crate::extensions::mcp::ToolMetadata {
+                        server_id: Some("srv-1".to_owned()),
+                        ..Default::default()
+                    });
+                },
+                "resource" => {
+                    mcp.resource = Some(crate::extensions::mcp::ResourceMetadata {
+                        server_id: Some("srv-1".to_owned()),
+                        ..Default::default()
+                    });
+                },
+                _ => {
+                    mcp.prompt = Some(crate::extensions::mcp::PromptMetadata {
+                        server_id: Some("srv-1".to_owned()),
+                        ..Default::default()
+                    });
+                },
+            }
+            let ext = Extensions {
+                mcp: Some(Arc::new(mcp)),
+                ..Default::default()
+            };
+            assert!(
+                cfg.passes_conditions(&ext),
+                "server_id on the {slot} slot must satisfy the condition"
+            );
+        }
+    }
+
+    /// The tenant is read out of the subject's `tenant` claim, which is how a
+    /// multi-tenant deployment scopes a plugin to one tenant.
+    #[test]
+    fn tenant_is_read_from_the_subject_tenant_claim() {
+        let cfg = cfg_with(vec![PluginCondition {
+            tenant_ids: Some(["acme".to_owned()].into()),
+            ..Default::default()
+        }]);
+        let with_tenant = |tenant: &str| {
+            let mut sub = SubjectExtension::default();
+            sub.claims.insert("tenant".to_owned(), tenant.to_owned());
+            Extensions {
+                security: Some(Arc::new(SecurityExtension {
+                    subject: Some(sub),
+                    ..Default::default()
+                })),
+                ..Default::default()
+            }
+        };
+        assert!(cfg.passes_conditions(&with_tenant("acme")));
+        assert!(
+            !cfg.passes_conditions(&with_tenant("other")),
+            "a different tenant must not satisfy the condition"
+        );
+    }
+}
