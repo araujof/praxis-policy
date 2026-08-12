@@ -887,4 +887,188 @@ mod tests {
         assert_eq!(raw.inbound_tokens.len(), 1);
         assert_eq!(raw.delegated_tokens.len(), 1);
     }
+
+    // ---- the slot policy table --------------------------------------------
+    //
+    // `slot_policy` is the whole access-control table: for every extension slot
+    // it declares the mutability tier, whether a capability is required, and
+    // which one. The filter tests above reach it only for the slots they happen
+    // to populate, so most rows were never read. A wrong row is a silent
+    // confidentiality or integrity hole, so these assert the invariants the
+    // table has to satisfy rather than restating each row.
+
+    /// Every slot, so a newly added variant fails to compile here until it is
+    /// listed. That is the point: a slot missing from this list is a slot whose
+    /// policy nobody checked.
+    const ALL_SLOTS: &[SlotName] = &[
+        SlotName::Request,
+        SlotName::Agent,
+        SlotName::Http,
+        SlotName::Meta,
+        SlotName::Delegation,
+        SlotName::Custom,
+        SlotName::Mcp,
+        SlotName::Completion,
+        SlotName::Provenance,
+        SlotName::Llm,
+        SlotName::Framework,
+        SlotName::SecurityLabels,
+        SlotName::SecuritySubject,
+        SlotName::SecuritySubjectRoles,
+        SlotName::SecuritySubjectTeams,
+        SlotName::SecuritySubjectClaims,
+        SlotName::SecuritySubjectPermissions,
+        SlotName::SecurityClient,
+        SlotName::SecurityCallerWorkload,
+        SlotName::SecurityThisWorkload,
+        SlotName::SecurityObjects,
+        SlotName::SecurityData,
+        SlotName::RawCredentialsInbound,
+        SlotName::RawCredentialsDelegated,
+    ];
+
+    /// A capability-gated slot with no `read_cap` would be unreachable, and an
+    /// unrestricted slot carrying one would imply a gate that is not enforced.
+    /// Either way the declaration contradicts itself.
+    #[test]
+    fn every_slot_policy_is_internally_consistent() {
+        for &slot in ALL_SLOTS {
+            let p = slot_policy(slot);
+            match p.access {
+                AccessPolicy::CapabilityGated => assert!(
+                    p.read_cap.is_some(),
+                    "{slot:?} is capability-gated but declares no read_cap, \
+                     so nothing could ever read it"
+                ),
+                AccessPolicy::Unrestricted => assert!(
+                    p.read_cap.is_none(),
+                    "{slot:?} is unrestricted but declares read_cap {:?}, \
+                     which implies a gate that is not enforced",
+                    p.read_cap
+                ),
+            }
+        }
+    }
+
+    /// An immutable slot must not advertise a write capability: holding the cap
+    /// would suggest a write that the tier forbids.
+    #[test]
+    fn immutable_slots_declare_no_write_capability() {
+        for &slot in ALL_SLOTS {
+            let p = slot_policy(slot);
+            if p.tier == MutabilityTier::Immutable {
+                assert!(
+                    p.write_cap.is_none(),
+                    "{slot:?} is immutable but declares write_cap {:?}",
+                    p.write_cap
+                );
+            }
+        }
+    }
+
+    /// Every slot carrying identity or credential material must be gated. This is
+    /// the confidentiality invariant: a plugin with no capabilities must not see
+    /// any of it.
+    #[test]
+    fn identity_and_credential_slots_are_all_capability_gated() {
+        let sensitive = [
+            SlotName::SecuritySubject,
+            SlotName::SecuritySubjectRoles,
+            SlotName::SecuritySubjectTeams,
+            SlotName::SecuritySubjectClaims,
+            SlotName::SecuritySubjectPermissions,
+            SlotName::SecurityClient,
+            SlotName::SecurityCallerWorkload,
+            SlotName::SecurityThisWorkload,
+            SlotName::RawCredentialsInbound,
+            SlotName::RawCredentialsDelegated,
+        ];
+        let none: HashSet<String> = HashSet::new();
+        for slot in sensitive {
+            let p = slot_policy(slot);
+            assert_eq!(
+                p.access,
+                AccessPolicy::CapabilityGated,
+                "{slot:?} carries identity or credential material and must be gated"
+            );
+            assert!(
+                !has_read_access(&p, &none),
+                "{slot:?} must be unreadable to a plugin holding no capabilities"
+            );
+        }
+    }
+
+    /// The declared capability is the one that opens the slot, and an unrelated
+    /// capability does not. Without the negative half this would pass even if
+    /// every slot accepted every capability.
+    #[test]
+    fn a_slot_opens_only_to_its_own_capability() {
+        for &slot in ALL_SLOTS {
+            let p = slot_policy(slot);
+            let Some(cap) = p.read_cap else { continue };
+            let cap_str = serde_json::to_string(&cap)
+                .unwrap_or_default()
+                .trim_matches('"')
+                .to_owned();
+            let holding: HashSet<String> = [cap_str.clone()].into();
+            assert!(
+                has_read_access(&p, &holding),
+                "{slot:?} must open to its declared capability {cap_str}"
+            );
+
+            // `read_agent` governs session context, never identity, so it is a
+            // good unrelated capability to probe with.
+            if cap != Capability::ReadAgent {
+                let unrelated: HashSet<String> = ["read_agent".to_owned()].into();
+                assert!(
+                    !has_read_access(&p, &unrelated),
+                    "{slot:?} requires {cap_str} but opened to read_agent"
+                );
+            }
+        }
+    }
+
+    /// Documented rule: any subject sub-field capability implies access to the
+    /// subject slot itself, because a plugin allowed to read roles necessarily
+    /// learns that the subject exists.
+    #[test]
+    fn a_subject_subfield_capability_implies_reading_the_subject_slot() {
+        let subject = slot_policy(SlotName::SecuritySubject);
+        for sub in [
+            "read_roles",
+            "read_teams",
+            "read_claims",
+            "read_permissions",
+        ] {
+            let caps: HashSet<String> = [sub.to_owned()].into();
+            assert!(
+                has_read_access(&subject, &caps),
+                "{sub} must imply read access to the subject slot"
+            );
+        }
+    }
+
+    /// An unrestricted slot is readable with no capabilities at all. This is the
+    /// other half of the gating invariant: over-gating would break plugins that
+    /// legitimately need request context.
+    #[test]
+    fn unrestricted_slots_are_readable_without_capabilities() {
+        let none: HashSet<String> = HashSet::new();
+        let mut unrestricted = 0;
+        for &slot in ALL_SLOTS {
+            let p = slot_policy(slot);
+            if p.access == AccessPolicy::Unrestricted {
+                unrestricted += 1;
+                assert!(
+                    has_read_access(&p, &none),
+                    "{slot:?} is unrestricted but not readable without capabilities"
+                );
+            }
+        }
+        assert!(
+            unrestricted > 0,
+            "the table should have some unrestricted slots; \
+             if this fires, the enum list has drifted"
+        );
+    }
 }
