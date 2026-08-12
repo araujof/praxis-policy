@@ -559,4 +559,206 @@ mod tests {
         assert_eq!(cfg.trusted_issuers[0].issuer, "https://idp.example.com");
         assert_eq!(cfg.claim_mapper.as_deref(), Some("standard"));
     }
+
+    // ---- JWKS documents the IdP might actually serve -----------------------
+    //
+    // The e2e tests all serve a well-formed JWKS with a valid `kid`, so every
+    // rejection path was dark. These are the ones that decide whether a
+    // misconfigured or hostile endpoint fails loudly at startup or leaves the
+    // resolver holding no usable key, and the message has to say which it was.
+
+    async fn jwks_err(body: &str, status: usize) -> String {
+        let mut server = mockito::Server::new_async().await;
+        let m = server
+            .mock("GET", "/jwks")
+            .with_status(status)
+            .with_header("content-type", "application/json")
+            .with_body(body)
+            .create_async()
+            .await;
+        let src = DecodingKeySource::JwksUrl {
+            url: format!("{}/jwks", server.url()),
+            insecure_http: true,
+            refresh_secs: 3600,
+        };
+        let err = match src.build_async().await {
+            Ok(_) => panic!("this JWKS document must be rejected"),
+            Err(e) => e,
+        };
+        m.assert_async().await;
+        err
+    }
+
+    /// One well-formed RSA signature key. Built as a `Value` so the tests below
+    /// can vary a single field structurally; a string replace on serialized JSON
+    /// is too easy to get silently wrong, and a replace that misses turns a
+    /// rejection test into a no-op that still passes.
+    fn rsa_jwk() -> serde_json::Value {
+        json!({
+            "kty": "RSA", "use": "sig", "alg": "RS256", "kid": "k1",
+            "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw",
+            "e": "AQAB",
+        })
+    }
+
+    fn jwks_of(keys: Vec<serde_json::Value>) -> String {
+        json!({ "keys": keys }).to_string()
+    }
+
+    #[tokio::test]
+    async fn a_well_formed_jwks_is_accepted() {
+        // Positive control: without it, every negative test below could be
+        // passing for the wrong reason.
+        let mut server = mockito::Server::new_async().await;
+        server
+            .mock("GET", "/jwks")
+            .with_status(200)
+            .with_body(jwks_of(vec![rsa_jwk()]))
+            .create_async()
+            .await;
+        let src = DecodingKeySource::JwksUrl {
+            url: format!("{}/jwks", server.url()),
+            insecure_http: true,
+            refresh_secs: 3600,
+        };
+        assert!(src.build_async().await.is_ok(), "a valid JWKS must build");
+    }
+
+    #[tokio::test]
+    async fn a_non_2xx_jwks_response_is_rejected() {
+        let e = jwks_err(r#"{"keys":[]}"#, 500).await;
+        assert!(e.contains("non-2xx"), "{e}");
+    }
+
+    #[tokio::test]
+    async fn a_jwks_body_that_is_not_a_jwkset_is_rejected() {
+        let e = jwks_err("not json at all", 200).await;
+        assert!(e.contains("not a JWKSet"), "{e}");
+    }
+
+    /// An empty key set is the case most likely to slip past: the document
+    /// parses, the fetch succeeds, and the resolver would hold nothing.
+    #[tokio::test]
+    async fn an_empty_jwks_is_rejected_rather_than_accepted_empty() {
+        let e = jwks_err(r#"{"keys":[]}"#, 200).await;
+        assert!(e.contains("no usable signature keys"), "{e}");
+    }
+
+    /// Encryption keys are filtered out, so a JWKS carrying only `use: enc`
+    /// leaves nothing to verify with. The count in the message is what tells an
+    /// operator the keys were present but skipped.
+    #[tokio::test]
+    async fn a_jwks_with_only_encryption_keys_is_rejected() {
+        let mut k = rsa_jwk();
+        k["use"] = json!("enc");
+        let e = jwks_err(&jwks_of(vec![k]), 200).await;
+        assert!(e.contains("no usable signature keys"), "{e}");
+    }
+
+    /// OIDC requires a `kid`. An entry without one is dropped, and the tally has
+    /// to appear in the error or the operator cannot tell this case from an
+    /// empty document.
+    #[tokio::test]
+    async fn a_key_with_no_kid_is_skipped_and_counted() {
+        let mut k = rsa_jwk();
+        k.as_object_mut().unwrap().remove("kid");
+        let e = jwks_err(&jwks_of(vec![k]), 200).await;
+        assert!(
+            e.contains("skipped 1 entries with no kid"),
+            "the message must count the dropped entries: {e}"
+        );
+    }
+
+    /// A key that has a `kid` but unusable material is reported by `kid`, which
+    /// is the only handle an operator has to find it in their `IdP`.
+    #[tokio::test]
+    async fn an_unusable_key_is_reported_by_its_kid() {
+        let mut k = rsa_jwk();
+        k["kid"] = json!("broken-key");
+        k["n"] = json!("!!!not-base64!!!");
+        let e = jwks_err(&jwks_of(vec![k]), 200).await;
+        assert!(
+            e.contains("broken-key"),
+            "the message must name the offending kid: {e}"
+        );
+    }
+
+    // ---- the other key sources --------------------------------------------
+
+    /// `JwksUrl` cannot be resolved synchronously, and the error says which call
+    /// to use instead. Anything else would be a confusing failure at startup.
+    #[test]
+    fn a_jwks_url_rejects_the_synchronous_build_and_points_at_build_async() {
+        let src = DecodingKeySource::JwksUrl {
+            url: "https://idp.example/jwks".into(),
+            insecure_http: false,
+            refresh_secs: 3600,
+        };
+        let Err(e) = src.build() else {
+            panic!("JwksUrl must not resolve synchronously")
+        };
+        assert!(e.contains("build_async()"), "{e}");
+    }
+
+    #[test]
+    fn an_unreadable_pem_file_names_the_path() {
+        let src = DecodingKeySource::PemFile {
+            path: std::path::PathBuf::from("/nonexistent/ppe-test/key.pem"),
+        };
+        let Err(e) = src.build() else {
+            panic!("a missing file must not build")
+        };
+        assert!(e.contains("unreadable"), "{e}");
+        assert!(e.contains("key.pem"), "the message must name the file: {e}");
+    }
+
+    #[test]
+    fn a_malformed_jwk_value_is_rejected() {
+        let src = DecodingKeySource::Jwk {
+            jwk: json!({ "kty": "RSA", "n": "!!!", "e": "AQAB" }),
+        };
+        assert!(src.build().is_err(), "a malformed JWK must not build");
+    }
+
+    /// Only `JwksUrl` refreshes. A non-zero interval on any other source would
+    /// start a refresh loop with nothing to re-fetch.
+    #[test]
+    fn only_a_jwks_url_declares_a_refresh_interval() {
+        let jwks = DecodingKeySource::JwksUrl {
+            url: "https://idp.example/jwks".into(),
+            insecure_http: false,
+            refresh_secs: 900,
+        };
+        assert_eq!(
+            jwks.refresh_interval(),
+            Some(std::time::Duration::from_secs(900))
+        );
+        for src in [
+            DecodingKeySource::Secret { secret: "s".into() },
+            DecodingKeySource::Pem { pem: "x".into() },
+            DecodingKeySource::Jwk { jwk: json!({}) },
+        ] {
+            assert!(
+                src.refresh_interval().is_none(),
+                "{src:?} must not declare a refresh interval"
+            );
+        }
+    }
+
+    /// An issuer with no `issuer` string cannot be matched against a token's
+    /// `iss`, so it is refused at config time rather than never matching.
+    #[test]
+    fn an_empty_issuer_is_rejected() {
+        let cfg = TrustedIssuerConfig {
+            issuer: String::new(),
+            audiences: vec!["a".to_owned()],
+            algorithms: vec![Algorithm::HS256],
+            decoding_key: DecodingKeySource::Secret { secret: "s".into() },
+            leeway_seconds: 0,
+        };
+        let Err(e) = cfg.validate() else {
+            panic!("an empty issuer must not validate")
+        };
+        assert!(e.contains("issuer"), "{e}");
+    }
 }

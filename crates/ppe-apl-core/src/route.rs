@@ -1087,4 +1087,149 @@ mod tests {
             json!("555-12-3456")
         );
     }
+
+    // ---- the result pipeline's remaining outcomes --------------------------
+    //
+    // The args phase covers Replace, Omit and Deny; the result phase only had
+    // Replace. That asymmetry matters because the result phase is what runs on
+    // data coming back from a tool, which is where an exfiltration control would
+    // sit. Each outcome is checked to reach the payload, not just the decision.
+
+    /// `omit` removes the key outright rather than blanking it. A reader of the
+    /// response has to be unable to tell the field was ever there.
+    #[tokio::test]
+    async fn result_pipeline_omit_removes_the_key() {
+        let mut route = CompiledRoute::new("ping");
+        route.result.push(field_rule("ssn", vec![Stage::Omit]));
+        let mut bag = AttributeBag::new();
+        let mut payload =
+            RoutePayload::with_result(json!({}), json!({ "ssn": "123-45-6789", "name": "alice" }));
+        let r = evaluate_route(
+            &route,
+            &mut bag,
+            &mut payload,
+            &pdp_arc(),
+            &plugins(),
+            &delegations(),
+            &elicitations(),
+        )
+        .await;
+        assert_eq!(r.decision, Decision::Allow);
+        assert!(r.result_modified);
+        let result = payload.result.as_ref().unwrap();
+        assert!(
+            result.get("ssn").is_none(),
+            "omit must remove the key, not blank it: {result}"
+        );
+        assert_eq!(result["name"], json!("alice"), "siblings are untouched");
+    }
+
+    /// A result-pipeline deny turns an otherwise-allowed call into a denial after
+    /// the tool has already run. The decision has to carry the rule source, since
+    /// that is what an operator reads to find which rule fired.
+    #[tokio::test]
+    async fn result_pipeline_deny_fails_the_call_and_names_the_rule() {
+        let mut route = CompiledRoute::new("ping");
+        route.result.push(field_rule(
+            "ssn",
+            vec![Stage::Length {
+                min: Some(1),
+                max: Some(3),
+            }],
+        ));
+        let mut bag = AttributeBag::new();
+        let mut payload = RoutePayload::with_result(json!({}), json!({ "ssn": "123-45-6789" }));
+        let r = evaluate_route(
+            &route,
+            &mut bag,
+            &mut payload,
+            &pdp_arc(),
+            &plugins(),
+            &delegations(),
+            &elicitations(),
+        )
+        .await;
+        match r.decision {
+            Decision::Deny {
+                reason,
+                rule_source,
+            } => {
+                assert!(
+                    reason.unwrap_or_default().contains("length"),
+                    "the reason must say what failed"
+                );
+                assert_eq!(rule_source, "test.ssn", "and which rule it was");
+            },
+            other => panic!("expected a Deny from the result pipeline, got {other:?}"),
+        }
+        assert!(
+            r.constraints.is_empty(),
+            "a result deny short-circuits before restrict, so no constraints"
+        );
+    }
+
+    /// A rule naming a field the result does not carry is skipped, not an error.
+    /// Denying on absence would break every route whose tool returns an optional
+    /// field.
+    #[tokio::test]
+    async fn a_result_rule_for_an_absent_field_is_skipped() {
+        let mut route = CompiledRoute::new("ping");
+        route.result.push(field_rule(
+            "missing",
+            vec![Stage::Redact { condition: None }],
+        ));
+        let mut bag = AttributeBag::new();
+        let mut payload = RoutePayload::with_result(json!({}), json!({ "name": "alice" }));
+        let r = evaluate_route(
+            &route,
+            &mut bag,
+            &mut payload,
+            &pdp_arc(),
+            &plugins(),
+            &delegations(),
+            &elicitations(),
+        )
+        .await;
+        assert_eq!(r.decision, Decision::Allow);
+        assert!(
+            !r.result_modified,
+            "nothing matched, so nothing was rewritten"
+        );
+    }
+
+    // ---- dotted-path helpers ----------------------------------------------
+
+    /// `set_dotted` and `remove_dotted` are how a pipeline reaches a nested
+    /// field. Both report whether they changed anything, and that boolean is what
+    /// sets `result_modified`, so a wrong answer there misreports the response as
+    /// untouched.
+    #[test]
+    fn dotted_helpers_reach_nested_fields_and_report_whether_they_changed_it() {
+        let mut v = json!({ "outer": { "inner": "old" }, "flat": 1 });
+        assert!(set_dotted(&mut v, "outer.inner", json!("new")));
+        assert_eq!(v["outer"]["inner"], json!("new"));
+        assert!(remove_dotted(&mut v, "outer.inner"));
+        assert!(v["outer"].get("inner").is_none());
+    }
+
+    #[test]
+    fn dotted_helpers_decline_paths_that_do_not_exist() {
+        let mut v = json!({ "flat": 1 });
+        assert!(
+            !set_dotted(&mut v, "nope.inner", json!("x")),
+            "a missing parent is not created"
+        );
+        assert!(
+            !remove_dotted(&mut v, "nope.inner"),
+            "removing through a missing parent reports no change"
+        );
+        assert!(
+            !remove_dotted(&mut v, "flat.inner"),
+            "a scalar parent cannot be traversed"
+        );
+        assert!(
+            !set_dotted(&mut v, "flat.inner", json!("x")),
+            "nor written through"
+        );
+    }
 }
