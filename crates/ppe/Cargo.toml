@@ -6,9 +6,8 @@
 # praxis-policy — host facade.
 #
 # One dependency instead of a dozen: re-exports the host runtime
-# (PluginManager, AplOptions, register_apl). The bundled plugins, PDPs, and
-# session stores live in `praxis-policy-builtins` and are pulled in only when the
-# `builtins` feature (or a granular plugin feature) is enabled, so the bare
+# (PluginManager, AplOptions, register_apl) and owns the registration of the
+# bundled plugins, PDPs and session stores. Each is behind a feature, so the bare
 # dependency is the engine alone, no plugins compiled.
 #
 #   praxis-policy = { version = "0.1", features = ["builtins"] }      # every builtin
@@ -34,24 +33,18 @@ rust-version.workspace = true
 readme.workspace = true
 
 # Build docs.rs with every extension enabled. The default build is engine-only
-# (`default = []`), which omits praxis-policy-builtins entirely — so without this the
-# builtins re-exports and `install_builtins` are absent and the intra-doc link
-# to `praxis-policy-builtins` does not resolve on docs.rs.
+# (`default = []`), which compiles no builtin at all, so without this the factory
+# re-exports and `install_builtins` are absent from the rendered docs.
 [package.metadata.docs.rs]
 all-features = true
 
 [features]
 # Engine only by default: no builtin plugins are compiled in. Opt into every
 # bundled extension with `builtins`, or name granular features for a subset.
-# Either way the optional `praxis-policy-builtins` dependency is enabled and the
-# matching praxis-policy-builtins feature is forwarded.
 default = []
 
 # Every builtin, including the Valkey session store and the redis + TLS stack it
-# carries. Composed from this crate's own granular features rather than from the
-# aggregator's umbrella, because the concrete factory re-exports in lib.rs are
-# gated on these names: forwarding straight to `praxis-policy-builtins/default`
-# compiles the builtins in but leaves their types unexported.
+# carries.
 builtins = [
     "jwt",
     "oauth",
@@ -64,16 +57,23 @@ builtins = [
     "valkey",
 ]
 
-# Granular passthroughs. Each pulls exactly one builtin via praxis-policy-builtins.
-jwt = ["praxis-policy-builtins/identity-jwt"]
-oauth = ["praxis-policy-builtins/delegator-oauth"]
-pii = ["praxis-policy-builtins/pii-scanner"]
-audit = ["praxis-policy-builtins/audit-logger"]
-elicitation-ciba = ["praxis-policy-builtins/elicitation-ciba"]
-cedar = ["praxis-policy-builtins/cedar-direct"]
-cel = ["praxis-policy-builtins/cel"]
-opa = ["praxis-policy-builtins/opa"]
-valkey = ["praxis-policy-builtins/valkey"]
+# One feature per builtin crate. The names are the public API: a host writes
+# these, so they are deliberately shorter than the crate names they pull.
+jwt = ["_builtin", "dep:praxis-policy-plugin-identity-jwt"]
+oauth = ["_builtin", "dep:praxis-policy-plugin-delegator-oauth"]
+pii = ["_builtin", "dep:praxis-policy-plugin-pii-scanner"]
+audit = ["_builtin", "dep:praxis-policy-plugin-audit-logger"]
+elicitation-ciba = ["_builtin", "dep:praxis-policy-plugin-elicitation-ciba"]
+cedar = ["_builtin", "dep:praxis-policy-pdp-cedar-direct"]
+cel = ["_builtin", "dep:praxis-policy-pdp-cel"]
+opa = ["_builtin", "dep:praxis-policy-pdp-opa"]
+valkey = ["_builtin", "dep:praxis-policy-session-valkey"]
+
+# Private marker meaning "at least one builtin is enabled", which is what gates
+# the registration helpers. Not for hosts to name. It exists because the
+# alternative is repeating a nine-arm `any(feature = ...)` at every gate, and one
+# missed arm there is a silently absent registration.
+_builtin = []
 
 [dependencies]
 # Host runtime — always present, this is the point of the facade.
@@ -82,10 +82,19 @@ praxis-policy-apl-core = { workspace = true }
 praxis-policy-apl-cmf = { workspace = true }
 praxis-policy-apl-runtime = { workspace = true }
 
-# Bundled extension set — present only when a builtins feature is enabled.
-# `default-features = false` so the granular plugin features compose; an
-# enabling feature turns on exactly the praxis-policy-builtins features it names.
-praxis-policy-builtins = { workspace = true, optional = true, default-features = false }
+# Bundled extension crates, each behind its feature above.
+praxis-policy-plugin-pii-scanner = { workspace = true, optional = true }
+praxis-policy-plugin-audit-logger = { workspace = true, optional = true }
+praxis-policy-plugin-identity-jwt = { workspace = true, optional = true }
+praxis-policy-plugin-delegator-oauth = { workspace = true, optional = true }
+praxis-policy-plugin-elicitation-ciba = { workspace = true, optional = true }
+praxis-policy-pdp-cedar-direct = { workspace = true, optional = true }
+praxis-policy-pdp-cel = { workspace = true, optional = true }
+praxis-policy-pdp-opa = { workspace = true, optional = true }
+praxis-policy-session-valkey = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
 
 [lints]
 workspace = true

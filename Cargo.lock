@@ -2182,8 +2182,17 @@ dependencies = [
  "praxis-policy-apl-cmf",
  "praxis-policy-apl-core",
  "praxis-policy-apl-runtime",
- "praxis-policy-builtins",
  "praxis-policy-core",
+ "praxis-policy-pdp-cedar-direct",
+ "praxis-policy-pdp-cel",
+ "praxis-policy-pdp-opa",
+ "praxis-policy-plugin-audit-logger",
+ "praxis-policy-plugin-delegator-oauth",
+ "praxis-policy-plugin-elicitation-ciba",
+ "praxis-policy-plugin-identity-jwt",
+ "praxis-policy-plugin-pii-scanner",
+ "praxis-policy-session-valkey",
+ "tokio",
 ]
 
 [[package]]
@@ -2228,25 +2237,6 @@ dependencies = [
  "thiserror 2.0.20",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "praxis-policy-builtins"
-version = "0.1.0"
-dependencies = [
- "praxis-policy-apl-core",
- "praxis-policy-apl-runtime",
- "praxis-policy-core",
- "praxis-policy-pdp-cedar-direct",
- "praxis-policy-pdp-cel",
- "praxis-policy-pdp-opa",
- "praxis-policy-plugin-audit-logger",
- "praxis-policy-plugin-delegator-oauth",
- "praxis-policy-plugin-elicitation-ciba",
- "praxis-policy-plugin-identity-jwt",
- "praxis-policy-plugin-pii-scanner",
- "praxis-policy-session-valkey",
- "tokio",
 ]
 
 [[package]]

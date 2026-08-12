@@ -109,9 +109,21 @@ machete:
 # Test
 # =============================================================================
 
+# Two passes, because a single one cannot see everything.
+#
+# The default pass is the configuration a host gets with no features named. The
+# all-features pass is the only way to reach `#[cfg(feature = ...)]` test
+# modules, and the facade's are gated that way because its `default` is empty by
+# design: the bare dependency is the engine alone.
+#
+# The second pass is not optional politeness. Folding the builtins aggregator
+# into the facade silently stopped three tests from running, because the
+# aggregator had a non-empty `default` and the facade does not. A green
+# single-pass run said nothing was wrong.
 .PHONY: test
 test:
 	@$(CARGO) test --workspace
+	@$(CARGO) test --workspace --all-features
 
 # =============================================================================
 # Supply chain & coverage
