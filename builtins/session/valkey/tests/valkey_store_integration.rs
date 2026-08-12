@@ -9,15 +9,23 @@
 //
 //   cargo test -p praxis-policy-session-valkey -- --ignored
 //
-// Skip discipline (learning from PR #67's silent no-op tests):
+// Skip discipline:
 //   - If `VALKEY_TEST_URL` is set, run against that endpoint (a CI service
 //     container or a locally-run `valkey/valkey`) — no testcontainers.
-//   - Else start a testcontainers `valkey/valkey`. If that can't start AND
-//     `REQUIRE_VALKEY_TESTS=1` is set (CI), that is a hard failure (panic)
-//     — the test genuinely ran.
-//   - Otherwise (local, no Docker) the helper prints a loud SKIPPED line
-//     and the test returns without asserting. The visible line is what
-//     stops a silent green.
+//   - Else start a testcontainers `valkey/valkey`.
+//   - If neither is available this **fails**. These tests are `#[ignore]`d, so
+//     running them is always an explicit request; doing nothing and reporting
+//     success is never what the caller asked for.
+//   - `VALKEY_TESTS_OPTIONAL=1` opts back into skipping, for a local run with
+//     no Docker where a failure would just be noise.
+//
+// The failure is the point. This previously skipped by default and printed a
+// SKIPPED line, on the reasoning that a visible line prevents a silent green.
+// It does not: cargo captures stderr from *passing* tests, so in the default
+// invocation the line never appears and the run reports "5 passed" with four of
+// the five having asserted nothing. Verified against a real endpoint, all five
+// do pass and take `store.rs` to 91.67 percent, so there is real signal here to
+// protect.
 
 #![allow(
     missing_docs,
@@ -66,15 +74,17 @@ async fn valkey_target() -> Option<Target> {
             })
         },
         Err(e) => {
-            if std::env::var("REQUIRE_VALKEY_TESTS").as_deref() == Ok("1") {
-                panic!(
-                    "REQUIRE_VALKEY_TESTS=1 but no Valkey available: {e} (set VALKEY_TEST_URL or start Docker)"
-                );
+            if std::env::var("VALKEY_TESTS_OPTIONAL").as_deref() == Ok("1") {
+                eprintln!("SKIPPED: no Valkey available ({e})");
+                return None;
             }
-            eprintln!(
-                "SKIPPED: no Valkey available ({e}); set VALKEY_TEST_URL or REQUIRE_VALKEY_TESTS=1"
+            panic!(
+                "no Valkey available: {e}\n  \
+                 These tests are #[ignore]d, so running them is an explicit request and \
+                 skipping silently would report success without asserting anything.\n  \
+                 Provide one with VALKEY_TEST_URL=redis://host:port, or start Docker so \
+                 testcontainers can, or set VALKEY_TESTS_OPTIONAL=1 to skip on purpose."
             );
-            None
         },
     }
 }

@@ -44,7 +44,7 @@ left is the tail, ranked by size:
 | 53 | `crates/ppe-apl-runtime/src/route_handler.rs` | `with_pdp_router` (zero callers), `approved_peek_violation`, `extensions_changed`. |
 | 48 | `builtins/plugins/identity-jwt/src/config.rs` | The JWKS-document rejection cases are the cheap half: take `build_jwks` and strip the `kid`, flip `use` to `enc`, serve `{"keys":[]}`, serve garbage. Leave the EC/Ed25519 PEM fallbacks, which want test keys the crate has no dependency for. |
 | 38 | `crates/ppe-apl-core/src/route.rs` | `evaluate_post`'s `Replace`/`Omit`/`Deny` result-pipeline arms. The args-phase equivalents are covered, so mirror `result_pipeline_redacts_field`. |
-| 36 | `builtins/session/valkey/src/store.rs` | **Free, no test writing.** Five integration tests exist and pass but never run: the coverage job has no Valkey service and does not pass `--include-ignored`. Wiring a service container moves this file 0 to 75 percent. The harness already degrades gracefully and honors `VALKEY_TEST_URL` and `REQUIRE_VALKEY_TESTS`. |
+| 36 | `builtins/session/valkey/src/store.rs` | **Mostly free, no test writing.** Five integration tests exist and pass but never run, because the coverage job does not pass `--include-ignored`. Measured: `--include-ignored` alone takes this file 0 to 75 percent, and that comes entirely from the one test needing no container; with a real endpoint via `VALKEY_TEST_URL` it reaches 91.67 percent. So most of the gain needs no Valkey service in CI, and a service adds the last few lines. |
 
 Everything except the parser and the manager totals about 415 lines, which lands
 near 94.7%. **Reaching 95% requires touching one of those two.** The Makefile
@@ -75,11 +75,25 @@ Recorded because each one cost time or produced a wrong number.
   this reason.
 - **`clippy::missing_assert_message` does not fire inside `#[test]` functions.**
   Verified three ways. Do not treat bare asserts in tests as a lint gap.
-- **Watch for tests that pass whatever the code does.** One written during this
-  effort compared `Pattern::default()` to itself, which would have passed for any
-  default while still counting as covered. It was rewritten to assert the
-  property that matters: the default matches nothing rather than everything.
-  A coverage target actively incentivises this failure mode.
+- **Watch for tests that pass whatever the code does.** A coverage target
+  actively incentivises this failure mode, and an audit of the tree found four
+  distinct instances:
+  - A test comparing `Pattern::default()` to itself, which would have passed for
+    any default. Rewritten to assert that the default matches nothing.
+  - Two JWKS rejection tests that mutated their fixture with a string replace
+    looking for `"use": "sig"`, while `json!().to_string()` emits compact JSON
+    with no space. The replace missed, the document stayed valid, the endpoint
+    was accepted, and the tests passed. Rebuilt structurally from a `Value`.
+  - Two parser tests keyed on `when: true`, which YAML parses as a boolean and
+    the parser rejects before reaching the field-op logic they claimed to test.
+    One always took its `Err(_) => {}` arm, so its only assertion was dead; the
+    other asserted nothing at all despite being named `..._rejected`.
+  - The Valkey integration tests, which skipped and reported `ok` when no
+    endpoint was available. See the note in that file: the previous mitigation
+    was a printed SKIPPED line, and cargo captures stderr from passing tests.
+  The generalisable checks: does the negative test still fail when you break its
+  setup, and does a test whose name asserts a rejection actually assert one.
+  Breaking each mock path and re-running is a cheap way to find the first class.
 - **Widening a test module's `#[allow]` list is often required.** New tests here
   tripped `err_expect`, `indexing_slicing`, `redundant_closure`,
   `field_reassign_with_default`, and the workspace ban on `unreachable!` that

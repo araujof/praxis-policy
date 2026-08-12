@@ -3753,37 +3753,51 @@ do: "args.card_number | run(luhn)"
         }
     }
 
+    /// A pipeline whose path is neither `args.` nor `result.` must not be taken
+    /// as a field op. Accepting it would apply a redaction to a path that does
+    /// not exist, which reads as enforcement while doing nothing.
+    ///
+    /// The control below is what makes this meaningful: an identical step
+    /// differing only in the path prefix does parse as a field op, so the
+    /// rejection is attributable to the path rather than to anything else in
+    /// the step.
     #[test]
-    fn field_op_invalid_path_falls_through() {
-        // `role.hr | redact` looks like a pipe chain but the path
-        // doesn't start with `args.` / `result.`. We refuse to treat
-        // it as a FieldOp; instead it falls through to the predicate
-        // parser, which will fail with a more specific error.
-        let yaml = r#"do: "role.hr | redact""#;
-        let _ = parse_step_yaml(&format!("when: true\n{yaml}"));
-        // The exact failure mode here isn't load-bearing — what matters
-        // is we don't silently produce an unconditional FieldOp with a
-        // bogus path. So just confirm we either error or produce
-        // *something other than* a FieldOp.
-        let step = parse_step_yaml("when: true\ndo: \"role.hr | redact\"");
-        match step {
-            Ok(Step::Rule(rule)) => {
-                assert!(
-                    !matches!(rule.effects.as_slice(), [Effect::FieldOp { .. }]),
-                    "bare `role.hr` must NOT parse as a FieldOp path"
-                );
-            },
-            Err(_) => {}, // also fine
+    fn a_pipeline_path_outside_args_or_result_is_not_a_field_op() {
+        let bad = parse_step_yaml("when: \"role.hr\"\ndo: \"role.hr | redact\"");
+        match bad {
+            Ok(Step::Rule(rule)) => assert!(
+                !matches!(rule.effects.as_slice(), [Effect::FieldOp { .. }]),
+                "bare `role.hr` must not parse as a field-op path"
+            ),
+            Err(_) => {},
             other => panic!("unexpected: {other:?}"),
         }
+
+        let good = parse_step_yaml("when: \"role.hr\"\ndo: \"args.x | redact\"")
+            .expect("the same step with an args. path must parse");
+        let rule = expect_rule(good);
+        assert!(
+            matches!(
+                rule.effects.as_slice(),
+                [Effect::FieldOp { path, .. }] if path == "args.x"
+            ),
+            "control: an args. path is a field op, got {:?}",
+            rule.effects
+        );
     }
 
+    /// `args.x |` with nothing after the pipe is an author typo. It has to be
+    /// refused rather than treated as a no-op chain, and the message has to quote
+    /// the offending expression so the author can find it.
     #[test]
-    fn field_op_empty_chain_rejected() {
-        // `args.x |` (trailing pipe with nothing after) — author bug.
-        let yaml = r#"when: true
-do: "args.x | ""#;
-        let _ = parse_step_yaml(yaml); // shape varies by YAML parser, just ensure no panic
+    fn a_trailing_pipe_with_no_stage_is_rejected() {
+        let err = parse_step_yaml("when: \"role.hr\"\ndo: \"args.x | \"")
+            .expect_err("a trailing pipe must not parse");
+        let msg = format!("{err:?}");
+        assert!(
+            msg.contains("args.x |"),
+            "the error must quote the offending expression: {msg}"
+        );
     }
 
     #[test]
