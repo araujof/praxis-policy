@@ -122,6 +122,20 @@ impl CibaApprover {
         })
     }
 
+    /// Replace the correlation store.
+    ///
+    /// The store is already a trait object, but [`new`] fixes it to the
+    /// in-process implementation, which leaves the lookup paths reachable only
+    /// by driving a full dispatch, poll and validate sequence over HTTP. A
+    /// caller that wants to seed or inspect correlation state supplies its own.
+    ///
+    /// [`new`]: CibaApprover::new
+    #[must_use]
+    pub fn with_store(mut self, store: Arc<dyn CorrelationStore>) -> Self {
+        self.store = store;
+        self
+    }
+
     async fn do_dispatch(&self, payload: &ElicitationPayload) -> PluginResult<ElicitationPayload> {
         let login_hint = payload.from();
         if login_hint.is_empty() {
@@ -526,7 +540,7 @@ fn decode_jwt_claim(token: &str, claim: &str) -> Option<String> {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, reason = "tests")]
+#[allow(clippy::expect_used, clippy::unwrap_used, reason = "tests")]
 mod tests {
     use super::*;
 
@@ -573,5 +587,197 @@ mod tests {
         assert_eq!(decode_jwt_claim(&token, "sub").as_deref(), Some("u-1"));
         assert!(decode_jwt_claim(&token, "missing").is_none());
         assert!(decode_jwt_claim("not-a-jwt", "sub").is_none());
+    }
+
+    // ---- validate ---------------------------------------------------------
+    //
+    // Validate answers one question: did the party who approved match the party
+    // who was asked. Reaching it used to require driving a full dispatch, poll
+    // and validate sequence over a mock server, so only the two happy shapes
+    // were covered. With an injected store the decision is testable directly,
+    // which is what these do.
+
+    use crate::store::{Correlation, InMemoryCorrelationStore};
+    use praxis_policy_core::elicitation::payload::ElicitationOp;
+
+    fn approver_with(correlations: &[(&str, &str, Option<&str>)]) -> CibaApprover {
+        let store = InMemoryCorrelationStore::new();
+        for (id, expected, resolved) in correlations {
+            store.put(
+                id,
+                Correlation {
+                    expected_approver: (*expected).to_owned(),
+                    resolved_approver: resolved.map(str::to_owned),
+                },
+            );
+        }
+        let cfg = PluginConfig {
+            name: "manager-approver".into(),
+            kind: "elicitation/ciba".into(),
+            hooks: vec!["elicit".into()],
+            config: Some(serde_json::json!({
+                "backchannel_endpoint": "https://idp.example/ciba/auth",
+                "token_endpoint": "https://idp.example/token",
+                "client_id": "praxis-policy-gateway",
+                "client_secret_source": { "kind": "literal", "secret": "shh" },
+            })),
+            ..Default::default()
+        };
+        CibaApprover::new(cfg).unwrap().with_store(Arc::new(store))
+    }
+
+    fn validate_payload(id: Option<&str>) -> ElicitationPayload {
+        let p = ElicitationPayload::new(ElicitationOp::Validate, "approval", "");
+        match id {
+            Some(id) => p.with_elicitation_id(id),
+            None => p,
+        }
+    }
+
+    #[tokio::test]
+    async fn validate_accepts_when_the_resolved_approver_is_the_expected_one() {
+        let a = approver_with(&[("REQ-1", "alice", Some("alice"))]);
+        let out = a
+            .handle(
+                &validate_payload(Some("REQ-1")),
+                &Extensions::default(),
+                &mut PluginContext::new(),
+            )
+            .await
+            .modified_payload
+            .expect("validate returns a payload");
+        assert_eq!(out.valid, Some(true));
+        assert_eq!(out.approver.as_deref(), Some("alice"));
+        assert!(out.reason.is_none(), "an accepted validate needs no reason");
+    }
+
+    /// The load-bearing case. If someone other than the named approver consents,
+    /// the elicitation must come back invalid, and the reason has to name both
+    /// parties so the mismatch is visible in an audit trail rather than just
+    /// "invalid".
+    #[tokio::test]
+    async fn validate_rejects_when_a_different_party_approved() {
+        let a = approver_with(&[("REQ-1", "alice", Some("bob"))]);
+        let out = a
+            .handle(
+                &validate_payload(Some("REQ-1")),
+                &Extensions::default(),
+                &mut PluginContext::new(),
+            )
+            .await
+            .modified_payload
+            .expect("validate returns a payload");
+        assert_eq!(out.valid, Some(false));
+        assert_eq!(
+            out.approver.as_deref(),
+            Some("bob"),
+            "the payload reports who actually approved"
+        );
+        let reason = out.reason.unwrap_or_default();
+        assert!(
+            reason.contains("bob") && reason.contains("alice"),
+            "{reason}"
+        );
+    }
+
+    /// An id the store has never seen must be invalid rather than accepted. This
+    /// is the replay and guess case: a fabricated correlation id must not pass.
+    #[tokio::test]
+    async fn validate_rejects_an_unknown_elicitation_id() {
+        let a = approver_with(&[]);
+        let out = a
+            .handle(
+                &validate_payload(Some("REQ-does-not-exist")),
+                &Extensions::default(),
+                &mut PluginContext::new(),
+            )
+            .await
+            .modified_payload
+            .expect("validate returns a payload");
+        assert_eq!(out.valid, Some(false));
+        assert!(
+            out.reason.unwrap_or_default().contains("unknown"),
+            "the reason must say the id is unknown"
+        );
+    }
+
+    /// A correlation that exists but has not resolved must be invalid, not
+    /// accepted-by-default. Treating "nobody has approved yet" as valid would
+    /// let a caller skip the approval entirely.
+    #[tokio::test]
+    async fn validate_rejects_a_correlation_with_no_resolved_approver() {
+        let a = approver_with(&[("REQ-1", "alice", None)]);
+        let out = a
+            .handle(
+                &validate_payload(Some("REQ-1")),
+                &Extensions::default(),
+                &mut PluginContext::new(),
+            )
+            .await
+            .modified_payload
+            .expect("validate returns a payload");
+        assert_eq!(out.valid, Some(false));
+        let reason = out.reason.unwrap_or_default();
+        assert!(
+            reason.contains("no resolved approver"),
+            "the reason must distinguish this from a mismatch: {reason}"
+        );
+    }
+
+    /// Without an id there is nothing to validate against, so this is a request
+    /// error rather than an invalid approval.
+    #[tokio::test]
+    async fn validate_without_an_elicitation_id_is_a_bad_request() {
+        let a = approver_with(&[]);
+        let r = a
+            .handle(
+                &validate_payload(None),
+                &Extensions::default(),
+                &mut PluginContext::new(),
+            )
+            .await;
+        assert!(!r.continue_processing, "a validate with no id must deny");
+        let v = r.violation.expect("violation present");
+        assert_eq!(v.code, "elicitation.bad_request");
+    }
+
+    #[tokio::test]
+    async fn check_without_an_elicitation_id_is_a_bad_request() {
+        let a = approver_with(&[]);
+        let payload = ElicitationPayload::new(ElicitationOp::Check, "approval", "");
+        let r = a
+            .handle(&payload, &Extensions::default(), &mut PluginContext::new())
+            .await;
+        assert!(!r.continue_processing, "a check with no id must deny");
+        assert_eq!(
+            r.violation.expect("violation present").code,
+            "elicitation.bad_request"
+        );
+    }
+
+    /// Dispatch names the approver via `login_hint`, so an empty one means
+    /// there is nobody to ask. It must fail before any backchannel call.
+    #[tokio::test]
+    async fn dispatch_without_a_login_hint_is_a_bad_request() {
+        let a = approver_with(&[]);
+        let payload = ElicitationPayload::new(ElicitationOp::Dispatch, "approval", "");
+        let r = a
+            .handle(&payload, &Extensions::default(), &mut PluginContext::new())
+            .await;
+        assert!(!r.continue_processing, "no approver named must deny");
+        assert_eq!(
+            r.violation.expect("violation present").code,
+            "elicitation.bad_request"
+        );
+    }
+
+    /// The `Debug` impl exists so an approver can be logged without leaking the
+    /// client secret, which is a security property rather than a formatting one.
+    #[test]
+    fn debug_elides_the_client_secret() {
+        let s = format!("{:?}", approver_with(&[]));
+        assert!(s.contains("https://idp.example/ciba/auth"), "{s}");
+        assert!(s.contains("<elided>"), "{s}");
+        assert!(!s.contains("shh"), "the secret must never be printed: {s}");
     }
 }
