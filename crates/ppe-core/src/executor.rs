@@ -1275,4 +1275,285 @@ mod tests {
         assert!(result.continue_processing);
         assert!(result.modified_payload.is_some());
     }
+
+    // =====================================================================
+    // Concurrent phase: failure mode by on_error policy
+    // =====================================================================
+    //
+    // A concurrent plugin can fail three ways (return an error, exceed its
+    // timeout, panic) and each is governed by that plugin's `on_error`. That is
+    // a nine-cell matrix and none of it was covered. It decides whether a
+    // failing plugin halts the pipeline or is stepped over, so a wrong cell
+    // either blocks legitimate traffic or lets an enforcement plugin fail open.
+    //
+    // The shape asserted per cell: `Fail` halts and attributes the violation to
+    // the plugin; `Ignore` continues and records the error for a programmatic
+    // reader; `Disable` continues, records, and marks the plugin so it stops
+    // being dispatched.
+
+    use crate::context::PluginContext;
+    use crate::plugin::{OnError, Plugin, PluginConfig, PluginMode};
+    use crate::registry::{AnyHookHandler, HookEntry, PluginRef};
+    use async_trait::async_trait;
+    use std::sync::Arc;
+
+    /// How a mock branch fails.
+    #[derive(Clone, Copy)]
+    enum Failure {
+        Error,
+        Hang,
+        Panic,
+        None,
+    }
+
+    struct MockPlugin(PluginConfig);
+
+    #[async_trait]
+    impl Plugin for MockPlugin {
+        fn config(&self) -> &PluginConfig {
+            &self.0
+        }
+    }
+
+    struct MockHandler(Failure);
+
+    #[async_trait]
+    impl AnyHookHandler for MockHandler {
+        async fn invoke(
+            &self,
+            _payload: &dyn PluginPayload,
+            _extensions: &Extensions,
+            _ctx: &mut PluginContext,
+        ) -> Result<Box<dyn std::any::Any + Send + Sync>, Box<PluginError>> {
+            match self.0 {
+                Failure::Error => Err(Box::new(PluginError::Execution {
+                    plugin_name: "mock".into(),
+                    message: "simulated failure".into(),
+                    source: None,
+                    code: None,
+                    details: std::collections::HashMap::new(),
+                    proto_error_code: None,
+                })),
+                // Longer than any timeout these tests configure, so the
+                // executor's per-branch timeout is what ends it.
+                Failure::Hang => {
+                    tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+                    Ok(erase_result(PluginResult::<TestPayload>::allow()))
+                },
+                Failure::Panic => panic!("simulated panic inside a branch"),
+                Failure::None => Ok(erase_result(PluginResult::<TestPayload>::allow())),
+            }
+        }
+
+        fn hook_type_name(&self) -> &'static str {
+            "test_hook"
+        }
+    }
+
+    fn concurrent_entry(name: &str, on_error: OnError, failure: Failure) -> HookEntry {
+        let cfg = PluginConfig {
+            name: name.into(),
+            mode: PluginMode::Concurrent,
+            on_error,
+            ..Default::default()
+        };
+        HookEntry {
+            plugin_ref: Arc::new(PluginRef::new(
+                Arc::new(MockPlugin(cfg.clone())),
+                cfg.clone(),
+            )),
+            handler: Arc::new(MockHandler(failure)),
+        }
+    }
+
+    /// One concurrent plugin with the given failure and policy. Returns the
+    /// pipeline result plus the entry so a test can check `is_disabled`.
+    async fn run_one(failure: Failure, on_error: OnError) -> (PipelineResult, HookEntry) {
+        // A short timeout so the Hang case does not stall the suite.
+        let executor = Executor::new(ExecutorConfig {
+            timeout_seconds: 1,
+            short_circuit_on_deny: true,
+        });
+        let entry = concurrent_entry("mock", on_error, failure);
+        let tracker = tokio_util::task::TaskTracker::new();
+        let payload: Box<dyn PluginPayload> = Box::new(TestPayload { value: "x".into() });
+        let (result, _bg) = executor
+            .execute(
+                std::slice::from_ref(&entry),
+                payload,
+                Extensions::default(),
+                None,
+                &tracker,
+            )
+            .await;
+        (result, entry)
+    }
+
+    /// The control. Without it, every assertion below could hold for a reason
+    /// unrelated to the failure being injected.
+    #[tokio::test]
+    async fn a_concurrent_plugin_that_succeeds_allows() {
+        let (r, entry) = run_one(Failure::None, OnError::Fail).await;
+        assert!(r.continue_processing, "no failure, so no halt");
+        assert!(r.errors.is_empty(), "and nothing to report");
+        assert!(!entry.plugin_ref.is_disabled());
+    }
+
+    // ---- returned error ---------------------------------------------------
+
+    #[tokio::test]
+    async fn a_concurrent_error_under_fail_halts_and_names_the_plugin() {
+        let (r, _) = run_one(Failure::Error, OnError::Fail).await;
+        assert!(!r.continue_processing, "on_error: fail must halt");
+        let v = r.violation.expect("a violation is required to halt");
+        assert_eq!(v.code, "plugin_error");
+        assert_eq!(
+            v.plugin_name.as_deref(),
+            Some("mock"),
+            "the violation must attribute the failure"
+        );
+    }
+
+    /// `Ignore` has to surface the error to a programmatic reader even though it
+    /// continues. Logging alone would make the failure invisible to a caller.
+    #[tokio::test]
+    async fn a_concurrent_error_under_ignore_continues_but_is_recorded() {
+        let (r, entry) = run_one(Failure::Error, OnError::Ignore).await;
+        assert!(r.continue_processing, "on_error: ignore must not halt");
+        assert_eq!(r.errors.len(), 1, "and must still report the error");
+        assert!(
+            !entry.plugin_ref.is_disabled(),
+            "ignore does not disable the plugin"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_concurrent_error_under_disable_continues_and_disables() {
+        let (r, entry) = run_one(Failure::Error, OnError::Disable).await;
+        assert!(r.continue_processing, "on_error: disable must not halt");
+        assert_eq!(r.errors.len(), 1);
+        assert!(
+            entry.plugin_ref.is_disabled(),
+            "the plugin must be marked so it stops being dispatched"
+        );
+    }
+
+    // ---- timeout ----------------------------------------------------------
+
+    #[tokio::test]
+    async fn a_concurrent_timeout_under_fail_halts_as_a_timeout() {
+        let (r, _) = run_one(Failure::Hang, OnError::Fail).await;
+        assert!(!r.continue_processing);
+        let v = r.violation.expect("a violation is required to halt");
+        assert_eq!(
+            v.code, "plugin_timeout",
+            "a timeout must be distinguishable from a returned error"
+        );
+        assert_eq!(v.plugin_name.as_deref(), Some("mock"));
+    }
+
+    #[tokio::test]
+    async fn a_concurrent_timeout_under_ignore_continues_but_is_recorded() {
+        let (r, entry) = run_one(Failure::Hang, OnError::Ignore).await;
+        assert!(r.continue_processing);
+        assert_eq!(r.errors.len(), 1);
+        assert!(!entry.plugin_ref.is_disabled());
+    }
+
+    #[tokio::test]
+    async fn a_concurrent_timeout_under_disable_continues_and_disables() {
+        let (r, entry) = run_one(Failure::Hang, OnError::Disable).await;
+        assert!(r.continue_processing);
+        assert_eq!(r.errors.len(), 1);
+        assert!(entry.plugin_ref.is_disabled());
+    }
+
+    // ---- panic ------------------------------------------------------------
+    //
+    // A panicking branch must not take the process down, and must be
+    // attributable. This is the cell most likely to be wrong, because the
+    // panic unwinds inside a spawned task rather than returning a value.
+
+    #[tokio::test]
+    async fn a_concurrent_panic_under_fail_halts_as_a_panic() {
+        let (r, _) = run_one(Failure::Panic, OnError::Fail).await;
+        assert!(!r.continue_processing);
+        let v = r.violation.expect("a violation is required to halt");
+        assert_eq!(
+            v.code, "plugin_panic",
+            "a panic must be distinguishable from an error and a timeout"
+        );
+        assert_eq!(v.plugin_name.as_deref(), Some("mock"));
+    }
+
+    #[tokio::test]
+    async fn a_concurrent_panic_under_ignore_continues_but_is_recorded() {
+        let (r, entry) = run_one(Failure::Panic, OnError::Ignore).await;
+        assert!(
+            r.continue_processing,
+            "a panicking plugin under ignore must not halt the pipeline"
+        );
+        assert_eq!(r.errors.len(), 1);
+        assert!(!entry.plugin_ref.is_disabled());
+    }
+
+    #[tokio::test]
+    async fn a_concurrent_panic_under_disable_continues_and_disables() {
+        let (r, entry) = run_one(Failure::Panic, OnError::Disable).await;
+        assert!(r.continue_processing);
+        assert_eq!(r.errors.len(), 1);
+        assert!(entry.plugin_ref.is_disabled());
+    }
+
+    /// With several failures at once the first Fail-policy one wins, and the
+    /// Ignore-policy ones are still recorded rather than dropped. Otherwise a
+    /// pipeline with one strict and one lenient plugin would lose the lenient
+    /// one's diagnostics.
+    #[tokio::test]
+    async fn the_first_fail_policy_failure_wins_and_ignored_ones_are_still_recorded() {
+        let executor = Executor::new(ExecutorConfig {
+            timeout_seconds: 1,
+            short_circuit_on_deny: true,
+        });
+        let entries = vec![
+            concurrent_entry("lenient", OnError::Ignore, Failure::Error),
+            concurrent_entry("strict", OnError::Fail, Failure::Error),
+        ];
+        let tracker = tokio_util::task::TaskTracker::new();
+        let payload: Box<dyn PluginPayload> = Box::new(TestPayload { value: "x".into() });
+        let (r, _bg) = executor
+            .execute(&entries, payload, Extensions::default(), None, &tracker)
+            .await;
+
+        assert!(!r.continue_processing, "the strict plugin halts");
+        assert_eq!(
+            r.violation.expect("violation").plugin_name.as_deref(),
+            Some("strict"),
+            "and the halt is attributed to it, not the lenient one"
+        );
+        assert_eq!(
+            r.errors.len(),
+            1,
+            "the lenient plugin's error is still reported"
+        );
+    }
+
+    // ---- BackgroundTasks accessors ----------------------------------------
+
+    #[tokio::test]
+    async fn an_empty_pipeline_reports_no_background_tasks() {
+        let executor = Executor::default();
+        let tracker = tokio_util::task::TaskTracker::new();
+        let payload: Box<dyn PluginPayload> = Box::new(TestPayload { value: "x".into() });
+        let (_r, bg) = executor
+            .execute(&[], payload, Extensions::default(), None, &tracker)
+            .await;
+        assert!(bg.is_empty());
+        assert_eq!(bg.len(), 0);
+        assert!(
+            format!("{bg:?}").contains("BackgroundTasks"),
+            "Debug is what a failing assertion prints"
+        );
+        assert!(bg.wait_for_background_tasks().await.is_empty());
+    }
 }
