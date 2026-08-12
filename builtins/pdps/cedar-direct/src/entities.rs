@@ -126,7 +126,7 @@ pub fn build_principal(
         .unwrap_or_default();
     attrs.insert(ATTR_TEAMS.to_owned(), json!(teams));
 
-    let claims = collect_claims(bag);
+    let claims = collect_claims(bag)?;
     attrs.insert(ATTR_CLAIMS.to_owned(), Value::Object(claims));
 
     let mut uid_obj = Map::new();
@@ -186,6 +186,18 @@ pub fn build_resource(
             "cedar:() `resource.attributes` not JSON-representable: {e}"
         ))
     })?;
+    // Same floating-point limitation as `collect_claims`, reached from the other
+    // direction: this block is operator-authored YAML, so `score: 1.5` is an easy
+    // thing to write. Cedar rejects it with "error during entity
+    // deserialization" and the resolver fails closed, so without this check the
+    // operator sees every request through the step denied and nothing that says
+    // which value to change.
+    if let Some(key) = first_float_key(&attrs_json) {
+        return Err(PdpError::Dispatch(format!(
+            "cedar:() `resource.attributes.{key}` holds a floating-point value, and Cedar's value \
+             model has no floating-point type; use an integer or quote it as a string"
+        )));
+    }
 
     let mut uid_obj = Map::new();
     uid_obj.insert(ATTR_TYPE.to_owned(), json!(entity_type));
@@ -234,21 +246,64 @@ fn collect_prefixed_bools(bag: &AttributeBag, prefix: &str) -> Vec<String> {
 /// Read every `claim.<name>` key and assemble a JSON record of the
 /// values. Each claim's value type comes through as JSON (`Bool`,
 /// `String`, etc.) so Cedar's record-of-records story works.
-fn collect_claims(bag: &AttributeBag) -> Map<String, Value> {
+///
+/// # Errors
+///
+/// Returns `PdpError::Dispatch` when a claim holds a floating-point value.
+/// Cedar's value model has no floating-point type, so such a claim cannot be
+/// carried into an entity at all. Rejecting here rather than letting Cedar fail
+/// is purely about the diagnosis: Cedar reports "error during entity
+/// deserialization" with no indication of which value it choked on, and because
+/// the resolver fails closed, the operator sees every request denied with no
+/// clue what to change.
+fn collect_claims(bag: &AttributeBag) -> Result<Map<String, Value>, PdpError> {
     let mut out = Map::new();
     for (key, value) in bag.iter() {
         if let Some(name) = key.strip_prefix("claim.") {
             let v = match value {
                 AttributeValue::Bool(b) => json!(*b),
                 AttributeValue::Int(i) => json!(*i),
-                AttributeValue::Float(f) => json!(*f),
+                AttributeValue::Float(f) => {
+                    return Err(PdpError::Dispatch(format!(
+                        "attribute '{key}' holds the floating-point value {f}, and Cedar's value \
+                         model has no floating-point type; supply it as an integer or a string, \
+                         or drop the claim from the attribute source"
+                    )));
+                },
                 AttributeValue::String(s) => json!(s),
                 AttributeValue::StringSet(set) => json!(set.iter().collect::<Vec<_>>()),
             };
             out.insert(name.to_owned(), v);
         }
     }
-    out
+    Ok(out)
+}
+
+/// Name the first key holding a floating-point value, searching nested objects
+/// and arrays. Returns `None` when every value is Cedar-representable.
+fn first_float_key(v: &Value) -> Option<String> {
+    match v {
+        Value::Number(n) if n.as_i64().is_none() => Some(String::new()),
+        Value::Object(map) => map.iter().find_map(|(k, sub)| {
+            first_float_key(sub).map(|rest| {
+                if rest.is_empty() {
+                    k.clone()
+                } else {
+                    format!("{k}.{rest}")
+                }
+            })
+        }),
+        Value::Array(items) => items.iter().enumerate().find_map(|(i, sub)| {
+            first_float_key(sub).map(|rest| {
+                if rest.is_empty() {
+                    i.to_string()
+                } else {
+                    format!("{i}.{rest}")
+                }
+            })
+        }),
+        _ => None,
+    }
 }
 
 fn yaml_string(map: &serde_yaml::Mapping, key: &str) -> Option<String> {

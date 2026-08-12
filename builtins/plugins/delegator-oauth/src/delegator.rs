@@ -652,6 +652,139 @@ fn require_https(url: &str, insecure_http: bool) -> Result<(), String> {
     Ok(())
 }
 
+/// Construction-time rejections.
+///
+/// Every one of these is a config an operator can write, and each has to fail
+/// at load rather than register a delegator that would fail on every request.
+/// None of them reaches the network: `new` resolves config and builds an HTTP
+/// client, it does not call the token endpoint.
+#[cfg(test)]
+#[allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::unwrap_used,
+    reason = "tests"
+)]
+mod construction_tests {
+    use super::OAuthDelegator;
+    use praxis_policy_core::plugin::PluginConfig;
+    use serde_json::json;
+
+    fn cfg(config: Option<serde_json::Value>) -> PluginConfig {
+        PluginConfig {
+            name: "oauth".into(),
+            kind: "delegator/oauth".into(),
+            config,
+            ..Default::default()
+        }
+    }
+
+    fn valid() -> serde_json::Value {
+        json!({
+            "token_endpoint": "https://idp.example/token",
+            "client_id": "gateway-client",
+            "client_secret_source": { "kind": "literal", "secret": "s3cret" },
+        })
+    }
+
+    fn err_of(config: serde_json::Value) -> String {
+        let Err(e) = OAuthDelegator::new(cfg(Some(config))) else {
+            panic!("this config must be rejected")
+        };
+        e.to_string()
+    }
+
+    #[test]
+    fn the_valid_baseline_builds() {
+        // Guards the negative tests below: without this, a typo in `valid()`
+        // would make all of them pass for the wrong reason.
+        assert!(OAuthDelegator::new(cfg(Some(valid()))).is_ok());
+    }
+
+    #[test]
+    fn a_missing_config_block_is_rejected() {
+        let Err(e) = OAuthDelegator::new(cfg(None)) else {
+            panic!("no config block must not build")
+        };
+        let err = e.to_string();
+        assert!(err.contains("`config:`"), "{err}");
+    }
+
+    #[test]
+    fn a_config_block_of_the_wrong_shape_is_rejected() {
+        let err = err_of(json!({ "token_endpoint": 42 }));
+        assert!(err.contains("parse failed"), "{err}");
+    }
+
+    #[test]
+    fn an_empty_token_endpoint_is_rejected() {
+        let mut c = valid();
+        c["token_endpoint"] = json!("   ");
+        let err = err_of(c);
+        assert!(err.contains("token_endpoint must be non-empty"), "{err}");
+    }
+
+    /// The exchange POST carries the client secret and the inbound user JWT, so
+    /// a plaintext endpoint defeats the whole flow. It is refused unless the
+    /// operator opts in by name.
+    #[test]
+    fn a_plaintext_token_endpoint_is_rejected_without_the_opt_in() {
+        let mut c = valid();
+        c["token_endpoint"] = json!("http://idp.example/token");
+        let err = err_of(c.clone());
+        assert!(err.contains("must use https"), "{err}");
+        assert!(
+            err.contains("insecure_http"),
+            "the message must name the opt-out: {err}"
+        );
+
+        c["insecure_http"] = json!(true);
+        assert!(
+            OAuthDelegator::new(cfg(Some(c))).is_ok(),
+            "the explicit opt-in must be honored"
+        );
+    }
+
+    #[test]
+    fn an_empty_client_id_is_rejected() {
+        let mut c = valid();
+        c["client_id"] = json!("");
+        let err = err_of(c);
+        assert!(err.contains("client_id must be non-empty"), "{err}");
+    }
+
+    /// A secret sourced from an environment variable that is not set must fail
+    /// at load. Registering the delegator would leave it authenticating with an
+    /// empty secret against the token endpoint.
+    #[test]
+    fn an_unresolvable_client_secret_is_rejected() {
+        let mut c = valid();
+        c["client_secret_source"] = json!({
+            "kind": "env_var",
+            "name": "PPE_TEST_SECRET_THAT_IS_NOT_SET",
+        });
+        let err = err_of(c);
+        assert!(err.contains("client secret resolve failed"), "{err}");
+    }
+
+    /// The `Debug` impl exists so a delegator can be logged without leaking the
+    /// client secret. That is a security property, so it is asserted rather
+    /// than assumed.
+    #[test]
+    fn debug_shows_the_endpoint_and_elides_the_secret() {
+        let d = OAuthDelegator::new(cfg(Some(valid()))).unwrap();
+        let s = format!("{d:?}");
+        assert!(s.contains("https://idp.example/token"), "{s}");
+        assert!(s.contains("gateway-client"), "{s}");
+        assert!(s.contains("<elided>"), "{s}");
+        assert!(
+            !s.contains("s3cret"),
+            "the secret must never be printed: {s}"
+        );
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, reason = "tests")]
 mod scheme_tests {
