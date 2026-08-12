@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 
-use std::sync::Arc;
-
 use async_trait::async_trait;
 use serde_json::{Map, Value, json};
 
@@ -191,9 +189,6 @@ impl HookHandler<CmfHook> for AuditLogger {
         PluginResult::allow()
     }
 }
-
-// Silence import-unused warning if Arc isn't used elsewhere.
-fn _force_link_arc(_: Arc<()>) {}
 
 #[cfg(test)]
 #[allow(

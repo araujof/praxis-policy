@@ -42,7 +42,6 @@
 //                                    requested permissions
 
 use std::borrow::Cow;
-use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::Utc;
@@ -623,11 +622,6 @@ fn jwt_payload_omits_act(access_token: &str) -> bool {
     // a null claim records no actor.
     claims.is_object() && claims.get("act").is_none_or(serde_json::Value::is_null)
 }
-
-// Silence unused-import warning when only a subset of these is
-// reached in any given config path. Kept as a single place so the
-// crate's surface is visible at a glance.
-fn _force_link(_: Arc<()>) {}
 
 /// Reject `http://` for endpoints that carry credentials. Allows
 /// `https://` unconditionally and `http://` only when the operator

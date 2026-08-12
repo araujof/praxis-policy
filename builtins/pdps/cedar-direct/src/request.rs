@@ -38,7 +38,7 @@
 // Without a schema, Cedar accepts any record.
 
 use cedar_policy::{EntityUid, Schema};
-use praxis_policy_apl_core::attributes::{AttributeBag, AttributeValue};
+use praxis_policy_apl_core::attributes::AttributeBag;
 use praxis_policy_apl_core::step::{PdpCall, PdpError};
 use serde_json::{Map, Value, json};
 
@@ -203,17 +203,5 @@ fn merge_into(target: &mut Value, overlay: Value) {
     };
     for (k, v) in overlay_map {
         target_map.insert(k, v);
-    }
-}
-
-fn _bag_typed_value(v: &AttributeValue) -> Value {
-    // Reserved for future use — keeps the import alive while parts of
-    // the bag→JSON translation are stubbed.
-    match v {
-        AttributeValue::Bool(b) => json!(*b),
-        AttributeValue::Int(i) => json!(*i),
-        AttributeValue::Float(f) => json!(*f),
-        AttributeValue::String(s) => json!(s),
-        AttributeValue::StringSet(set) => json!(set.iter().collect::<Vec<_>>()),
     }
 }

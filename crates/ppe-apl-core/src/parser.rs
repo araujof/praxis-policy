@@ -2991,6 +2991,27 @@ mod tests {
     use crate::attributes::AttributeBag;
     use crate::evaluator::Decision;
 
+    /// Unwrap a parsed step as a rule, or fail naming what came back instead.
+    ///
+    /// Sixteen tests needed this and each wrote its own `let ... else { panic!() }`,
+    /// which is three lines that a passing run never executes. One helper reports
+    /// the same failure with the offending variant included.
+    fn expect_rule(step: Step) -> Rule {
+        match step {
+            Step::Rule(rule) => rule,
+            other => panic!("expected Step::Rule, got {other:?}"),
+        }
+    }
+
+    /// Unwrap a parsed step as a delegate step. Same reasoning as [`expect_rule`],
+    /// for the eight tests that needed it.
+    fn expect_delegate(step: Step) -> crate::step::DelegateStep {
+        match step {
+            Step::Delegate(ds) => ds,
+            other => panic!("expected Step::Delegate, got {other:?}"),
+        }
+    }
+
     #[test]
     fn lex_basic() {
         let toks = Lexer::new("delegation.depth > 2").tokenize_all().unwrap();
@@ -3506,9 +3527,7 @@ mod tests {
             "when: delegation.depth > 2\ndo: deny('too deep', 'delegation.depth_exceeded')",
         )
         .unwrap();
-        let Step::Rule(rule) = step else {
-            panic!("expected Step::Rule");
-        };
+        let rule = expect_rule(step);
         match rule.effects.as_slice() {
             [
                 Effect::Deny {
@@ -3535,9 +3554,7 @@ do:
   - "deny('refused', 'role.hr_required')"
 "#;
         let step = parse_step_yaml(yaml).unwrap();
-        let Step::Rule(rule) = step else {
-            panic!("expected Step::Rule");
-        };
+        let rule = expect_rule(step);
         assert_eq!(rule.effects.len(), 3);
         assert!(matches!(rule.effects[0], Effect::Plugin { ref name } if name == "audit_logger"));
         assert!(matches!(
@@ -3588,9 +3605,7 @@ do:
   - "deny('unauthorized')"
 "#;
         let step = parse_step_yaml(yaml).unwrap();
-        let Step::Rule(rule) = step else {
-            panic!("expected Step::Rule");
-        };
+        let rule = expect_rule(step);
         assert_eq!(rule.effects.len(), 2);
         assert!(matches!(rule.effects[0], Effect::Plugin { ref name } if name == "audit_logger"));
         assert!(matches!(
@@ -3612,9 +3627,7 @@ do:
   - "plugin(audit_logger)"
 "#;
         let step = parse_step_yaml(yaml).unwrap();
-        let Step::Rule(rule) = step else {
-            panic!("expected Step::Rule");
-        };
+        let rule = expect_rule(step);
         assert_eq!(rule.effects.len(), 2);
         assert!(matches!(rule.effects[0], Effect::Delegate(_)));
         assert!(matches!(rule.effects[1], Effect::Plugin { .. }));
@@ -3655,9 +3668,7 @@ do:
   - "result.salary | redact"
 "#;
         let step = parse_step_yaml(yaml).unwrap();
-        let Step::Rule(rule) = step else {
-            panic!("expected Step::Rule");
-        };
+        let rule = expect_rule(step);
         assert_eq!(rule.effects.len(), 2);
         assert!(matches!(rule.effects[0], Effect::Plugin { .. }));
         match &rule.effects[1] {
@@ -3677,9 +3688,7 @@ when: role.support
 do: "args.card_number | mask(4)"
 "#;
         let step = parse_step_yaml(yaml).unwrap();
-        let Step::Rule(rule) = step else {
-            panic!("expected Step::Rule");
-        };
+        let rule = expect_rule(step);
         match &rule.effects[..] {
             [Effect::FieldOp { path, stages }] => {
                 assert_eq!(path, "args.card_number");
@@ -3698,9 +3707,7 @@ when: role.support
 do: "args.card_number | str | mask(4)"
 "#;
         let step = parse_step_yaml(yaml).unwrap();
-        let Step::Rule(rule) = step else {
-            panic!("expected Step::Rule");
-        };
+        let rule = expect_rule(step);
         match &rule.effects[..] {
             [Effect::FieldOp { path, stages }] => {
                 assert_eq!(path, "args.card_number");
@@ -3719,9 +3726,7 @@ when: role.support
 do: "args.card_number | run(luhn)"
 "#;
         let step = parse_step_yaml(yaml).unwrap();
-        let Step::Rule(rule) = step else {
-            panic!("expected Step::Rule");
-        };
+        let rule = expect_rule(step);
         match &rule.effects[..] {
             [Effect::FieldOp { path, stages }] => {
                 assert_eq!(path, "args.card_number");
@@ -3790,9 +3795,7 @@ do: "args.x | ""#;
   - "result.ssn | redact"
 "#;
         let step = parse_step_yaml(yaml).unwrap();
-        let Step::Rule(rule) = step else {
-            panic!("expected Step::Rule");
-        };
+        let rule = expect_rule(step);
         assert_eq!(rule.effects.len(), 2);
         assert!(matches!(rule.effects[1], Effect::FieldOp { .. }));
     }
@@ -3817,9 +3820,7 @@ sequential:
   - "plugin(audit_logger)"
 "#;
         let step = parse_step_yaml(yaml).unwrap();
-        let Step::Rule(rule) = step else {
-            panic!("expected Rule");
-        };
+        let rule = expect_rule(step);
         assert!(matches!(rule.condition, Expression::Always));
         match rule.effects.as_slice() {
             [Effect::Sequential(inner)] => {
@@ -3839,9 +3840,7 @@ parallel:
   - "plugin(nemo_guardrails)"
 "#;
         let step = parse_step_yaml(yaml).unwrap();
-        let Step::Rule(rule) = step else {
-            panic!("expected Rule");
-        };
+        let rule = expect_rule(step);
         match rule.effects.as_slice() {
             [Effect::Parallel(inner)] => {
                 assert_eq!(inner.len(), 2);
@@ -3862,9 +3861,7 @@ do:
     - "plugin(nemo_guardrails)"
 "#;
         let step = parse_step_yaml(yaml).unwrap();
-        let Step::Rule(rule) = step else {
-            panic!("expected Rule");
-        };
+        let rule = expect_rule(step);
         match rule.effects.as_slice() {
             [Effect::Parallel(inner)] => assert_eq!(inner.len(), 2),
             other => panic!("expected Parallel in do:, got {other:?}"),
@@ -3903,9 +3900,7 @@ sequential:
   - "plugin(audit)"
 "#;
         let step = parse_step_yaml(yaml).unwrap();
-        let Step::Rule(rule) = step else {
-            panic!("expected Rule")
-        };
+        let rule = expect_rule(step);
         match rule.effects.as_slice() {
             [Effect::Sequential(inner)] => {
                 assert!(matches!(inner[0], Effect::FieldOp { .. }));
@@ -4025,9 +4020,7 @@ do:
   - restrict: { allow_regions: [eu] }
 "#;
         let step = parse_step_yaml(yaml).unwrap();
-        let Step::Rule(rule) = step else {
-            panic!("expected Rule");
-        };
+        let rule = expect_rule(step);
         match rule.effects.as_slice() {
             [Effect::Restrict { spec }] => {
                 assert_eq!(spec.allow_regions, lit(&["eu"]));
@@ -4118,9 +4111,7 @@ parallel:
   - restrict: { allow_regions: [eu] }
 "#;
         let step = parse_step_yaml(yaml).unwrap();
-        let Step::Rule(rule) = step else {
-            panic!("expected Rule");
-        };
+        let rule = expect_rule(step);
         match rule.effects.as_slice() {
             [Effect::Parallel(inner)] => {
                 assert_eq!(inner.len(), 2);
@@ -4142,9 +4133,7 @@ sequential:
       - "plugin(nemo)"
 "#;
         let step = parse_step_yaml(yaml).unwrap();
-        let Step::Rule(rule) = step else {
-            panic!("expected Rule")
-        };
+        let rule = expect_rule(step);
         let Effect::Sequential(outer) = &rule.effects[0] else {
             panic!("expected Sequential");
         };
@@ -5054,9 +5043,7 @@ pre_invocation:
         let value: serde_yaml::Value = serde_yaml::from_str(yaml).unwrap();
         let entry = &value.as_sequence().unwrap()[0];
         let step = parse_step(entry, "test.policy[0]").expect("parse");
-        let crate::step::Step::Delegate(ds) = step else {
-            panic!("expected Delegate, got {step:?}");
-        };
+        let ds = expect_delegate(step);
         assert_eq!(ds.plugin_name, "workday-oauth");
         assert!(ds.config_override.is_none());
         assert!(ds.on_error.is_none());
@@ -5076,9 +5063,7 @@ pre_invocation:
         let value: serde_yaml::Value = serde_yaml::from_str(yaml).unwrap();
         let entry = &value.as_sequence().unwrap()[0];
         let step = parse_step(entry, "test.policy[1]").expect("parse");
-        let crate::step::Step::Delegate(ds) = step else {
-            panic!("expected Delegate, got {step:?}");
-        };
+        let ds = expect_delegate(step);
         assert_eq!(ds.plugin_name, "workday-oauth");
         assert_eq!(ds.on_error.as_deref(), Some("deny"));
         let cfg = ds.config_override.as_ref().expect("config_override set");
@@ -5147,9 +5132,7 @@ pre_invocation:
         let value: serde_yaml::Value = serde_yaml::from_str(yaml).unwrap();
         let entry = &value.as_sequence().unwrap()[0];
         let step = parse_step(entry, "test.policy[0]").expect("parse");
-        let crate::step::Step::Delegate(ds) = step else {
-            panic!("expected Delegate, got {step:?}");
-        };
+        let ds = expect_delegate(step);
         assert_eq!(ds.plugin_name, "workday-oauth");
         assert!(ds.config_override.is_none());
         assert!(ds.on_error.is_none());
@@ -5163,9 +5146,7 @@ pre_invocation:
         let value: serde_yaml::Value = serde_yaml::from_str(yaml).unwrap();
         let entry = &value.as_sequence().unwrap()[0];
         let step = parse_step(entry, "test.policy[0]").expect("parse");
-        let crate::step::Step::Delegate(ds) = step else {
-            panic!("expected Delegate, got {step:?}");
-        };
+        let ds = expect_delegate(step);
         assert_eq!(ds.plugin_name, "workday-oauth");
         let cfg = ds.config_override.as_ref().unwrap().as_mapping().unwrap();
         assert_eq!(
@@ -5186,9 +5167,7 @@ pre_invocation:
         let value: serde_yaml::Value = serde_yaml::from_str(yaml).unwrap();
         let entry = &value.as_sequence().unwrap()[0];
         let step = parse_step(entry, "test.policy[0]").expect("parse");
-        let crate::step::Step::Delegate(ds) = step else {
-            panic!("expected Delegate");
-        };
+        let ds = expect_delegate(step);
         let cfg = ds.config_override.as_ref().unwrap().as_mapping().unwrap();
         let perms = cfg
             .get(serde_yaml::Value::String("permissions".into()))
@@ -5204,9 +5183,7 @@ pre_invocation:
         let value: serde_yaml::Value = serde_yaml::from_str(yaml).unwrap();
         let entry = &value.as_sequence().unwrap()[0];
         let step = parse_step(entry, "test.policy[0]").expect("parse");
-        let crate::step::Step::Delegate(ds) = step else {
-            panic!("expected Delegate");
-        };
+        let ds = expect_delegate(step);
         assert_eq!(ds.on_error.as_deref(), Some("continue"));
         // on_error must NOT also leak into config_override.
         let cfg = ds.config_override.as_ref().unwrap().as_mapping().unwrap();
@@ -5226,9 +5203,7 @@ pre_invocation:
         let value: serde_yaml::Value = serde_yaml::from_str(yaml).unwrap();
         let entry = &value.as_sequence().unwrap()[0];
         let step = parse_step(entry, "test.policy[0]").expect("parse");
-        let crate::step::Step::Delegate(ds) = step else {
-            panic!("expected Delegate");
-        };
+        let ds = expect_delegate(step);
         assert_eq!(ds.plugin_name, "workday-oauth");
     }
 
@@ -5239,9 +5214,7 @@ pre_invocation:
         let value: serde_yaml::Value = serde_yaml::from_str(yaml).unwrap();
         let entry = &value.as_sequence().unwrap()[0];
         let step = parse_step(entry, "test.policy[0]").expect("parse");
-        let crate::step::Step::Delegate(ds) = step else {
-            panic!("expected Delegate");
-        };
+        let ds = expect_delegate(step);
         let cfg = ds.config_override.as_ref().unwrap().as_mapping().unwrap();
         assert_eq!(
             cfg.get(serde_yaml::Value::String("audience".into()))

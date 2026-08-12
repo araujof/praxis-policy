@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 
-use std::sync::Arc;
-
 use async_trait::async_trait;
 use regex::Regex;
 use serde_json::Value;
@@ -214,10 +212,6 @@ impl HookHandler<CmfHook> for PiiScanner {
         }
     }
 }
-
-// Silence unused-import in case a feature is added later that needs
-// Arc — kept for parity with how other crates structure their imports.
-fn _force_link_arc(_: Arc<()>) {}
 
 #[cfg(test)]
 #[allow(
