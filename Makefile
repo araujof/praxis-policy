@@ -148,24 +148,24 @@ audit:
 # fully covered, so this still lifts the ratio, by slightly more than retiring
 # the same number of uncovered lines alone would.
 #
-# Remaining to reach 95, measured rather than estimated: about 535 uncovered
+# Remaining to reach 95, measured rather than estimated: about 244 uncovered
 # lines to retire, and fewer in practice because each new test also adds covered
 # lines to the denominator.
 #
-# What is left is the harder tail. Two files hold most of it and neither is a
-# quick win: the policy parser's gap is roughly 90 separate error-return sites
-# rather than a few big functions, and the manager's is split between production
-# error paths and about 105 lines of duplicated mock-plugin scaffolding in its
-# own test module. After those come the executor's concurrent outcome matrix
-# (~100), then a tail of 40-to-70-line files.
+# Where that sits now. The policy parser holds 381 of it and is the only file
+# that alone would close the gap, but its shape is the problem: roughly 90
+# separate error-return sites, median three lines, each needing its own
+# hand-written bad-input case. The manager still has 214, of which about 105 is
+# duplicated mock-plugin scaffolding in its own test module rather than code;
+# consolidating those mocks was considered and declined, because each mock's name
+# is what tells a reader what its test exercises. The evaluator's 158 is dispatch
+# error arms and is the most tractable large block left.
 #
-# Free lines available without writing a test: the Valkey store's five
-# integration tests are written and passing but never run, because the coverage
-# job does not pass `--include-ignored` and has no Valkey service. Wiring one up
-# moves that file from 0 to 75 percent.
+# After those, a tail of 50-to-70-line files: identity-jwt's resolver, the OAuth
+# delegator, cmf/view, and the CIBA approver.
 #
 # Keep this number in sync with the coverage workflow.
-COVERAGE_FLOOR ?= 93
+COVERAGE_FLOOR ?= 94
 COVERAGE_TARGET := 95
 
 # `--include-ignored` so the Valkey integration tests are measured. Most of what
