@@ -906,4 +906,159 @@ mod tests {
             assert_eq!(code, expected_code);
         }
     }
+
+    // ---- where the token comes from ---------------------------------------
+    //
+    // Every existing test hands the resolver a populated `raw_token`, so the
+    // header-resolution branch was never exercised. It is what decides whether
+    // this resolver finds its credential at all, and each failure has to deny
+    // rather than fall through: a resolver that returned Allow on a missing
+    // header would leave the identity slot empty and any downstream
+    // `require(authenticated)` reading as satisfied-by-absence.
+
+    use praxis_policy_core::context::PluginContext;
+    use praxis_policy_core::hooks::payload::Extensions;
+    use praxis_policy_core::identity::{IdentityPayload, TokenSource};
+    use std::collections::HashMap;
+
+    /// A resolver reading a non-default header, so the tests below can control
+    /// exactly which key it looks for.
+    fn resolver_on_header(header: &str) -> JwtIdentityResolver {
+        let cfg = cfg_with_config(
+            "jwt",
+            serde_json::json!({
+                "trusted_issuers": [{
+                    "issuer": "https://idp.example",
+                    "audiences": ["test-aud"],
+                    "algorithms": ["HS256"],
+                    "decoding_key": { "kind": "secret", "secret": "test-secret" },
+                }],
+                "header": header,
+                "claim_mapper": "standard",
+            }),
+        );
+        JwtIdentityResolver::new(cfg).expect("a valid resolver config")
+    }
+
+    async fn deny_code_for(resolver: &JwtIdentityResolver, payload: IdentityPayload) -> String {
+        let r = resolver
+            .handle(&payload, &Extensions::default(), &mut PluginContext::new())
+            .await;
+        assert!(
+            !r.continue_processing,
+            "this input must deny, not fall through to allow"
+        );
+        r.violation.expect("a deny carries a violation").code
+    }
+
+    #[tokio::test]
+    async fn a_missing_header_and_no_fallback_token_denies() {
+        let resolver = resolver_on_header("X-User-Token");
+        // Headers populated but not with ours, and no pre-extracted token, so
+        // neither source yields a credential.
+        let payload = IdentityPayload::new("", TokenSource::Bearer)
+            .with_headers(HashMap::from([("other".to_owned(), "v".to_owned())]));
+        assert_eq!(
+            deny_code_for(&resolver, payload).await,
+            "auth.malformed_header"
+        );
+    }
+
+    /// Present but empty is its own case: the header map has the key, so the
+    /// missing-header branch does not fire and an empty token would otherwise
+    /// reach the parser.
+    #[tokio::test]
+    async fn a_present_but_empty_header_denies() {
+        let resolver = resolver_on_header("x-user-token");
+        let payload = IdentityPayload::new("", TokenSource::Bearer)
+            .with_headers(HashMap::from([("x-user-token".to_owned(), String::new())]));
+        assert_eq!(
+            deny_code_for(&resolver, payload).await,
+            "auth.malformed_header"
+        );
+    }
+
+    /// Header lookup is case-insensitive per RFC 7230, so a config naming
+    /// `X-User-Token` has to match a map keyed `x-user-token`. Getting this wrong
+    /// means the credential is never found in a host that canonicalises keys.
+    #[tokio::test]
+    async fn the_configured_header_is_matched_case_insensitively() {
+        let resolver = resolver_on_header("X-User-Token");
+        let payload =
+            IdentityPayload::new("", TokenSource::Bearer).with_headers(HashMap::from([(
+                "x-user-token".to_owned(),
+                jwt_with_payload(r#"{"iss":"https://nobody.example","sub":"alice"}"#),
+            )]));
+        // The token is found (so not malformed_header) and rejected later for
+        // its issuer, which is what proves the lookup matched.
+        assert_eq!(
+            deny_code_for(&resolver, payload).await,
+            "auth.untrusted_issuer",
+            "a case-differing header must still be found"
+        );
+    }
+
+    /// The `Bearer ` prefix is stripped. Without that, the token handed to the
+    /// parser starts with "Bearer " and fails as malformed rather than being
+    /// evaluated.
+    #[tokio::test]
+    async fn a_bearer_prefix_is_stripped_from_the_header_value() {
+        let resolver = resolver_on_header("authorization");
+        let token = jwt_with_payload(r#"{"iss":"https://nobody.example","sub":"alice"}"#);
+        let payload =
+            IdentityPayload::new("", TokenSource::Bearer).with_headers(HashMap::from([(
+                "authorization".to_owned(),
+                format!("Bearer {token}"),
+            )]));
+        assert_eq!(
+            deny_code_for(&resolver, payload).await,
+            "auth.untrusted_issuer",
+            "the prefix must be stripped so the token itself is parsed"
+        );
+    }
+
+    /// The documented fallback: with no header map populated, a host that
+    /// pre-extracted one token still works. This is the back-compat path.
+    #[tokio::test]
+    async fn a_pre_extracted_token_is_used_when_no_header_map_is_populated() {
+        let resolver = resolver_on_header("X-User-Token");
+        let token = jwt_with_payload(r#"{"iss":"https://nobody.example","sub":"alice"}"#);
+        let payload = IdentityPayload::new(token, TokenSource::Bearer);
+        assert_eq!(
+            deny_code_for(&resolver, payload).await,
+            "auth.untrusted_issuer",
+            "the fallback must supply the token rather than denying on the header"
+        );
+    }
+
+    /// A token with no `iss` cannot be matched to a trusted issuer, so it is
+    /// refused rather than checked against an arbitrary one.
+    ///
+    /// The code is `auth.malformed_header`, which the source shares between "not
+    /// a well-formed JWT" and "no `iss` claim". Pinned as measured rather than as
+    /// expected: it is arguably the wrong code for a structurally valid token
+    /// that merely lacks a claim, and if that is ever split this test is where
+    /// the change surfaces.
+    #[tokio::test]
+    async fn a_token_with_no_issuer_claim_denies() {
+        let resolver = resolver_on_header("authorization");
+        let payload =
+            IdentityPayload::new(jwt_with_payload(r#"{"sub":"alice"}"#), TokenSource::Bearer);
+        assert_eq!(
+            deny_code_for(&resolver, payload).await,
+            "auth.malformed_header"
+        );
+    }
+
+    /// Garbage that is not a JWT at all takes the same branch, which is why the
+    /// two cases currently share a code.
+    #[tokio::test]
+    async fn a_token_that_is_not_a_jwt_denies() {
+        let resolver = resolver_on_header("authorization");
+        let payload = IdentityPayload::new("not-a-jwt", TokenSource::Bearer);
+        assert_eq!(
+            deny_code_for(&resolver, payload).await,
+            "auth.malformed_header"
+        );
+    }
 }
