@@ -152,3 +152,56 @@ pub trait ConfigVisitor: Send + Sync {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used, reason = "tests")]
+mod tests {
+    use super::*;
+
+    /// A visitor that overrides nothing but `name`. That is the documented
+    /// contract: a visitor opts into the sections it cares about and inherits a
+    /// no-op for the rest. Every visitor in the test suite overrides the
+    /// interesting methods, so the defaults themselves had never run, and a
+    /// default that returned an error rather than `Ok(())` would break any
+    /// partial visitor without a single test noticing.
+    #[derive(Debug)]
+    struct SilentVisitor;
+
+    impl ConfigVisitor for SilentVisitor {
+        fn name(&self) -> &str {
+            "silent"
+        }
+    }
+
+    #[test]
+    fn a_visitor_that_overrides_nothing_does_not_block_a_config_load() {
+        // Carries every section the trait exposes, so each default is walked:
+        // plugins, global, global.defaults, global.policies, and a route.
+        let yaml = r#"
+plugin_settings:
+  routing_enabled: true
+global:
+  defaults:
+    tool:
+      authorization:
+        pre_invocation:
+          - "require(authenticated)"
+  policies:
+    all:
+      authorization:
+        pre_invocation:
+          - "require(authenticated)"
+routes:
+  - tool: get_compensation
+"#;
+        let mgr = Arc::new(PluginManager::default());
+        mgr.register_visitor(Arc::new(SilentVisitor));
+        mgr.load_config_yaml(yaml)
+            .expect("a visitor that overrides nothing must not fail the load");
+    }
+
+    #[test]
+    fn the_visitor_name_is_what_diagnostics_report() {
+        assert_eq!(SilentVisitor.name(), "silent");
+    }
+}

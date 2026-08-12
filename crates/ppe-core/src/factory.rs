@@ -156,3 +156,89 @@ impl Default for PluginFactoryRegistry {
         Self::new()
     }
 }
+
+#[cfg(test)]
+#[allow(
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unwrap_used,
+    reason = "tests"
+)]
+mod tests {
+    use super::*;
+    use crate::plugin::PluginConfig;
+
+    #[derive(Debug)]
+    struct StubFactory(&'static str);
+
+    impl PluginFactory for StubFactory {
+        fn create(&self, _config: &PluginConfig) -> Result<PluginInstance, Box<PluginError>> {
+            Err(Box::new(PluginError::Config {
+                message: format!("stub {}", self.0),
+            }))
+        }
+    }
+
+    #[test]
+    fn a_registered_kind_is_found_and_an_unregistered_one_is_not() {
+        let mut reg = PluginFactoryRegistry::default();
+        assert!(!reg.has("a/b"), "an empty registry knows nothing");
+        assert!(reg.get("a/b").is_none());
+
+        reg.register("a/b", Box::new(StubFactory("first")));
+        assert!(reg.has("a/b"));
+        assert!(reg.get("a/b").is_some());
+        assert!(
+            !reg.has("c/d"),
+            "registering one kind must not answer for another"
+        );
+    }
+
+    /// Registration is last-writer-wins on purpose, so a host can swap a
+    /// builtin's implementation. The replacement has to actually take effect, or
+    /// the host's override would be silently ignored.
+    #[test]
+    fn re_registering_a_kind_replaces_the_previous_factory() {
+        let mut reg = PluginFactoryRegistry::default();
+        reg.register("a/b", Box::new(StubFactory("first")));
+        reg.register("a/b", Box::new(StubFactory("second")));
+        let factory = reg.get("a/b").expect("kind is registered");
+        // The stub reports its identity through its error message, which is the
+        // only observable difference between the two.
+        let Err(e) = factory.create(&PluginConfig::default()) else {
+            panic!("the stub always errors")
+        };
+        assert!(
+            e.to_string().contains("second"),
+            "the later registration must win: {e}"
+        );
+        assert_eq!(reg.kinds().len(), 1, "an override is not a second entry");
+    }
+
+    #[test]
+    fn kinds_lists_every_registered_name() {
+        let mut reg = PluginFactoryRegistry::default();
+        reg.register("a/b", Box::new(StubFactory("x")));
+        reg.register("c/d", Box::new(StubFactory("y")));
+        let mut kinds = reg.kinds();
+        kinds.sort_unstable();
+        assert_eq!(kinds, vec!["a/b", "c/d"]);
+    }
+
+    /// `get` hands back an owned handle rather than a borrow, so the manager can
+    /// drop its read guard before calling host-supplied `create` code. Holding
+    /// the guard across that call deadlocks if the factory re-enters the manager,
+    /// so this pins the ownership contract.
+    #[test]
+    fn get_returns_an_owned_handle_that_outlives_the_registry() {
+        let factory = {
+            let mut reg = PluginFactoryRegistry::default();
+            reg.register("a/b", Box::new(StubFactory("kept")));
+            reg.get("a/b").expect("kind is registered")
+        };
+        let Err(e) = factory.create(&PluginConfig::default()) else {
+            panic!("the stub always errors")
+        };
+        assert!(e.to_string().contains("kept"));
+    }
+}

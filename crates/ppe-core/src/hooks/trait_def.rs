@@ -308,3 +308,72 @@ impl<P: PluginPayload> Default for PluginResult<P> {
         Self::allow()
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used, reason = "tests")]
+mod tests {
+    use super::*;
+    use crate::extensions::Extensions;
+
+    #[derive(Debug, Clone, PartialEq)]
+    struct TestPayload {
+        value: String,
+    }
+    crate::impl_plugin_payload!(TestPayload);
+
+    fn payload() -> TestPayload {
+        TestPayload {
+            value: "v".to_owned(),
+        }
+    }
+
+    /// The three predicates are how the executor decides what to do with a
+    /// result, and nothing called them. `is_denied` in particular gates the
+    /// halt: reading it wrong either drops a denial or halts on an allow.
+    #[test]
+    fn allow_is_not_denied_and_modifies_nothing() {
+        let r = PluginResult::<TestPayload>::allow();
+        assert!(!r.is_denied());
+        assert!(!r.is_payload_modified());
+        assert!(!r.is_extensions_modified());
+    }
+
+    #[test]
+    fn deny_reads_as_denied() {
+        let r = PluginResult::<TestPayload>::deny(crate::error::PluginViolation::new("c", "r"));
+        assert!(r.is_denied(), "a deny must halt the pipeline");
+        assert!(!r.is_payload_modified());
+    }
+
+    #[test]
+    fn modify_payload_reports_only_a_payload_change() {
+        let r = PluginResult::modify_payload(payload());
+        assert!(!r.is_denied(), "a rewrite is not a denial");
+        assert!(r.is_payload_modified());
+        assert!(
+            !r.is_extensions_modified(),
+            "changing the payload must not claim an extensions change"
+        );
+    }
+
+    /// `modify` is the both-at-once constructor. It had no caller, so nothing
+    /// checked that it sets both slots rather than one.
+    #[test]
+    fn modify_reports_both_a_payload_and_an_extensions_change() {
+        let owned = Extensions::default().cow_copy();
+        let r = PluginResult::modify(payload(), owned);
+        assert!(!r.is_denied());
+        assert!(r.is_payload_modified());
+        assert!(r.is_extensions_modified());
+    }
+
+    /// The default has to be allow. A `Default` that denied would turn any
+    /// `..Default::default()` or `unwrap_or_default()` into a silent block.
+    #[test]
+    fn the_default_result_is_allow() {
+        let r = PluginResult::<TestPayload>::default();
+        assert!(!r.is_denied(), "default must not deny");
+        assert!(!r.is_payload_modified());
+        assert!(!r.is_extensions_modified());
+    }
+}

@@ -889,4 +889,148 @@ mod tests {
         assert_eq!(opa["input"]["role"], "user");
         assert_eq!(opa["input"]["content"], "Hello");
     }
+
+    // ---- ViewKind classification ------------------------------------------
+
+    /// Every `ContentType` has to reach a distinct `ViewKind`. The mapping is
+    /// what a policy condition dispatches on, so two content types collapsing to
+    /// one kind would make them indistinguishable to a rule.
+    #[test]
+    fn every_content_type_maps_to_a_distinct_view_kind() {
+        let pairs = [
+            (ContentType::Text, ViewKind::Text),
+            (ContentType::Thinking, ViewKind::Thinking),
+            (ContentType::ToolCall, ViewKind::ToolCall),
+            (ContentType::ToolResult, ViewKind::ToolResult),
+            (ContentType::Resource, ViewKind::Resource),
+            (ContentType::ResourceRef, ViewKind::ResourceRef),
+            (ContentType::PromptRequest, ViewKind::PromptRequest),
+            (ContentType::PromptResult, ViewKind::PromptResult),
+            (ContentType::Image, ViewKind::Image),
+            (ContentType::Video, ViewKind::Video),
+            (ContentType::Audio, ViewKind::Audio),
+            (ContentType::Document, ViewKind::Document),
+        ];
+        let mut seen = std::collections::HashSet::new();
+        for (ct, expected) in pairs {
+            let got = ViewKind::from_content_type(ct);
+            assert_eq!(got, expected, "{ct:?} mapped to {got:?}");
+            assert!(
+                seen.insert(got),
+                "{got:?} was produced by two content types"
+            );
+        }
+    }
+
+    /// The classification predicates group kinds for rules like "redact any
+    /// media part". Each has to claim its own group and nothing else, or a rule
+    /// scoped to one family would silently cover another.
+    #[test]
+    fn the_kind_predicates_partition_the_kinds_they_claim() {
+        let all = [
+            ViewKind::Text,
+            ViewKind::Thinking,
+            ViewKind::ToolCall,
+            ViewKind::ToolResult,
+            ViewKind::Resource,
+            ViewKind::ResourceRef,
+            ViewKind::PromptRequest,
+            ViewKind::PromptResult,
+            ViewKind::Image,
+            ViewKind::Video,
+            ViewKind::Audio,
+            ViewKind::Document,
+        ];
+        for kind in all {
+            let expect_text = matches!(kind, ViewKind::Text | ViewKind::Thinking);
+            let expect_tool = matches!(kind, ViewKind::ToolCall | ViewKind::ToolResult);
+            let expect_resource = matches!(kind, ViewKind::Resource | ViewKind::ResourceRef);
+            let expect_prompt = matches!(kind, ViewKind::PromptRequest | ViewKind::PromptResult);
+            let expect_media = matches!(
+                kind,
+                ViewKind::Image | ViewKind::Video | ViewKind::Audio | ViewKind::Document
+            );
+            assert_eq!(kind.is_text(), expect_text, "is_text on {kind:?}");
+            assert_eq!(kind.is_tool(), expect_tool, "is_tool on {kind:?}");
+            assert_eq!(
+                kind.is_resource(),
+                expect_resource,
+                "is_resource on {kind:?}"
+            );
+            assert_eq!(kind.is_prompt(), expect_prompt, "is_prompt on {kind:?}");
+            assert_eq!(kind.is_media(), expect_media, "is_media on {kind:?}");
+
+            // Exactly one family claims each kind.
+            let claims = [
+                expect_text,
+                expect_tool,
+                expect_resource,
+                expect_prompt,
+                expect_media,
+            ]
+            .iter()
+            .filter(|c| **c)
+            .count();
+            assert_eq!(claims, 1, "{kind:?} is claimed by {claims} families");
+        }
+    }
+
+    // ---- view accessors ---------------------------------------------------
+
+    /// The accessors are the read surface a policy uses. Several had no caller,
+    /// so nothing checked they report the part they were built from.
+    #[test]
+    fn a_view_reports_the_part_role_and_hook_it_was_built_from() {
+        let msg = make_test_message();
+        let part = &msg.content[2]; // the ToolCall
+        let view = MessageView::new(part, Role::Assistant, Some("cmf.tool_pre_invoke"), None);
+
+        assert_eq!(view.kind(), ViewKind::ToolCall);
+        assert_eq!(view.role(), Role::Assistant);
+        assert_eq!(view.hook(), Some("cmf.tool_pre_invoke"));
+        assert_eq!(view.name(), Some("get_weather"));
+        assert_eq!(view.action(), ViewAction::Execute);
+        assert!(view.is_tool());
+        assert!(!view.is_media());
+        assert!(
+            matches!(view.raw(), ContentPart::ToolCall { .. }),
+            "raw() must hand back the same part"
+        );
+        assert!(
+            view.extensions().is_none(),
+            "no extensions were supplied, so none are reported"
+        );
+    }
+
+    #[test]
+    fn tool_call_arguments_are_readable_through_the_view() {
+        let msg = make_test_message();
+        let view = MessageView::new(&msg.content[2], Role::Assistant, None, None);
+        assert_eq!(view.get_arg("city"), Some(&serde_json::json!("London")));
+        assert!(view.has_arg("city"));
+        assert!(!view.has_arg("country"), "an absent arg must report absent");
+        assert!(
+            view.get_arg("country").is_none(),
+            "an absent arg has no value"
+        );
+    }
+
+    /// A view over a part with no hook reports none rather than a placeholder,
+    /// since the phase helpers branch on it.
+    #[test]
+    fn a_view_with_no_hook_reports_no_hook() {
+        let msg = make_test_message();
+        let view = MessageView::new(&msg.content[1], Role::Assistant, None, None);
+        assert_eq!(view.hook(), None);
+        assert!(view.is_text());
+    }
+
+    /// `Debug` on a view exists so a failing assertion prints something useful.
+    #[test]
+    fn a_view_is_debug_printable() {
+        let msg = make_test_message();
+        let view = MessageView::new(&msg.content[1], Role::Assistant, None, None);
+        let s = format!("{view:?}");
+        assert!(s.contains("MessageView"), "{s}");
+    }
 }

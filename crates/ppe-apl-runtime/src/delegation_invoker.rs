@@ -514,4 +514,57 @@ mod tests {
             assert!(matches!(err, DelegationError::InvalidConfig(_)), "{err:?}");
         }
     }
+
+    // --- config string to enum ---------------------------------------------
+    //
+    // Both mappers read operator-written YAML values. Neither had a test, so a
+    // mapping that silently fell through to the catch-all would go unnoticed
+    // while changing what the delegation payload claims about the target.
+
+    #[test]
+    fn known_target_types_map_to_their_variants() {
+        assert_eq!(target_type_from_str("tool"), TargetType::Tool);
+        assert_eq!(target_type_from_str("agent"), TargetType::Agent);
+        assert_eq!(target_type_from_str("resource"), TargetType::Resource);
+        assert_eq!(target_type_from_str("service"), TargetType::Service);
+    }
+
+    /// Matching is case-insensitive, so `Tool` from YAML is the same as `tool`
+    /// and does not fall through to `Custom("Tool")`.
+    #[test]
+    fn target_type_matching_ignores_case() {
+        assert_eq!(target_type_from_str("Tool"), TargetType::Tool);
+        assert_eq!(target_type_from_str("SERVICE"), TargetType::Service);
+    }
+
+    /// An unrecognized value is preserved as `Custom` rather than dropped, so a
+    /// host with its own target taxonomy still gets its value through. It is
+    /// lowercased, which is the observable consequence of the case-insensitive
+    /// match above.
+    #[test]
+    fn an_unknown_target_type_is_kept_as_custom() {
+        assert_eq!(
+            target_type_from_str("Webhook"),
+            TargetType::Custom("webhook".to_owned())
+        );
+    }
+
+    #[test]
+    fn auth_enforced_by_maps_both_known_values_case_insensitively() {
+        assert_eq!(auth_enforced_by_from_str("caller"), AuthEnforcedBy::Caller);
+        assert_eq!(auth_enforced_by_from_str("target"), AuthEnforcedBy::Target);
+        assert_eq!(auth_enforced_by_from_str("TARGET"), AuthEnforcedBy::Target);
+    }
+
+    /// Unknown values fall back to `Caller`, matching `DelegationPayload::new`'s
+    /// default. That is the safer of the two: it keeps enforcement on this side
+    /// rather than assuming the target will do it.
+    #[test]
+    fn an_unknown_auth_enforced_by_falls_back_to_caller() {
+        assert_eq!(
+            auth_enforced_by_from_str("nonsense"),
+            AuthEnforcedBy::Caller
+        );
+        assert_eq!(auth_enforced_by_from_str(""), AuthEnforcedBy::Caller);
+    }
 }
