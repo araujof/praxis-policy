@@ -261,6 +261,36 @@ mod tests {
         }
     }
 
+    /// The scanner walks prompt arguments on the same footing as tool-call
+    /// arguments, so it needs its own fixture: operators wire this plugin on
+    /// `cmf.prompt_pre_fetch` as well as `cmf.tool_pre_invoke`.
+    fn message_with_prompt_args(args: HashMap<String, serde_json::Value>) -> MessagePayload {
+        MessagePayload {
+            message: Message::with_content(
+                Role::User,
+                vec![ContentPart::PromptRequest {
+                    content: praxis_policy_core::cmf::PromptRequest {
+                        prompt_request_id: "1".into(),
+                        name: "summarize".into(),
+                        arguments: args,
+                        server_id: None,
+                    },
+                }],
+            ),
+        }
+    }
+
+    fn message_with_text(text: &str) -> MessagePayload {
+        MessagePayload {
+            message: Message::with_content(
+                Role::User,
+                vec![ContentPart::Text {
+                    text: text.to_owned(),
+                }],
+            ),
+        }
+    }
+
     #[tokio::test]
     async fn ssn_in_args_denied() {
         let p = PiiScanner::new(cfg(vec![PiiPattern::Ssn], PiiScanMode::Deny)).unwrap();
@@ -325,5 +355,193 @@ mod tests {
         assert!(!r.continue_processing);
         let v = r.violation.expect("violation present");
         assert!(v.reason.contains("internal_id"));
+    }
+
+    /// `default_detect()` ships `[Ssn, CreditCard]`, but every test above passes
+    /// an explicit list, so the credit-card branch of `compile_patterns` had
+    /// never been compiled, let alone matched.
+    #[tokio::test]
+    async fn credit_card_is_detected() {
+        let p = PiiScanner::new(cfg(vec![PiiPattern::CreditCard], PiiScanMode::Deny)).unwrap();
+        let payload = message_with_args(HashMap::from([(
+            "card".to_owned(),
+            json!("4111 1111 1111 1111"),
+        )]));
+        let mut ctx = PluginContext::default();
+        let r = p.handle(&payload, &Extensions::default(), &mut ctx).await;
+        assert!(!r.continue_processing, "a card number should deny");
+        let v = r.violation.expect("violation present");
+        assert!(
+            v.reason.contains("credit_card"),
+            "the pattern name flows into the reason: {}",
+            v.reason
+        );
+    }
+
+    #[tokio::test]
+    async fn email_is_detected() {
+        let p = PiiScanner::new(cfg(vec![PiiPattern::Email], PiiScanMode::Deny)).unwrap();
+        let payload = message_with_args(HashMap::from([(
+            "to".to_owned(),
+            json!("alice@example.com"),
+        )]));
+        let mut ctx = PluginContext::default();
+        let r = p.handle(&payload, &Extensions::default(), &mut ctx).await;
+        assert!(!r.continue_processing, "an address should deny");
+        let v = r.violation.expect("violation present");
+        assert!(v.reason.contains("email"), "reason: {}", v.reason);
+    }
+
+    /// A custom pattern that does not compile has to be refused at load time.
+    /// Accepting it would leave the scanner running with one fewer pattern than
+    /// the operator configured, and nothing would say so.
+    #[test]
+    fn an_uncompilable_custom_pattern_is_rejected() {
+        let bad = cfg(
+            vec![PiiPattern::Custom {
+                name: "broken".into(),
+                regex: "([unclosed".into(),
+            }],
+            PiiScanMode::Deny,
+        );
+        let err = PiiScanner::new(bad).expect_err("a malformed regex must not build");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("broken") && msg.contains("failed to compile"),
+            "the message must name the offending pattern: {msg}"
+        );
+    }
+
+    #[test]
+    fn a_missing_config_block_is_rejected() {
+        let mut c = cfg(vec![PiiPattern::Ssn], PiiScanMode::Deny);
+        c.config = None;
+        let err = PiiScanner::new(c).expect_err("no config block must not build");
+        assert!(
+            err.to_string().contains("`config:`"),
+            "the message must name the missing block: {err}"
+        );
+    }
+
+    #[test]
+    fn a_config_block_of_the_wrong_shape_is_rejected() {
+        let mut c = cfg(vec![PiiPattern::Ssn], PiiScanMode::Deny);
+        c.config = Some(json!({ "detect": "not-a-list" }));
+        let err = PiiScanner::new(c).expect_err("a malformed config must not build");
+        assert!(
+            err.to_string().contains("parse failed"),
+            "the message must say the config did not parse: {err}"
+        );
+    }
+
+    /// Prompt arguments are scanned on the same footing as tool-call arguments.
+    #[tokio::test]
+    async fn ssn_in_prompt_args_denied() {
+        let p = PiiScanner::new(cfg(vec![PiiPattern::Ssn], PiiScanMode::Deny)).unwrap();
+        let payload = message_with_prompt_args(HashMap::from([(
+            "subject".to_owned(),
+            json!("SSN 555-12-3456"),
+        )]));
+        let mut ctx = PluginContext::default();
+        let r = p.handle(&payload, &Extensions::default(), &mut ctx).await;
+        assert!(!r.continue_processing, "prompt args must be scanned too");
+    }
+
+    #[tokio::test]
+    async fn ssn_in_a_text_part_denied() {
+        let p = PiiScanner::new(cfg(vec![PiiPattern::Ssn], PiiScanMode::Deny)).unwrap();
+        let payload = message_with_text("my ssn is 555-12-3456");
+        let mut ctx = PluginContext::default();
+        let r = p.handle(&payload, &Extensions::default(), &mut ctx).await;
+        assert!(!r.continue_processing, "text parts must be scanned too");
+    }
+
+    /// Redaction has to reach prompt arguments and text parts, not only tool
+    /// calls, or a redact-mode deployment would forward PII from those shapes.
+    #[tokio::test]
+    async fn redact_mode_rewrites_prompt_args_and_text() {
+        let p = PiiScanner::new(cfg(vec![PiiPattern::Ssn], PiiScanMode::Redact)).unwrap();
+
+        let payload = message_with_prompt_args(HashMap::from([
+            ("subject".to_owned(), json!("SSN 555-12-3456")),
+            ("keep".to_owned(), json!("nothing sensitive")),
+        ]));
+        let mut ctx = PluginContext::default();
+        let r = p.handle(&payload, &Extensions::default(), &mut ctx).await;
+        let updated = r
+            .modified_payload
+            .expect("redact mode returns a modified payload");
+        let ContentPart::PromptRequest { content } = &updated.message.content[0] else {
+            panic!("expected the prompt part back");
+        };
+        assert_eq!(
+            content.arguments["subject"],
+            json!("[PII]"),
+            "match redacted"
+        );
+        assert_eq!(
+            content.arguments["keep"],
+            json!("nothing sensitive"),
+            "a non-matching value must be left alone"
+        );
+
+        let payload = message_with_text("my ssn is 555-12-3456");
+        let mut ctx = PluginContext::default();
+        let r = p.handle(&payload, &Extensions::default(), &mut ctx).await;
+        let updated = r
+            .modified_payload
+            .expect("redact mode returns a modified payload");
+        let ContentPart::Text { text } = &updated.message.content[0] else {
+            panic!("expected the text part back");
+        };
+        assert_eq!(text, "[PII]", "a matching text part is replaced wholesale");
+    }
+
+    /// Non-string argument values cannot carry a pattern and must not be
+    /// mistaken for a match or rewritten.
+    #[tokio::test]
+    async fn non_string_argument_values_are_ignored() {
+        let p = PiiScanner::new(cfg(vec![PiiPattern::Ssn], PiiScanMode::Redact)).unwrap();
+        let payload = message_with_args(HashMap::from([
+            ("count".to_owned(), json!(42)),
+            ("flag".to_owned(), json!(true)),
+            ("list".to_owned(), json!(["555-12-3456"])),
+            ("nested".to_owned(), json!({ "ssn": "555-12-3456" })),
+        ]));
+        let mut ctx = PluginContext::default();
+        let r = p.handle(&payload, &Extensions::default(), &mut ctx).await;
+        assert!(
+            r.continue_processing,
+            "flat-string scanning only, so nothing here matches"
+        );
+        assert!(
+            r.modified_payload.is_none(),
+            "no match means no rewrite, not an unchanged copy"
+        );
+    }
+
+    /// Content kinds the scanner does not inspect must pass through rather than
+    /// error or match.
+    #[tokio::test]
+    async fn unscanned_content_kinds_pass_through() {
+        let p = PiiScanner::new(cfg(vec![PiiPattern::Ssn], PiiScanMode::Deny)).unwrap();
+        let payload = MessagePayload {
+            message: Message::with_content(
+                Role::User,
+                vec![ContentPart::Image {
+                    content: praxis_policy_core::cmf::ImageSource {
+                        source_type: "base64".into(),
+                        data: "AAAA".into(),
+                        media_type: Some("image/png".into()),
+                    },
+                }],
+            ),
+        };
+        let mut ctx = PluginContext::default();
+        let r = p.handle(&payload, &Extensions::default(), &mut ctx).await;
+        assert!(
+            r.continue_processing,
+            "an image is out of scope, not a deny"
+        );
     }
 }

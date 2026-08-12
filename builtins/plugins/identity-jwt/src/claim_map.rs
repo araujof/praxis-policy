@@ -407,4 +407,194 @@ mod tests {
         assert!(!subject.claims.contains_key("iat"));
         assert!(!subject.claims.contains_key("sub"));
     }
+
+    // ---- map_client -------------------------------------------------------
+    //
+    // `map_client` fills the identity slot for a resolver configured
+    // `role: client`, which is machine-to-machine traffic rather than a user.
+    // Every test above covers `map_subject`, so none of this had been
+    // exercised.
+
+    #[test]
+    fn client_id_becomes_the_client_anchor() {
+        let claims = make_claims(json!({"client_id": "svc-billing"}));
+        let client = StandardClaimMap.map_client(&claims).unwrap();
+        assert_eq!(client.client_id, "svc-billing");
+    }
+
+    /// Keycloak and several other providers send `azp` (authorized party)
+    /// rather than `client_id`, so the fallback is what makes those tokens
+    /// usable at all.
+    #[test]
+    fn azp_is_accepted_when_client_id_is_absent() {
+        let claims = make_claims(json!({"azp": "svc-billing"}));
+        let client = StandardClaimMap.map_client(&claims).unwrap();
+        assert_eq!(client.client_id, "svc-billing");
+    }
+
+    #[test]
+    fn client_id_wins_over_azp_when_both_are_present() {
+        let claims = make_claims(json!({"client_id": "explicit", "azp": "fallback"}));
+        let client = StandardClaimMap.map_client(&claims).unwrap();
+        assert_eq!(client.client_id, "explicit");
+    }
+
+    /// With neither claim there is no anchor to gate on, so the mapper must
+    /// decline rather than invent one. The resolver turns this into
+    /// `auth.mapping_failed`.
+    #[test]
+    fn no_client_id_and_no_azp_yields_none() {
+        let claims = make_claims(json!({"client_name": "Billing"}));
+        assert!(StandardClaimMap.map_client(&claims).is_none());
+    }
+
+    #[test]
+    fn client_name_is_carried_when_present() {
+        let claims = make_claims(json!({"client_id": "svc", "client_name": "Billing Service"}));
+        let client = StandardClaimMap.map_client(&claims).unwrap();
+        assert_eq!(client.client_name.as_deref(), Some("Billing Service"));
+    }
+
+    #[test]
+    fn authorized_scopes_array_becomes_client_scopes() {
+        let claims = make_claims(json!({
+            "client_id": "svc",
+            "authorized_scopes": ["read", "write"],
+        }));
+        let client = StandardClaimMap.map_client(&claims).unwrap();
+        assert_eq!(client.authorized_scopes, vec!["read", "write"]);
+    }
+
+    /// The OAuth `scope` claim is a single space-separated string, so it has to
+    /// be split rather than taken whole.
+    #[test]
+    fn scope_string_splits_into_client_scopes() {
+        let claims = make_claims(json!({"client_id": "svc", "scope": "read write admin"}));
+        let client = StandardClaimMap.map_client(&claims).unwrap();
+        assert_eq!(client.authorized_scopes, vec!["read", "write", "admin"]);
+    }
+
+    /// `authorized_scopes` is checked first, so a token carrying both must not
+    /// end up with the union.
+    #[test]
+    fn authorized_scopes_preferred_over_scope() {
+        let claims = make_claims(json!({
+            "client_id": "svc",
+            "authorized_scopes": ["read"],
+            "scope": "write admin",
+        }));
+        let client = StandardClaimMap.map_client(&claims).unwrap();
+        assert_eq!(client.authorized_scopes, vec!["read"]);
+    }
+
+    /// RFC 7519 allows `aud` as either a single string or an array, and a
+    /// mapper that handled only one shape would silently drop the audience.
+    #[test]
+    fn aud_is_accepted_as_a_string_or_an_array() {
+        let one = make_claims(json!({"client_id": "svc", "aud": "gateway"}));
+        assert_eq!(
+            StandardClaimMap
+                .map_client(&one)
+                .unwrap()
+                .authorized_audiences,
+            vec!["gateway"]
+        );
+
+        let many = make_claims(json!({"client_id": "svc", "aud": ["gateway", "api"]}));
+        assert_eq!(
+            StandardClaimMap
+                .map_client(&many)
+                .unwrap()
+                .authorized_audiences,
+            vec!["gateway", "api"]
+        );
+    }
+
+    #[test]
+    fn a_non_string_non_array_aud_is_ignored_rather_than_rejected() {
+        let claims = make_claims(json!({"client_id": "svc", "aud": 42}));
+        let client = StandardClaimMap.map_client(&claims).unwrap();
+        assert!(
+            client.authorized_audiences.is_empty(),
+            "an unusable aud shape must not produce a bogus audience"
+        );
+    }
+
+    #[test]
+    fn roles_array_becomes_client_roles() {
+        let claims = make_claims(json!({"client_id": "svc", "roles": ["service", "admin"]}));
+        let client = StandardClaimMap.map_client(&claims).unwrap();
+        assert_eq!(client.roles, vec!["service", "admin"]);
+    }
+
+    /// Unlike the subject mapper, the client mapper preserves the full JSON
+    /// value rather than stringifying, and it must not leak the claims it has
+    /// already consumed or the standard JWT registered claims.
+    #[test]
+    fn unconsumed_claims_land_in_client_claims_with_values_intact() {
+        let claims = make_claims(json!({
+            "client_id": "svc",
+            "azp": "svc",
+            "client_name": "Billing",
+            "scope": "read",
+            "aud": "gateway",
+            "roles": ["service"],
+            "iss": "https://issuer.example",
+            "exp": 9_999_999_999_i64,
+            "nbf": 0,
+            "iat": 0,
+            "jti": "abc",
+            "sub": "svc",
+            "tenant": "acme",
+            "tier": 3,
+            "beta": true,
+        }));
+        let client = StandardClaimMap.map_client(&claims).unwrap();
+        assert_eq!(client.claims.get("tenant"), Some(&json!("acme")));
+        assert_eq!(
+            client.claims.get("tier"),
+            Some(&json!(3)),
+            "the value keeps its JSON type rather than being stringified"
+        );
+        assert_eq!(client.claims.get("beta"), Some(&json!(true)));
+        for reserved in [
+            "client_id",
+            "azp",
+            "client_name",
+            "authorized_scopes",
+            "scope",
+            "aud",
+            "roles",
+            "iss",
+            "exp",
+            "nbf",
+            "iat",
+            "jti",
+            "sub",
+        ] {
+            assert!(
+                !client.claims.contains_key(reserved),
+                "{reserved} was consumed and must not reappear as a policy claim"
+            );
+        }
+    }
+
+    // ---- trait defaults ---------------------------------------------------
+
+    /// A custom mapper that implements none of the three methods is valid: the
+    /// defaults exist so an operator wiring a role the mapper cannot fill gets
+    /// `auth.mapping_failed` rather than a compile error. Nothing in the
+    /// workspace exercises them, because the resolver only ever builds
+    /// `StandardClaimMap`.
+    #[test]
+    fn a_mapper_that_overrides_nothing_declines_every_role() {
+        #[derive(Debug)]
+        struct Nothing;
+        impl ClaimMapper for Nothing {}
+
+        let claims = make_claims(json!({"sub": "alice", "client_id": "svc"}));
+        assert!(Nothing.map_subject(&claims).is_none());
+        assert!(Nothing.map_client(&claims).is_none());
+        assert!(Nothing.map_workload(&claims).is_none());
+    }
 }
