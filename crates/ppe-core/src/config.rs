@@ -2508,4 +2508,62 @@ routes:
             "expected a shape-aware error, got: {err}",
         );
     }
+
+    // ---- load and parse failures ------------------------------------------
+
+    /// A missing config file has to name the path. Operators hit this on a typo
+    /// or a bad mount, and the OS error alone does not say which file.
+    #[test]
+    fn a_missing_config_file_reports_the_path() {
+        let err = load_config(std::path::Path::new(
+            "/nonexistent/praxis-policy-test/policy.yaml",
+        ))
+        .unwrap_err()
+        .to_string();
+        assert!(err.contains("failed to read config file"), "{err}");
+        assert!(
+            err.contains("policy.yaml"),
+            "the message must name the file: {err}"
+        );
+    }
+
+    #[test]
+    fn malformed_yaml_is_reported_as_a_parse_failure() {
+        let err = parse_config("plugins: [unclosed\n")
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("failed to parse config YAML"), "{err}");
+    }
+
+    /// The default when nothing is declared. A config that parsed to something
+    /// other than an empty policy would change behavior for every deployment
+    /// that omits a section.
+    #[test]
+    fn an_empty_document_parses_to_an_empty_policy() {
+        let cfg = parse_config("{}\n").expect("an empty mapping is a valid config");
+        assert!(cfg.plugins.is_empty());
+        assert!(cfg.routes.is_empty());
+    }
+
+    /// `Pattern` and `StringOrList` both have a `Default` with no caller. The
+    /// default is the empty pattern, and what matters is that it matches nothing
+    /// rather than everything: a default that behaved like `*` would silently
+    /// widen any route that fell back to it.
+    #[test]
+    fn the_matcher_defaults_match_nothing_rather_than_everything() {
+        let p = Pattern::default();
+        assert_eq!(p.as_str(), "", "the default pattern is empty");
+        assert!(
+            !p.matches("get_compensation"),
+            "an empty pattern must not behave like a wildcard"
+        );
+        assert!(!p.matches("*"), "nor match a literal asterisk");
+        assert!(p.matches(""), "it does match the empty name, as written");
+
+        let s = StringOrList::default();
+        assert!(
+            !s.matches("get_compensation"),
+            "the default matcher must not admit an arbitrary name"
+        );
+    }
 }

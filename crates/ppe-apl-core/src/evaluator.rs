@@ -4394,4 +4394,150 @@ mod tests {
         assert!(!looks_like_attribute_ref("alice"));
         assert!(!looks_like_attribute_ref(""));
     }
+
+    // ---- pipeline stages against the wrong input type ---------------------
+    //
+    // Four stages require a particular JSON type and deny when the value is
+    // something else. Every pipeline test feeds a well-typed value, so all four
+    // guards were dark. They matter because the alternative to denying is
+    // passing the value through unchecked: a `mask(4)` that silently skipped a
+    // non-string would forward the very field the operator was masking.
+
+    /// A stage guard has to deny, and the reason has to name the type it got, or
+    /// an operator cannot tell a wrongly-typed field from a failing bound.
+    async fn deny_reason_for(stage: Stage, value: serde_json::Value) -> String {
+        let bag = AttributeBag::new();
+        let p = make_pipeline(vec![stage]);
+        match run_pipeline(&p, &value, &bag).await {
+            FieldOutcome::Deny { reason, .. } => reason,
+            other => panic!("expected a Deny for a wrongly-typed value, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn len_denies_a_non_string_and_names_the_type_it_got() {
+        let reason = deny_reason_for(
+            Stage::Length {
+                min: Some(1),
+                max: Some(5),
+            },
+            json!(42),
+        )
+        .await;
+        assert!(reason.contains("len("), "{reason}");
+        assert!(
+            reason.contains("int"),
+            "the reason must name the offending type: {reason}"
+        );
+    }
+
+    #[tokio::test]
+    async fn range_denies_a_non_integer_and_names_the_type_it_got() {
+        let reason = deny_reason_for(
+            Stage::Range {
+                min: Some(0),
+                max: Some(10),
+            },
+            json!("not a number"),
+        )
+        .await;
+        assert!(
+            reason.contains("string"),
+            "the reason must name the offending type: {reason}"
+        );
+    }
+
+    #[tokio::test]
+    async fn enum_denies_a_non_string_and_names_the_type_it_got() {
+        let reason = deny_reason_for(
+            Stage::Enum {
+                values: vec!["a".to_owned(), "b".to_owned()],
+            },
+            json!(true),
+        )
+        .await;
+        assert!(
+            reason.contains("bool"),
+            "the reason must name the offending type: {reason}"
+        );
+    }
+
+    /// The most consequential of the four. A mask that skipped a non-string
+    /// would forward the field it was configured to hide.
+    #[tokio::test]
+    async fn mask_denies_a_non_string_rather_than_passing_it_through() {
+        let reason = deny_reason_for(Stage::Mask { keep_last: 4 }, json!(123_456_789)).await;
+        assert!(
+            reason.contains("int"),
+            "the reason must name the offending type: {reason}"
+        );
+    }
+
+    // ---- the pure classification helpers ----------------------------------
+
+    /// `value_kind` is the string every one of those denials embeds, so a wrong
+    /// answer here mislabels the diagnosis rather than changing the decision.
+    #[test]
+    fn value_kind_names_each_json_shape() {
+        assert_eq!(value_kind(&json!(null)), "null");
+        assert_eq!(value_kind(&json!(true)), "bool");
+        assert_eq!(value_kind(&json!(7)), "int");
+        assert_eq!(value_kind(&json!(1.5)), "float");
+        assert_eq!(value_kind(&json!("s")), "string");
+        assert_eq!(value_kind(&json!([1])), "array");
+        assert_eq!(value_kind(&json!({"a": 1})), "object");
+    }
+
+    /// `type_check` decides whether a `type(...)` stage passes. Both directions
+    /// per variant, since a check that always answered true would let every
+    /// wrongly-typed field through.
+    #[test]
+    fn type_check_accepts_only_its_own_shape() {
+        assert!(type_check(&TypeCheck::Str, &json!("s")));
+        assert!(!type_check(&TypeCheck::Str, &json!(1)));
+
+        assert!(type_check(&TypeCheck::Int, &json!(1)));
+        assert!(!type_check(&TypeCheck::Int, &json!("1")));
+        assert!(
+            !type_check(&TypeCheck::Int, &json!(1.5)),
+            "a float is not an int"
+        );
+
+        assert!(type_check(&TypeCheck::Bool, &json!(false)));
+        assert!(!type_check(&TypeCheck::Bool, &json!(0)));
+
+        // Float accepts an integer too: JSON has one number type and an
+        // operator writing `type(float)` means "numeric".
+        assert!(type_check(&TypeCheck::Float, &json!(1.5)));
+        assert!(type_check(&TypeCheck::Float, &json!(2)));
+        assert!(!type_check(&TypeCheck::Float, &json!("2")));
+    }
+
+    /// The three shape checks are deliberately cheap rather than
+    /// specification-complete. These pin what they do accept and reject so the
+    /// looseness is a recorded decision rather than a surprise.
+    #[test]
+    fn the_shape_checks_are_permissive_but_not_vacuous() {
+        assert!(type_check(&TypeCheck::Email, &json!("a@b.com")));
+        assert!(!type_check(&TypeCheck::Email, &json!("no-at-sign")));
+        assert!(
+            !type_check(&TypeCheck::Email, &json!("missing-dot@example")),
+            "the check requires both an @ and a dot"
+        );
+        assert!(!type_check(&TypeCheck::Email, &json!(42)));
+
+        assert!(type_check(&TypeCheck::Url, &json!("https://example.com")));
+        assert!(type_check(&TypeCheck::Url, &json!("http://example.com")));
+        assert!(
+            !type_check(&TypeCheck::Url, &json!("ftp://example.com")),
+            "only http and https are recognized"
+        );
+
+        assert!(type_check(
+            &TypeCheck::Uuid,
+            &json!("123e4567-e89b-12d3-a456-426614174000")
+        ));
+        assert!(!type_check(&TypeCheck::Uuid, &json!("not-a-uuid")));
+        assert!(!type_check(&TypeCheck::Uuid, &json!(42)));
+    }
 }

@@ -136,12 +136,24 @@ audit:
 # fully covered, so this still lifts the ratio, by slightly more than retiring
 # the same number of uncovered lines alone would.
 #
-# Remaining to reach 95, measured rather than estimated: about 750 covered
-# lines. The largest single block left is the policy parser, whose gap is not a
-# few big functions but roughly 90 separate error-return sites.
+# Remaining to reach 95, measured rather than estimated: about 535 uncovered
+# lines to retire, and fewer in practice because each new test also adds covered
+# lines to the denominator.
+#
+# What is left is the harder tail. Two files hold most of it and neither is a
+# quick win: the policy parser's gap is roughly 90 separate error-return sites
+# rather than a few big functions, and the manager's is split between production
+# error paths and about 105 lines of duplicated mock-plugin scaffolding in its
+# own test module. After those come the executor's concurrent outcome matrix
+# (~100), then a tail of 40-to-70-line files.
+#
+# Free lines available without writing a test: the Valkey store's five
+# integration tests are written and passing but never run, because the coverage
+# job does not pass `--include-ignored` and has no Valkey service. Wiring one up
+# moves that file from 0 to 75 percent.
 #
 # Keep this number in sync with the coverage workflow.
-COVERAGE_FLOOR ?= 92
+COVERAGE_FLOOR ?= 93
 COVERAGE_TARGET := 95
 
 .PHONY: coverage
