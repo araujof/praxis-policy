@@ -8,11 +8,11 @@
 # One dependency instead of a dozen: re-exports the host runtime
 # (PluginManager, AplOptions, register_apl). The bundled plugins, PDPs, and
 # session stores live in `praxis-policy-builtins` and are pulled in only when the
-# `builtins` / `full` feature (or a granular plugin feature) is enabled — so
-# the bare dependency is the engine alone, no plugins compiled.
+# `builtins` feature (or a granular plugin feature) is enabled, so the bare
+# dependency is the engine alone, no plugins compiled.
 #
-#   praxis-policy = { version = "0.1", features = ["builtins"] }   # default builtin set
-#   praxis-policy = { version = "0.1", features = ["jwt", "cedar"] }  # a minimal subset
+#   praxis-policy = { version = "0.1", features = ["builtins"] }      # every builtin
+#   praxis-policy = { version = "0.1", features = ["jwt", "cedar"] }  # a subset
 #
 # then `praxis_policy::install_builtins(&mgr)` registers every enabled factory and
 # installs the APL config visitor in one call.
@@ -41,17 +41,30 @@ readme.workspace = true
 all-features = true
 
 [features]
-# Engine only by default: no builtin plugins are compiled in. Opt into the
-# bundled extensions with `builtins` (the common in-process set), `full`
-# (everything, incl. the Valkey session store), or a granular plugin
-# feature. Each enables the optional `praxis-policy-builtins` dependency and forwards
-# to its matching praxis-policy-builtins feature.
+# Engine only by default: no builtin plugins are compiled in. Opt into every
+# bundled extension with `builtins`, or name granular features for a subset.
+# Either way the optional `praxis-policy-builtins` dependency is enabled and the
+# matching praxis-policy-builtins feature is forwarded.
 default = []
 
-builtins = ["praxis-policy-builtins/default"]
-full = ["praxis-policy-builtins/full"]
+# Every builtin, including the Valkey session store and the redis + TLS stack it
+# carries. Composed from this crate's own granular features rather than from the
+# aggregator's umbrella, because the concrete factory re-exports in lib.rs are
+# gated on these names: forwarding straight to `praxis-policy-builtins/default`
+# compiles the builtins in but leaves their types unexported.
+builtins = [
+    "jwt",
+    "oauth",
+    "pii",
+    "audit",
+    "elicitation-ciba",
+    "cedar",
+    "cel",
+    "opa",
+    "valkey",
+]
 
-# Granular passthroughs — each pulls exactly one builtin via praxis-policy-builtins.
+# Granular passthroughs. Each pulls exactly one builtin via praxis-policy-builtins.
 jwt = ["praxis-policy-builtins/identity-jwt"]
 oauth = ["praxis-policy-builtins/delegator-oauth"]
 pii = ["praxis-policy-builtins/pii-scanner"]

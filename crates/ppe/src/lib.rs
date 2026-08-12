@@ -39,7 +39,7 @@
 //! // ... register host factories, then `praxis_policy_apl_runtime::register_apl(&mgr, opts)`.
 //! ```
 //!
-//! With the bundled builtins (enable the `builtins` or `full` feature):
+//! With the bundled builtins (enable the `builtins` feature):
 //!
 //! ```ignore
 //! use std::sync::Arc;
@@ -55,11 +55,11 @@
 //! # Features
 //!
 //! No plugins are on by default (`praxis-policy` alone is the engine).
-//! `builtins` enables the common in-process set; `full` adds the Valkey
-//! session store; or pick a granular subset (`jwt`, `oauth`, `pii`,
-//! `audit`, `cedar`, `cel`, `opa`, `valkey`). When any builtins feature is on, the
-//! registration helpers and the concrete factory types are re-exported here
-//! from `praxis-policy-builtins`.
+//! `builtins` enables every bundled extension, including the Valkey session
+//! store; or pick a granular subset (`jwt`, `oauth`, `pii`, `audit`,
+//! `elicitation-ciba`, `cedar`, `cel`, `opa`, `valkey`). Any of them brings in
+//! the registration helpers, and each one re-exports its own concrete factory
+//! type here from `praxis-policy-builtins`.
 
 // Whole-crate re-exports for advanced use (types not surfaced below).
 pub use {
@@ -94,6 +94,8 @@ pub use praxis_policy_builtins::CelPdpFactory;
 pub use praxis_policy_builtins::OpaPdpFactory;
 #[cfg(feature = "audit")]
 pub use praxis_policy_builtins::{AUDIT_KIND, AuditLoggerFactory};
+#[cfg(feature = "elicitation-ciba")]
+pub use praxis_policy_builtins::{CIBA_KIND, CibaApproverFactory};
 #[cfg(feature = "jwt")]
 pub use praxis_policy_builtins::{JWT_KIND, JwtIdentityFactory};
 #[cfg(feature = "oauth")]

@@ -42,9 +42,11 @@ cel              = ["dep:praxis-policy-pdp-cel"]
 opa              = ["dep:praxis-policy-pdp-opa"]
 valkey           = ["dep:praxis-policy-session-valkey"]
 
-# Everything wired here, including the Valkey session store (redis client +
-# rustls TLS stack).
-full = ["default", "valkey"]
+# There is deliberately no `full` umbrella here. The facade owns the "everything"
+# spelling (`praxis-policy/builtins`), and it composes its own granular features
+# so that its factory re-exports come on with them. A second umbrella at this
+# level would be a duplicate definition of the same set, and forwarding to it is
+# what left those re-exports unreachable.
 
 [dependencies]
 # Registration targets — the manager, PDP factory trait, and APL options.
