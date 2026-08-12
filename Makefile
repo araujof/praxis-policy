@@ -168,10 +168,20 @@ audit:
 COVERAGE_FLOOR ?= 93
 COVERAGE_TARGET := 95
 
+# `--include-ignored` so the Valkey integration tests are measured. Most of what
+# they cover needs no Valkey at all (the unreachable-endpoint case), which is
+# worth having rather than reading that file as 0 percent.
+#
+# `VALKEY_TESTS_OPTIONAL=1` because this target measures, it does not assert. The
+# tests fail loudly without an endpoint under `make test`, which is the gate;
+# making coverage fail for a missing container would only stop the measurement
+# from running at all. Supply `VALKEY_TEST_URL` to measure the container paths
+# too, which takes that file from 75 to about 92 percent.
 .PHONY: coverage
 coverage:
 	@command -v cargo-llvm-cov >/dev/null 2>&1 || $(CARGO) install cargo-llvm-cov --locked
-	@cargo llvm-cov --workspace --summary-only --fail-under-lines $(COVERAGE_FLOOR)
+	@VALKEY_TESTS_OPTIONAL=1 cargo llvm-cov --workspace --summary-only \
+		--fail-under-lines $(COVERAGE_FLOOR) -- --include-ignored
 
 # =============================================================================
 # Docs

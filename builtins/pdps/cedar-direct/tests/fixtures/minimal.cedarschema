@@ -1,0 +1,5 @@
+// Fixture for the `schema_file:` config path. Cedar's human-readable schema
+// format, which is what `Schema::from_cedarschema_str` accepts.
+entity User;
+entity Document;
+action read appliesTo { principal: User, resource: Document };

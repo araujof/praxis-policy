@@ -885,4 +885,140 @@ mod phase5_tests {
         };
         assert!(elicitation_id_from_headers(&ext).is_none());
     }
+
+    // ---- the approved-peek violation --------------------------------------
+
+    /// The peek response is a distinct code from pending, and the distinction is
+    /// load-bearing: `-32120` means retry later, `-32121` means the approval
+    /// landed and the caller must re-send without the peek header to apply it.
+    /// Collapsing them would either loop the agent forever or apply an effect
+    /// the caller only asked to inspect.
+    #[test]
+    fn approved_peek_violation_is_a_distinct_code_from_pending() {
+        use praxis_policy_apl_core::attributes::AttributeBag;
+        use praxis_policy_apl_core::step::elicitation_bag_keys as bk;
+
+        let mut bag = AttributeBag::new();
+        bag.set(bk::ID, "elic-7");
+        bag.set(bk::APPROVER, "alice");
+        let v = approved_peek_violation(&bag);
+
+        assert_eq!(v.code, "elicitation.approved");
+        assert_eq!(v.proto_error_code, Some(ELICITATION_APPROVED_CODE));
+        assert_ne!(
+            ELICITATION_APPROVED_CODE, ELICITATION_PENDING_CODE,
+            "peek and pending must not share a wire code"
+        );
+        assert_eq!(v.details.get("elicitation_id").unwrap(), "elic-7");
+        assert_eq!(v.details.get("approver").unwrap(), "alice");
+        assert!(
+            v.reason.contains("re-send"),
+            "the reason must tell the caller what to do next: {}",
+            v.reason
+        );
+    }
+
+    /// The bag may carry neither key, and the violation still has to be
+    /// well-formed rather than fabricate values.
+    #[test]
+    fn approved_peek_violation_omits_details_it_has_no_value_for() {
+        use praxis_policy_apl_core::attributes::AttributeBag;
+        let v = approved_peek_violation(&AttributeBag::new());
+        assert_eq!(v.code, "elicitation.approved");
+        assert!(
+            v.details.is_empty(),
+            "no keys in the bag, no details invented"
+        );
+    }
+
+    // ---- extensions_changed ------------------------------------------------
+    //
+    // This decides whether the executor merges a phase's Extensions mutations
+    // back. A false negative silently drops them, which is how a minted
+    // delegation token would fail to reach the upstream request.
+
+    fn with_security(sec: praxis_policy_core::extensions::SecurityExtension) -> Extensions {
+        Extensions {
+            security: Some(Arc::new(sec)),
+            ..Extensions::default()
+        }
+    }
+
+    #[test]
+    fn identical_extensions_report_unchanged() {
+        let a = Extensions::default();
+        assert!(
+            !extensions_changed(&a, &a),
+            "nothing was touched, so nothing to merge"
+        );
+    }
+
+    /// Comparison is by `Arc` identity, not by value, so a fresh `Arc` counts as
+    /// changed even when the contents match. That is deliberate: cloning to
+    /// mutate is exactly what a phase does.
+    #[test]
+    fn a_replaced_arc_reports_changed_even_when_the_value_matches() {
+        use praxis_policy_core::extensions::SecurityExtension;
+        let before = with_security(SecurityExtension::default());
+        let after = with_security(SecurityExtension::default());
+        assert!(
+            extensions_changed(&before, &after),
+            "a new Arc is a change, since a phase clones to mutate"
+        );
+    }
+
+    #[test]
+    fn a_shared_arc_reports_unchanged() {
+        use praxis_policy_core::extensions::SecurityExtension;
+        let shared = Arc::new(SecurityExtension::default());
+        let before = Extensions {
+            security: Some(Arc::clone(&shared)),
+            ..Extensions::default()
+        };
+        let after = Extensions {
+            security: Some(shared),
+            ..Extensions::default()
+        };
+        assert!(!extensions_changed(&before, &after));
+    }
+
+    /// Appearing or disappearing is a change. Both directions, because only one
+    /// of them is the `_ => true` arm.
+    #[test]
+    fn a_slot_appearing_or_disappearing_is_a_change() {
+        use praxis_policy_core::extensions::SecurityExtension;
+        let none = Extensions::default();
+        let some = with_security(SecurityExtension::default());
+        assert!(extensions_changed(&none, &some), "absent to present");
+        assert!(extensions_changed(&some, &none), "present to absent");
+    }
+
+    /// The case the check exists for. A route whose only mutation is a
+    /// `delegate(...)` touches neither security nor the delegation chain, so
+    /// without watching `raw_credentials` the minted token would look like no
+    /// change and never reach the upstream request.
+    #[test]
+    fn a_raw_credentials_change_alone_is_detected() {
+        use praxis_policy_core::extensions::raw_credentials::RawCredentialsExtension;
+        let before = Extensions::default();
+        let after = Extensions {
+            raw_credentials: Some(Arc::new(RawCredentialsExtension::default())),
+            ..Extensions::default()
+        };
+        assert!(
+            extensions_changed(&before, &after),
+            "a minted token must not be mistaken for no change"
+        );
+    }
+
+    #[test]
+    fn a_delegation_chain_change_alone_is_detected() {
+        use praxis_policy_core::extensions::DelegationExtension;
+        let before = Extensions::default();
+        let after = Extensions {
+            delegation: Some(Arc::new(DelegationExtension::default())),
+            ..Extensions::default()
+        };
+        assert!(extensions_changed(&before, &after));
+    }
 }
