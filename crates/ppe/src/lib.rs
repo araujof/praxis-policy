@@ -72,6 +72,10 @@ pub use praxis_policy_apl_runtime::{
 };
 pub use praxis_policy_core::manager::PluginManager;
 
+/// Curated re-exports for plugin authors, so a plugin crate can depend on this
+/// facade alone. See [`praxis_policy_core::prelude`].
+pub use praxis_policy_core::prelude;
+
 // The whole aggregator, for advanced use.
 #[cfg(feature = "praxis-policy-builtins")]
 pub use praxis_policy_builtins;

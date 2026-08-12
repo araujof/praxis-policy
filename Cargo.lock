@@ -2408,13 +2408,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "praxis-policy-sdk"
-version = "0.1.0"
-dependencies = [
- "praxis-policy-core",
-]
-
-[[package]]
 name = "praxis-policy-session-valkey"
 version = "0.1.0"
 dependencies = [

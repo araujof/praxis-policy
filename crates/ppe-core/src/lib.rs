@@ -60,6 +60,8 @@ pub mod identity;
 pub mod manager;
 /// The `Plugin` trait and its trusted configuration.
 pub mod plugin;
+/// Curated re-exports for plugin authors.
+pub mod prelude;
 /// Plugin instance and hook registries.
 pub mod registry;
 /// Config visitors, which let a dialect compile its own route blocks at load time.
