@@ -5746,4 +5746,276 @@ routes:
             "awaiting plugin should have run alongside the non-awaiting plugin",
         );
     }
+
+    // =====================================================================
+    // Config load: failures and the settings the runtime ignores
+    // =====================================================================
+
+    /// A config naming a file that is not there has to say which file. An
+    /// operator hits this on a typo or a bad volume mount, and the OS error
+    /// alone does not identify it.
+    #[test]
+    fn loading_a_missing_config_file_reports_the_path() {
+        let mgr = PluginManager::default();
+        let err = mgr
+            .load_config_file(std::path::Path::new("/nonexistent/ppe-test/policy.yaml"))
+            .expect_err("a missing file must not load");
+        let msg = err.to_string();
+        assert!(msg.contains("policy.yaml"), "must name the file: {msg}");
+    }
+
+    /// Three settings parse but the runtime does not honour them. Warning is the
+    /// whole behaviour: an operator who sets `fail_on_plugin_error: true` and
+    /// gets silence would believe the pipeline halts on error when it does not.
+    /// The load still succeeds, which is what these assert alongside.
+    #[test]
+    fn settings_the_runtime_ignores_still_load() {
+        let mgr = Arc::new(PluginManager::default());
+        let yaml = r#"
+plugin_dirs: ["/opt/plugins"]
+plugin_settings:
+  parallel_execution_within_band: true
+  fail_on_plugin_error: true
+"#;
+        mgr.load_config_yaml(yaml)
+            .expect("inactive settings warn, they do not fail the load");
+    }
+
+    /// `groups:` at the top level and `global.policies:` are two spellings of
+    /// the same thing, and a config carrying both has to end up with the union.
+    /// Dropping either side would silently lose a whole bundle of policy.
+    #[test]
+    fn top_level_groups_and_global_policies_are_merged() {
+        use crate::visitor::{ConfigVisitor, VisitorError};
+        use std::sync::Mutex as StdMutex;
+
+        #[derive(Default)]
+        struct BundleRecorder {
+            seen: StdMutex<Vec<String>>,
+        }
+        impl ConfigVisitor for BundleRecorder {
+            fn name(&self) -> &str {
+                "recorder"
+            }
+            fn visit_policy_bundle(
+                &self,
+                _mgr: &Arc<PluginManager>,
+                tag: &str,
+                _yaml: &serde_yaml::Value,
+            ) -> Result<(), VisitorError> {
+                self.seen.lock().unwrap().push(tag.to_owned());
+                Ok(())
+            }
+        }
+
+        let yaml = r#"
+plugin_settings:
+  routing_enabled: true
+groups:
+  from-groups:
+    authorization:
+      pre_invocation:
+        - "require(authenticated)"
+global:
+  policies:
+    from-global:
+      authorization:
+        pre_invocation:
+          - "require(authenticated)"
+"#;
+        let mgr = Arc::new(PluginManager::default());
+        let recorder = Arc::new(BundleRecorder::default());
+        mgr.register_visitor(recorder.clone());
+        mgr.load_config_yaml(yaml).expect("config must load");
+
+        let seen = recorder.seen.lock().unwrap();
+        assert!(
+            seen.iter().any(|t| t == "from-groups"),
+            "the top-level groups bundle must survive the merge; saw {seen:?}"
+        );
+        assert!(
+            seen.iter().any(|t| t == "from-global"),
+            "and so must the global.policies one; saw {seen:?}"
+        );
+    }
+
+    /// A visitor that refuses a section aborts the load, and the error names both
+    /// the visitor and the section. With several orchestrators registered that
+    /// attribution is the only way to know which one objected and to what.
+    #[test]
+    fn a_visitor_refusal_aborts_the_load_and_is_attributed() {
+        use crate::visitor::{ConfigVisitor, VisitorError};
+
+        struct Refuser(&'static str);
+        impl ConfigVisitor for Refuser {
+            fn name(&self) -> &str {
+                "refuser"
+            }
+            fn visit_plugins(
+                &self,
+                _mgr: &Arc<PluginManager>,
+                _plugins: &[PluginConfig],
+            ) -> Result<(), VisitorError> {
+                if self.0 == "plugins" {
+                    return Err("no".into());
+                }
+                Ok(())
+            }
+            fn visit_global(
+                &self,
+                _mgr: &Arc<PluginManager>,
+                _yaml: &serde_yaml::Value,
+            ) -> Result<(), VisitorError> {
+                if self.0 == "global" {
+                    return Err("no".into());
+                }
+                Ok(())
+            }
+            fn visit_default(
+                &self,
+                _mgr: &Arc<PluginManager>,
+                _entity_type: &str,
+                _yaml: &serde_yaml::Value,
+            ) -> Result<(), VisitorError> {
+                if self.0 == "default" {
+                    return Err("no".into());
+                }
+                Ok(())
+            }
+            fn visit_policy_bundle(
+                &self,
+                _mgr: &Arc<PluginManager>,
+                _tag: &str,
+                _yaml: &serde_yaml::Value,
+            ) -> Result<(), VisitorError> {
+                if self.0 == "bundle" {
+                    return Err("no".into());
+                }
+                Ok(())
+            }
+        }
+
+        let yaml = r#"
+global:
+  defaults:
+    tool:
+      authorization:
+        pre_invocation:
+          - "require(authenticated)"
+  policies:
+    a-tag:
+      authorization:
+        pre_invocation:
+          - "require(authenticated)"
+"#;
+        // One section per run, so a failure in an earlier section cannot mask a
+        // missing error arm in a later one.
+        for (section, expect) in [
+            ("plugins", "visit_plugins"),
+            ("global", "visit_global"),
+            ("default", "visit_default"),
+            ("bundle", "visit_policy_bundle"),
+        ] {
+            let mgr = Arc::new(PluginManager::default());
+            mgr.register_visitor(Arc::new(Refuser(section)));
+            let err = mgr
+                .load_config_yaml(yaml)
+                .expect_err("a refusing visitor must abort the load");
+            let msg = err.to_string();
+            assert!(
+                msg.contains("refuser"),
+                "the error must name the visitor: {msg}"
+            );
+            assert!(
+                msg.contains(expect),
+                "and the section it refused; expected {expect} in: {msg}"
+            );
+        }
+    }
+
+    // =====================================================================
+    // Route annotations and small accessors
+    // =====================================================================
+
+    /// `remove_route_annotation` had no caller anywhere. Removing an annotation
+    /// that is not there must be a no-op rather than a panic, since a caller
+    /// tearing down routes cannot know which ones were annotated.
+    #[test]
+    fn removing_an_absent_route_annotation_is_a_no_op() {
+        let mgr = PluginManager::default();
+        mgr.remove_route_annotation("tool", "never-annotated", None, "cmf.tool_pre_invoke");
+        mgr.remove_route_annotation(
+            "tool",
+            "never-annotated",
+            Some("scope"),
+            "cmf.tool_pre_invoke",
+        );
+    }
+
+    /// `plugin_names` is how a host enumerates what loaded. It had no test, so
+    /// nothing checked it reports the configured names rather than an empty list.
+    #[test]
+    fn plugin_names_lists_what_was_registered() {
+        let mgr = Arc::new(PluginManager::default());
+        assert!(
+            mgr.plugin_names().is_empty(),
+            "an empty manager registers nothing"
+        );
+
+        mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
+        let yaml = r#"
+plugins:
+  - name: first
+    kind: test/allow
+    hooks: [test_hook]
+  - name: second
+    kind: test/allow
+    hooks: [test_hook]
+"#;
+        mgr.load_config_yaml(yaml).expect("config must load");
+        let mut names = mgr.plugin_names();
+        names.sort();
+        assert_eq!(names, vec!["first".to_owned(), "second".to_owned()]);
+    }
+
+    /// The route cache is keyed on all four fields. `Hash` is derived and used;
+    /// `PartialEq` is hand-written, so a field omitted there would make two
+    /// distinct routes collide in the cache and one would be served the other's
+    /// filtered entry list.
+    #[test]
+    fn the_route_cache_key_distinguishes_every_field() {
+        let base = RouteCacheKey {
+            entity_type: "tool".into(),
+            entity_name: "get_x".into(),
+            hook_name: "cmf.tool_pre_invoke".into(),
+            scope: None,
+        };
+        assert_eq!(base, base.clone(), "a key equals itself");
+
+        let variants = [
+            RouteCacheKey {
+                entity_type: "prompt".into(),
+                ..base.clone()
+            },
+            RouteCacheKey {
+                entity_name: "other".into(),
+                ..base.clone()
+            },
+            RouteCacheKey {
+                hook_name: "cmf.tool_post_invoke".into(),
+                ..base.clone()
+            },
+            RouteCacheKey {
+                scope: Some("read".into()),
+                ..base.clone()
+            },
+        ];
+        for v in variants {
+            assert_ne!(
+                base, v,
+                "a key differing in one field must not compare equal, or two \
+                 routes would share a cache entry"
+            );
+        }
+    }
 }
