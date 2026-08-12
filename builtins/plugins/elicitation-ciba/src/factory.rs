@@ -57,3 +57,62 @@ impl PluginFactory for CibaApproverFactory {
         })
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::indexing_slicing, reason = "tests")]
+mod tests {
+    use super::*;
+
+    fn cfg(config: serde_json::Value) -> PluginConfig {
+        PluginConfig {
+            name: "manager-approver".into(),
+            kind: KIND.into(),
+            hooks: vec![HOOK_ELICIT.to_owned()],
+            config: Some(config),
+            ..Default::default()
+        }
+    }
+
+    /// No request is made at construction time, so https endpoints that do not
+    /// exist are fine here and keep the test off the network.
+    fn valid_config() -> serde_json::Value {
+        serde_json::json!({
+            "backchannel_endpoint": "https://idp.example/ciba/auth",
+            "token_endpoint": "https://idp.example/token",
+            "client_id": "praxis-policy-gateway",
+            "client_secret_source": { "kind": "literal", "secret": "shh" },
+        })
+    }
+
+    /// The hook name is fixed in code rather than read from `config.hooks`, so
+    /// this pins the registration point an operator's `hooks:` list has to match.
+    #[test]
+    fn registers_one_handler_on_the_elicit_hook() {
+        let inst = CibaApproverFactory
+            .create(&cfg(valid_config()))
+            .expect("a valid approver config must build");
+        assert_eq!(inst.handlers.len(), 1, "one approver, one handler");
+        assert_eq!(
+            inst.handlers[0].0, HOOK_ELICIT,
+            "the approver must land on the elicit hook"
+        );
+    }
+
+    /// Plaintext endpoints are refused unless the operator opts in, and that
+    /// refusal has to stop the factory rather than register an approver that
+    /// would ship credentials in the clear.
+    #[test]
+    fn a_config_the_approver_rejects_fails_the_factory() {
+        let mut bad = valid_config();
+        bad["backchannel_endpoint"] = serde_json::json!("http://idp.example/ciba/auth");
+        // `.err()` rather than `expect_err`: PluginInstance is not Debug.
+        let err = CibaApproverFactory
+            .create(&cfg(bad))
+            .err()
+            .expect("a plaintext endpoint without insecure_http must not build");
+        assert!(
+            matches!(*err, PluginError::Config { .. }),
+            "expected a config error, got {err:?}"
+        );
+    }
+}

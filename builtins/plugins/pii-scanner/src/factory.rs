@@ -67,3 +67,74 @@ impl PluginFactory for PiiScannerFactory {
         })
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::indexing_slicing, reason = "tests")]
+mod tests {
+    use super::*;
+    use praxis_policy_core::plugin::{OnError, PluginMode};
+
+    /// A config the factory accepts, with `hooks` left to the caller so each
+    /// test can vary the one thing it is about. The empty `config:` block takes
+    /// the scanner's own defaults.
+    fn cfg(hooks: Vec<String>) -> PluginConfig {
+        PluginConfig {
+            name: "pii-scan".into(),
+            kind: KIND.into(),
+            hooks,
+            mode: PluginMode::Sequential,
+            priority: 10,
+            on_error: OnError::Fail,
+            config: Some(serde_json::json!({})),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn one_hook_yields_one_handler_registered_under_that_hook_name() {
+        let inst = PiiScannerFactory
+            .create(&cfg(vec!["cmf.tool_pre_invoke".into()]))
+            .expect("a config with one hook must build");
+        assert_eq!(inst.handlers.len(), 1, "one hook, one handler");
+        assert_eq!(
+            inst.handlers[0].0, "cmf.tool_pre_invoke",
+            "the handler must be registered under the hook name from config"
+        );
+    }
+
+    /// The scanner is meant to be wired on several entity types at once, so the
+    /// one-handler-per-hook fan-out is the behavior operators depend on.
+    #[test]
+    fn every_configured_hook_gets_its_own_handler() {
+        let hooks = vec![
+            "cmf.tool_pre_invoke".to_owned(),
+            "cmf.prompt_pre_fetch".to_owned(),
+            "cmf.resource_pre_fetch".to_owned(),
+        ];
+        let inst = PiiScannerFactory
+            .create(&cfg(hooks.clone()))
+            .expect("a config with three hooks must build");
+        let names: Vec<&str> = inst.handlers.iter().map(|(n, _)| *n).collect();
+        assert_eq!(names, hooks, "one handler per hook, in config order");
+    }
+
+    /// A scanner wired to no hooks would load without error and never inspect
+    /// anything, so the operator would believe traffic was being scanned.
+    #[test]
+    fn empty_hooks_is_rejected_and_the_message_names_the_key() {
+        // `.err()` rather than `expect_err`: PluginInstance is not Debug.
+        let err = PiiScannerFactory
+            .create(&cfg(vec![]))
+            .err()
+            .expect("no hooks must not build");
+        assert!(
+            matches!(*err, PluginError::Config { .. }),
+            "expected a config error, got {err:?}"
+        );
+        let msg = err.to_string();
+        assert!(
+            msg.contains("hooks:"),
+            "the message must name the key the operator has to fix: {msg}"
+        );
+    }
+}

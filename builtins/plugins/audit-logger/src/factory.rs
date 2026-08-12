@@ -55,3 +55,74 @@ impl PluginFactory for AuditLoggerFactory {
         })
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::indexing_slicing, reason = "tests")]
+mod tests {
+    use super::*;
+    use praxis_policy_core::plugin::{OnError, PluginMode};
+
+    /// A config the factory accepts, with `hooks` left to the caller so each
+    /// test can vary the one thing it is about.
+    fn cfg(hooks: Vec<String>) -> PluginConfig {
+        PluginConfig {
+            name: "audit".into(),
+            kind: KIND.into(),
+            hooks,
+            mode: PluginMode::Sequential,
+            priority: 50,
+            on_error: OnError::Fail,
+            config: Some(serde_json::json!({ "destination": "stderr" })),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn one_hook_yields_one_handler_registered_under_that_hook_name() {
+        let inst = AuditLoggerFactory
+            .create(&cfg(vec!["cmf.tool_pre_invoke".into()]))
+            .expect("a config with one hook must build");
+        assert_eq!(inst.handlers.len(), 1, "one hook, one handler");
+        assert_eq!(
+            inst.handlers[0].0, "cmf.tool_pre_invoke",
+            "the handler must be registered under the hook name from config"
+        );
+    }
+
+    /// The handler list is built by mapping over `hooks`, so a single-hook test
+    /// cannot distinguish "one per hook" from "exactly one, always".
+    #[test]
+    fn every_configured_hook_gets_its_own_handler() {
+        let hooks = vec![
+            "cmf.tool_pre_invoke".to_owned(),
+            "cmf.tool_post_invoke".to_owned(),
+            "cmf.prompt_pre_fetch".to_owned(),
+        ];
+        let inst = AuditLoggerFactory
+            .create(&cfg(hooks.clone()))
+            .expect("a config with three hooks must build");
+        let names: Vec<&str> = inst.handlers.iter().map(|(n, _)| *n).collect();
+        assert_eq!(names, hooks, "one handler per hook, in config order");
+    }
+
+    /// An audit logger wired to no hooks would load without error and then never
+    /// run, which is worse than refusing: the operator believes they have an
+    /// audit trail.
+    #[test]
+    fn empty_hooks_is_rejected_and_the_message_names_the_key() {
+        // `.err()` rather than `expect_err`: PluginInstance is not Debug.
+        let err = AuditLoggerFactory
+            .create(&cfg(vec![]))
+            .err()
+            .expect("no hooks must not build");
+        assert!(
+            matches!(*err, PluginError::Config { .. }),
+            "expected a config error, got {err:?}"
+        );
+        let msg = err.to_string();
+        assert!(
+            msg.contains("hooks:"),
+            "the message must name the key the operator has to fix: {msg}"
+        );
+    }
+}

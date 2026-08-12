@@ -58,3 +58,62 @@ impl PluginFactory for JwtIdentityFactory {
         })
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::indexing_slicing, reason = "tests")]
+mod tests {
+    use super::*;
+
+    /// An HS256 shared secret rather than a PEM: this test is about the factory
+    /// wiring, and a secret keeps it free of key-generation setup.
+    fn cfg(config: serde_json::Value) -> PluginConfig {
+        PluginConfig {
+            name: "jwt".into(),
+            kind: KIND.into(),
+            hooks: vec![HOOK_IDENTITY_RESOLVE.to_owned()],
+            config: Some(config),
+            ..Default::default()
+        }
+    }
+
+    fn valid_config() -> serde_json::Value {
+        serde_json::json!({
+            "trusted_issuers": [{
+                "issuer": "https://issuer.example",
+                "audiences": ["test-aud"],
+                "algorithms": ["HS256"],
+                "decoding_key": { "kind": "secret", "secret": "test-secret" },
+            }],
+            "claim_mapper": "standard",
+        })
+    }
+
+    /// The hook name is fixed in code rather than read from `config.hooks`, so
+    /// this pins the registration point an operator's `hooks:` list has to match.
+    #[test]
+    fn registers_one_handler_on_the_identity_resolve_hook() {
+        let inst = JwtIdentityFactory
+            .create(&cfg(valid_config()))
+            .expect("a valid issuer config must build");
+        assert_eq!(inst.handlers.len(), 1, "one resolver, one handler");
+        assert_eq!(
+            inst.handlers[0].0, HOOK_IDENTITY_RESOLVE,
+            "the resolver must land on the identity.resolve hook"
+        );
+    }
+
+    /// The factory propagates construction failure rather than registering a
+    /// resolver that would deny every request at runtime.
+    #[test]
+    fn a_config_the_resolver_rejects_fails_the_factory() {
+        // `.err()` rather than `expect_err`: PluginInstance is not Debug.
+        let err = JwtIdentityFactory
+            .create(&cfg(serde_json::json!({ "trusted_issuers": [] })))
+            .err()
+            .expect("an empty issuer list must not build");
+        assert!(
+            matches!(*err, PluginError::Config { .. }),
+            "expected a config error, got {err:?}"
+        );
+    }
+}
