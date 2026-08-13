@@ -1033,4 +1033,664 @@ mod tests {
         let s = format!("{view:?}");
         assert!(s.contains("MessageView"), "{s}");
     }
+
+    // ---- every content variant --------------------------------------------
+
+    /// One of each `ContentPart`, paired with the `ContentType` that names it.
+    ///
+    /// The accessors below match on the variant and fall through to `_ => None`.
+    /// A variant nobody constructs therefore reads as "no name, no uri, no mime"
+    /// without failing to compile, and a rule scoped to it silently matches
+    /// nothing. Building all twelve is what makes those arms assert anything.
+    fn one_of_each_variant() -> Vec<(ContentType, ContentPart)> {
+        vec![
+            (
+                ContentType::Text,
+                ContentPart::Text {
+                    text: "plain".into(),
+                },
+            ),
+            (
+                ContentType::Thinking,
+                ContentPart::Thinking {
+                    text: "reasoning".into(),
+                },
+            ),
+            (
+                ContentType::ToolCall,
+                ContentPart::ToolCall {
+                    content: ToolCall {
+                        tool_call_id: "tc_1".into(),
+                        name: "transfer".into(),
+                        arguments: [("amount".to_owned(), serde_json::json!(10))].into(),
+                        namespace: None,
+                    },
+                },
+            ),
+            (
+                ContentType::ToolResult,
+                ContentPart::ToolResult {
+                    content: ToolResult {
+                        tool_call_id: "tc_1".into(),
+                        tool_name: "transfer".into(),
+                        content: serde_json::json!("moved 10"),
+                        is_error: false,
+                    },
+                },
+            ),
+            (
+                ContentType::Resource,
+                ContentPart::Resource {
+                    content: Resource {
+                        resource_request_id: "rr_1".into(),
+                        uri: "file:///ledger.csv".into(),
+                        name: Some("Ledger".into()),
+                        content: Some("a,b".into()),
+                        mime_type: Some("text/csv".into()),
+                        ..Default::default()
+                    },
+                },
+            ),
+            (
+                ContentType::ResourceRef,
+                ContentPart::ResourceRef {
+                    content: crate::cmf::content::ResourceReference {
+                        resource_request_id: "rr_2".into(),
+                        uri: "file:///pointer.txt".into(),
+                        name: Some("Pointer".into()),
+                        resource_type: crate::cmf::enums::ResourceType::File,
+                        range_start: None,
+                        range_end: None,
+                        selector: None,
+                    },
+                },
+            ),
+            (
+                ContentType::PromptRequest,
+                ContentPart::PromptRequest {
+                    content: crate::cmf::content::PromptRequest {
+                        prompt_request_id: "pr_1".into(),
+                        name: "summarize".into(),
+                        arguments: [("tone".to_owned(), serde_json::json!("terse"))].into(),
+                        server_id: None,
+                    },
+                },
+            ),
+            (
+                ContentType::PromptResult,
+                ContentPart::PromptResult {
+                    content: crate::cmf::content::PromptResult {
+                        prompt_request_id: "pr_1".into(),
+                        prompt_name: "summarize".into(),
+                        messages: vec![],
+                        content: Some("a summary".into()),
+                        is_error: false,
+                        error_message: None,
+                    },
+                },
+            ),
+            (
+                ContentType::Image,
+                ContentPart::Image {
+                    content: crate::cmf::content::ImageSource {
+                        source_type: "base64".into(),
+                        data: "AAAA".into(),
+                        media_type: Some("image/png".into()),
+                    },
+                },
+            ),
+            (
+                ContentType::Video,
+                ContentPart::Video {
+                    content: crate::cmf::content::VideoSource {
+                        source_type: "base64".into(),
+                        data: "BBBB".into(),
+                        media_type: Some("video/mp4".into()),
+                        duration_ms: Some(1_000),
+                    },
+                },
+            ),
+            (
+                ContentType::Audio,
+                ContentPart::Audio {
+                    content: crate::cmf::content::AudioSource {
+                        source_type: "base64".into(),
+                        data: "CCCC".into(),
+                        media_type: Some("audio/mpeg".into()),
+                        duration_ms: Some(2_000),
+                    },
+                },
+            ),
+            (
+                ContentType::Document,
+                ContentPart::Document {
+                    content: crate::cmf::content::DocumentSource {
+                        source_type: "base64".into(),
+                        data: "DDDD".into(),
+                        media_type: Some("application/pdf".into()),
+                        title: Some("Report".into()),
+                    },
+                },
+            ),
+        ]
+    }
+
+    /// `MessageView::new` matches on the variant to pick a kind, and
+    /// `ViewKind::from_content_type` maps the type tag to the same kind. They are
+    /// two hand-written twelve-arm tables for one relationship, so they can
+    /// disagree. If they do, a part deserialized as one type would evaluate under
+    /// another kind's rules. This asserts they agree on every variant.
+    #[test]
+    fn the_two_kind_mappings_agree_on_every_variant() {
+        for (ct, part) in one_of_each_variant() {
+            let from_part = MessageView::new(&part, Role::Assistant, None, None).kind();
+            let from_type = ViewKind::from_content_type(ct);
+            assert_eq!(
+                from_part, from_type,
+                "{ct:?}: the part maps to {from_part:?} but the type tag maps to {from_type:?}"
+            );
+        }
+    }
+
+    /// What each variant exposes as text, name, uri and mime type. These four
+    /// feed `content contains`, `name ==`, `uri startswith` and `mime_type ==`
+    /// conditions, so a wrong `None` makes a rule quietly match nothing.
+    #[test]
+    fn each_variant_exposes_the_fields_a_rule_can_match_on() {
+        // (content, name, uri, mime_type) expected per variant, in the order
+        // `one_of_each_variant` returns them.
+        let expected: [(Option<&str>, Option<&str>, Option<&str>, Option<&str>); 12] = [
+            (Some("plain"), None, None, None),
+            (Some("reasoning"), None, None, None),
+            (None, Some("transfer"), Some("tool://_/transfer"), None),
+            (Some("moved 10"), Some("transfer"), None, None),
+            (
+                Some("a,b"),
+                Some("Ledger"),
+                Some("file:///ledger.csv"),
+                Some("text/csv"),
+            ),
+            (None, Some("Pointer"), Some("file:///pointer.txt"), None),
+            (None, Some("summarize"), Some("prompt://_/summarize"), None),
+            (Some("a summary"), Some("summarize"), None, None),
+            (None, None, None, Some("image/png")),
+            (None, None, None, Some("video/mp4")),
+            (None, None, None, Some("audio/mpeg")),
+            (None, None, None, Some("application/pdf")),
+        ];
+
+        for ((ct, part), (content, name, uri, mime)) in
+            one_of_each_variant().into_iter().zip(expected)
+        {
+            let view = MessageView::new(&part, Role::Assistant, None, None);
+            assert_eq!(view.content(), content, "content() on {ct:?}");
+            assert_eq!(view.name(), name, "name() on {ct:?}");
+            assert_eq!(view.uri().as_deref(), uri, "uri() on {ct:?}");
+            assert_eq!(view.mime_type(), mime, "mime_type() on {ct:?}");
+        }
+    }
+
+    /// Only tool calls and prompt requests carry arguments. Everything else has
+    /// to report none rather than an empty map, because `has_arg` is how a rule
+    /// asks whether a parameter was supplied at all.
+    #[test]
+    fn only_tool_calls_and_prompt_requests_carry_arguments() {
+        for (ct, part) in one_of_each_variant() {
+            let view = MessageView::new(&part, Role::Assistant, None, None);
+            let expect_args = matches!(ct, ContentType::ToolCall | ContentType::PromptRequest);
+            assert_eq!(view.args().is_some(), expect_args, "args() on {ct:?}");
+        }
+    }
+
+    /// A resource whose `name` is unset falls back to its uri, so `name ==` has
+    /// something to match either way. The fallback is per-variant, so both
+    /// resource kinds are checked.
+    #[test]
+    fn a_resource_with_no_name_falls_back_to_its_uri() {
+        let res = ContentPart::Resource {
+            content: Resource {
+                resource_request_id: "rr".into(),
+                uri: "file:///anon.bin".into(),
+                name: None,
+                ..Default::default()
+            },
+        };
+        let view = MessageView::new(&res, Role::Assistant, None, None);
+        assert_eq!(view.name(), Some("file:///anon.bin"));
+
+        let reference = ContentPart::ResourceRef {
+            content: crate::cmf::content::ResourceReference {
+                resource_request_id: "rr".into(),
+                uri: "file:///anon-ref.bin".into(),
+                name: None,
+                resource_type: crate::cmf::enums::ResourceType::File,
+                range_start: None,
+                range_end: None,
+                selector: None,
+            },
+        };
+        let view = MessageView::new(&reference, Role::Assistant, None, None);
+        assert_eq!(view.name(), Some("file:///anon-ref.bin"));
+    }
+
+    /// A tool returning structured JSON has no text content, because `content()`
+    /// only unwraps a JSON string. A rule written as `content contains "..."`
+    /// therefore cannot inspect an object result, which is worth pinning: it is a
+    /// real gap in what such a rule can see, not an accident of this test.
+    #[test]
+    fn a_tool_result_holding_an_object_exposes_no_text_content() {
+        let structured = ContentPart::ToolResult {
+            content: ToolResult {
+                tool_call_id: "tc".into(),
+                tool_name: "lookup".into(),
+                content: serde_json::json!({"ssn": "123-45-6789"}),
+                is_error: false,
+            },
+        };
+        let view = MessageView::new(&structured, Role::Tool, None, None);
+        assert_eq!(
+            view.content(),
+            None,
+            "an object result exposes no text to match on"
+        );
+
+        let textual = ContentPart::ToolResult {
+            content: ToolResult {
+                tool_call_id: "tc".into(),
+                tool_name: "lookup".into(),
+                content: serde_json::json!("123-45-6789"),
+                is_error: false,
+            },
+        };
+        let view = MessageView::new(&textual, Role::Tool, None, None);
+        assert_eq!(
+            view.content(),
+            Some("123-45-6789"),
+            "a string result is the case that does expose text"
+        );
+    }
+
+    /// `is_error` distinguishes a failed call from a successful one, which is
+    /// what an audit rule keys on. Only the two result kinds can be errors;
+    /// everything else must report false rather than inheriting a default.
+    #[test]
+    fn only_result_kinds_can_report_an_error() {
+        for (ct, part) in one_of_each_variant() {
+            let view = MessageView::new(&part, Role::Assistant, None, None);
+            assert!(
+                !view.is_error(),
+                "{ct:?} was built as a success and must not report an error"
+            );
+        }
+
+        let failed_tool = ContentPart::ToolResult {
+            content: ToolResult {
+                tool_call_id: "tc".into(),
+                tool_name: "transfer".into(),
+                content: serde_json::json!("denied"),
+                is_error: true,
+            },
+        };
+        assert!(
+            MessageView::new(&failed_tool, Role::Tool, None, None).is_error(),
+            "a failed tool result must report an error"
+        );
+
+        let failed_prompt = ContentPart::PromptResult {
+            content: crate::cmf::content::PromptResult {
+                prompt_request_id: "pr".into(),
+                prompt_name: "summarize".into(),
+                messages: vec![],
+                content: None,
+                is_error: true,
+                error_message: Some("template missing".into()),
+            },
+        };
+        assert!(
+            MessageView::new(&failed_prompt, Role::Assistant, None, None).is_error(),
+            "a failed prompt result must report an error"
+        );
+    }
+
+    /// The view's type helpers delegate to the kind's, so they have to agree.
+    /// Checked over every variant because the delegation is one method per
+    /// family and a single wrong forward would misclassify one family only.
+    #[test]
+    fn the_view_type_helpers_agree_with_the_kind_they_delegate_to() {
+        for (ct, part) in one_of_each_variant() {
+            let view = MessageView::new(&part, Role::Assistant, None, None);
+            let kind = view.kind();
+            assert_eq!(view.is_tool(), kind.is_tool(), "is_tool on {ct:?}");
+            assert_eq!(view.is_resource(), kind.is_resource(), "is_resource {ct:?}");
+            assert_eq!(view.is_prompt(), kind.is_prompt(), "is_prompt on {ct:?}");
+            assert_eq!(view.is_media(), kind.is_media(), "is_media on {ct:?}");
+            assert_eq!(view.is_text(), kind.is_text(), "is_text on {ct:?}");
+        }
+    }
+
+    // ---- the action matrix ------------------------------------------------
+
+    /// `action()` is what an `action == "execute"` rule matches. Six kinds fix
+    /// their action; the other six derive it from the message role, so each cell
+    /// is a separate arm. A wrong cell silently rescopes every rule written
+    /// against that action.
+    #[test]
+    fn the_action_matrix_is_fixed_for_entity_kinds_and_directional_otherwise() {
+        let fixed = [
+            (ViewKind::ToolCall, ViewAction::Execute),
+            (ViewKind::ToolResult, ViewAction::Receive),
+            (ViewKind::Resource, ViewAction::Read),
+            (ViewKind::ResourceRef, ViewAction::Read),
+            (ViewKind::PromptRequest, ViewAction::Invoke),
+            (ViewKind::PromptResult, ViewAction::Receive),
+        ];
+        let roles = [
+            Role::User,
+            Role::Assistant,
+            Role::Tool,
+            Role::System,
+            Role::Developer,
+        ];
+
+        for (kind, expected) in fixed {
+            for role in roles {
+                assert_eq!(
+                    kind.default_action(role),
+                    expected,
+                    "{kind:?} must be {expected:?} regardless of role, got role {role:?}"
+                );
+            }
+        }
+
+        // The directional kinds: the role decides.
+        let directional = [
+            ViewKind::Text,
+            ViewKind::Thinking,
+            ViewKind::Image,
+            ViewKind::Video,
+            ViewKind::Audio,
+            ViewKind::Document,
+        ];
+        let by_role = [
+            (Role::User, ViewAction::Send),
+            (Role::Assistant, ViewAction::Generate),
+            (Role::Tool, ViewAction::Receive),
+            (Role::System, ViewAction::Write),
+            (Role::Developer, ViewAction::Write),
+        ];
+        for kind in directional {
+            for (role, expected) in by_role {
+                assert_eq!(
+                    kind.default_action(role),
+                    expected,
+                    "{kind:?} as {role:?} must be {expected:?}"
+                );
+            }
+        }
+    }
+
+    // ---- the context projection -------------------------------------------
+
+    /// Everything `to_dict` can emit, emitted at once.
+    ///
+    /// Each optional field is its own `if let`, so a field nobody populates in a
+    /// test is a field that could be dropped from the projection without any
+    /// test noticing. A rule referencing it would then never match. The existing
+    /// extensions test leaves permissions, teams, four agent fields and the meta
+    /// tags unset; this sets all of them.
+    #[test]
+    fn to_dict_emits_every_context_field_it_is_given() {
+        use std::sync::Arc;
+
+        use crate::extensions::{
+            AgentExtension, HttpExtension, RequestExtension, SecurityExtension,
+        };
+
+        let mut security = SecurityExtension::default();
+        security.add_label("PII");
+        security.add_label("CONFIDENTIAL");
+        security.subject = Some(crate::extensions::security::SubjectExtension {
+            id: Some("alice".into()),
+            subject_type: Some(crate::extensions::security::SubjectType::User),
+            roles: ["admin".to_owned(), "auditor".to_owned()].into(),
+            permissions: ["ledger:read".to_owned(), "ledger:write".to_owned()].into(),
+            teams: ["finance".to_owned(), "platform".to_owned()].into(),
+            // Listed rather than filled by `..Default::default()` so that adding
+            // a subject field breaks this test, which is the prompt to decide
+            // whether a policy should be able to see it. `claims` deliberately
+            // is not projected: it holds raw token claims.
+            claims: std::collections::HashMap::new(),
+        });
+
+        let mut http = HttpExtension::default();
+        http.set_header("X-Request-ID", "req-9");
+
+        let ext = Extensions {
+            security: Some(Arc::new(security)),
+            http: Some(Arc::new(http)),
+            request: Some(Arc::new(RequestExtension {
+                environment: Some("staging".into()),
+                ..Default::default()
+            })),
+            agent: Some(Arc::new(AgentExtension {
+                input: Some("move the money".into()),
+                session_id: Some("sess-1".into()),
+                conversation_id: Some("conv-1".into()),
+                turn: Some(7),
+                agent_id: Some("agent-a".into()),
+                parent_agent_id: Some("agent-root".into()),
+                ..Default::default()
+            })),
+            meta: Some(Arc::new(MetaExtension {
+                entity_type: Some("tool".into()),
+                entity_name: Some("transfer".into()),
+                tags: ["pii".to_owned(), "financial".to_owned()].into(),
+                ..Default::default()
+            })),
+            ..Default::default()
+        };
+
+        let part = ContentPart::Resource {
+            content: Resource {
+                resource_request_id: "rr".into(),
+                uri: "file:///ledger.csv".into(),
+                name: Some("Ledger".into()),
+                content: Some("a,b".into()),
+                mime_type: Some("text/csv".into()),
+                ..Default::default()
+            },
+        };
+        let view = MessageView::new(&part, Role::User, Some("cmf.resource_pre_read"), Some(&ext));
+        let dict = view.to_dict(true, true);
+
+        // Core fields, including the mime type only a resource or media part has.
+        assert_eq!(dict["kind"], "resource");
+        assert_eq!(dict["role"], "user");
+        assert_eq!(dict["action"], "read");
+        assert_eq!(dict["hook"], "cmf.resource_pre_read");
+        assert_eq!(dict["is_pre"], true);
+        assert_eq!(dict["is_post"], false);
+        assert_eq!(dict["uri"], "file:///ledger.csv");
+        assert_eq!(dict["name"], "Ledger");
+        assert_eq!(dict["mime_type"], "text/csv");
+        assert_eq!(dict["content"], "a,b");
+        assert_eq!(dict["size_bytes"], 3);
+
+        let sub = &dict["extensions"]["subject"];
+        assert_eq!(sub["id"], "alice");
+        assert_eq!(sub["type"], "user");
+
+        // The three subject collections are sorted on the way out, so a policy
+        // comparing against a literal list has a stable order to match.
+        assert_eq!(
+            sub["roles"],
+            serde_json::json!(["admin", "auditor"]),
+            "roles must be present and sorted"
+        );
+        assert_eq!(
+            sub["permissions"],
+            serde_json::json!(["ledger:read", "ledger:write"]),
+            "permissions must be present and sorted"
+        );
+        assert_eq!(
+            sub["teams"],
+            serde_json::json!(["finance", "platform"]),
+            "teams must be present and sorted"
+        );
+        assert_eq!(
+            dict["extensions"]["labels"],
+            serde_json::json!(["CONFIDENTIAL", "PII"]),
+            "labels must be present and sorted"
+        );
+        assert_eq!(dict["extensions"]["environment"], "staging");
+        assert_eq!(dict["extensions"]["headers"]["X-Request-ID"], "req-9");
+
+        let agent = &dict["extensions"]["agent"];
+        assert_eq!(agent["input"], "move the money");
+        assert_eq!(agent["session_id"], "sess-1");
+        assert_eq!(agent["conversation_id"], "conv-1");
+        assert_eq!(agent["turn"], 7);
+        assert_eq!(agent["agent_id"], "agent-a");
+        assert_eq!(agent["parent_agent_id"], "agent-root");
+
+        let meta = &dict["extensions"]["meta"];
+        assert_eq!(meta["entity_type"], "tool");
+        assert_eq!(meta["entity_name"], "transfer");
+        assert_eq!(
+            meta["tags"],
+            serde_json::json!(["financial", "pii"]),
+            "tags must be present and sorted"
+        );
+    }
+
+    /// Sensitive headers are stripped before the projection leaves the process.
+    /// For a remote PDP that projection crosses the network, so a leak here
+    /// hands a bearer token to a third party. The filter lowercases the header
+    /// name, and headers arrive in whatever case the client sent, so the
+    /// canonical spellings are not enough on their own.
+    #[test]
+    fn sensitive_headers_are_stripped_whatever_their_case() {
+        use std::sync::Arc;
+
+        use crate::extensions::HttpExtension;
+
+        let mut http = HttpExtension::default();
+        for name in [
+            "Authorization",
+            "authorization",
+            "AUTHORIZATION",
+            "Cookie",
+            "COOKIE",
+            "X-API-Key",
+            "x-api-key",
+        ] {
+            http.set_header(name, "secret");
+        }
+        http.set_header("X-Request-ID", "req-1");
+
+        let ext = Extensions {
+            http: Some(Arc::new(http)),
+            ..Default::default()
+        };
+        let msg = Message::text(Role::User, "hello");
+        let views: Vec<_> = msg.iter_views(None, Some(&ext)).collect();
+        let dict = views[0].to_dict(true, true);
+        let headers = &dict["extensions"]["headers"];
+
+        let leaked: Vec<&String> = headers
+            .as_object()
+            .expect("headers must be an object")
+            .keys()
+            .filter(|k| {
+                let k = k.to_lowercase();
+                k == "authorization" || k == "cookie" || k == "x-api-key"
+            })
+            .collect();
+        assert!(
+            leaked.is_empty(),
+            "these headers must never reach a PDP: {leaked:?}"
+        );
+        assert_eq!(
+            headers["X-Request-ID"], "req-1",
+            "a non-sensitive header must still be projected, or this test would \
+             pass with the whole header map dropped"
+        );
+    }
+
+    /// With no context requested, nothing from the extensions is projected even
+    /// though they are attached. This is the flag a caller uses to keep subject
+    /// and header data out of a remote PDP request.
+    #[test]
+    fn withholding_context_drops_the_extensions_entirely() {
+        use std::sync::Arc;
+
+        use crate::extensions::{HttpExtension, SecurityExtension};
+
+        let mut security = SecurityExtension::default();
+        security.add_label("PII");
+        let mut http = HttpExtension::default();
+        http.set_header("X-Request-ID", "req-1");
+
+        let ext = Extensions {
+            security: Some(Arc::new(security)),
+            http: Some(Arc::new(http)),
+            ..Default::default()
+        };
+        let msg = Message::text(Role::User, "hello");
+        let views: Vec<_> = msg.iter_views(None, Some(&ext)).collect();
+
+        assert!(
+            views[0].to_dict(true, false).get("extensions").is_none(),
+            "include_context = false must withhold the whole block"
+        );
+        assert!(
+            views[0].to_dict(true, true).get("extensions").is_some(),
+            "and the same view with context on must include it, or the \
+             assertion above proves nothing"
+        );
+    }
+
+    /// Extensions that hold nothing produce no `extensions` key rather than an
+    /// empty object, so a rule testing for the key's presence is not misled.
+    #[test]
+    fn empty_extensions_produce_no_extensions_key() {
+        let ext = Extensions::default();
+        let msg = Message::text(Role::User, "hello");
+        let views: Vec<_> = msg.iter_views(None, Some(&ext)).collect();
+        let dict = views[0].to_dict(true, true);
+        assert!(
+            dict.get("extensions").is_none(),
+            "an empty context must be absent, not an empty object: {dict}"
+        );
+    }
+
+    /// A subject present but holding nothing is omitted for the same reason, and
+    /// an http extension whose only headers are sensitive projects no headers
+    /// key rather than an empty map.
+    #[test]
+    fn context_blocks_with_nothing_to_say_are_omitted() {
+        use std::sync::Arc;
+
+        use crate::extensions::{HttpExtension, SecurityExtension};
+
+        let mut security = SecurityExtension::default();
+        security.subject = Some(crate::extensions::security::SubjectExtension::default());
+        let mut http = HttpExtension::default();
+        http.set_header("Authorization", "Bearer secret");
+
+        let ext = Extensions {
+            security: Some(Arc::new(security)),
+            http: Some(Arc::new(http)),
+            ..Default::default()
+        };
+        let msg = Message::text(Role::User, "hello");
+        let views: Vec<_> = msg.iter_views(None, Some(&ext)).collect();
+        let dict = views[0].to_dict(true, true);
+
+        assert!(
+            dict.get("extensions").is_none(),
+            "an empty subject and an all-sensitive header map leave nothing to \
+             project: {dict}"
+        );
+    }
 }
