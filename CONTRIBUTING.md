@@ -25,7 +25,12 @@ Every source file starts with exactly these two lines, and nothing else:
 // Copyright (c) 2026 Praxis Contributors
 ```
 
-The year is the year the file was added. `#` instead of `//` in TOML and YAML.
+The year is the year the file was added. `#` instead of `//` in TOML, YAML and
+shell. This covers workflows and project config, not just crate sources.
+
+One exception: `crates/ppe-core/tests/fixtures/legacy-policy-document.yaml` carries
+no header. It is a verbatim copy of a policy document authored against the engine's
+previous name, and staying byte-identical is what makes it evidence.
 
 No `Authors:` line and no path line. Both go stale: a path breaks the moment a
 file moves, and an author list stops being true as soon as somebody else edits

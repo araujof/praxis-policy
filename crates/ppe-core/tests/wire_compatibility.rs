@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Praxis Contributors
+
 //! The rename must not move the policy wire surface.
 //!
 //! The fixture is a real policy document authored against the engine's previous
