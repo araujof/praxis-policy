@@ -134,38 +134,41 @@ audit:
 	@command -v cargo-deny >/dev/null 2>&1 || $(CARGO) install cargo-deny --locked
 	@cargo deny check
 
-# Target floor is 95 percent. The imported tree measured just under 90; it now
-# measures a little over 92, and the floor tracks that with a point of headroom
-# for platform and ordering variance. Two unrelated files moved by a line each
-# between consecutive local runs, which is what the headroom is for.
+# The target is met: the imported tree measured just under 90, it now measures a
+# little over 95, and the floor sits at the target. The gate rose as the tests
+# landed rather than ahead of them, because a red required check that nobody can
+# make green teaches people to ignore it.
 #
-# The gate rises as the tests land rather than ahead of them, because a red
-# required check that nobody can make green teaches people to ignore it. Raise
-# this line, do not lower it: a drop means coverage regressed.
+# Raise this line, do not lower it: a drop means coverage regressed. There is no
+# headroom left below the target, so a platform or ordering difference of a few
+# lines can turn the gate red. Fix that by covering something, not by lowering
+# the floor. (Two unrelated files moved by a line each between consecutive local
+# runs during this work, so the variance is real but small.)
 #
-# Note when reading a delta: test-module lines count toward the denominator, so
-# a new test adds total lines as well as covered ones. Test code is close to
-# fully covered, so this still lifts the ratio, by slightly more than retiring
-# the same number of uncovered lines alone would.
+# Note when reading a delta: test-module lines count toward the denominator, so a
+# new test adds total lines as well as covered ones. Test code is close to fully
+# covered, so this lifts the ratio by slightly more than retiring the same number
+# of uncovered lines alone would.
 #
-# Remaining to reach 95, measured rather than estimated: about 244 uncovered
-# lines to retire, and fewer in practice because each new test also adds covered
-# lines to the denominator.
+# What is still uncovered, for anyone pushing higher. About 1,615 lines, and the
+# two files holding most of it are both there by decision rather than oversight:
 #
-# Where that sits now. The policy parser holds 381 of it and is the only file
-# that alone would close the gap, but its shape is the problem: roughly 90
-# separate error-return sites, median three lines, each needing its own
-# hand-written bad-input case. The manager still has 214, of which about 105 is
-# duplicated mock-plugin scaffolding in its own test module rather than code;
-# consolidating those mocks was considered and declined, because each mock's name
-# is what tells a reader what its test exercises. The evaluator's 158 is dispatch
-# error arms and is the most tractable large block left.
+#   * The policy parser, roughly 265 lines across ~90 separate error-return
+#     sites of median three lines. Each needs its own hand-written bad-input
+#     case. Tractable, just long.
+#   * The manager, of which about 112 lines are duplicated mock-plugin
+#     scaffolding in its own test module rather than production code.
+#     Consolidating those mocks was considered and declined: each mock's name is
+#     what tells a reader what its test exercises.
 #
-# After those, a tail of 50-to-70-line files: identity-jwt's resolver, the OAuth
-# delegator, cmf/view, and the CIBA approver.
+# Also uncovered by design: about 25 production lines are provably unreachable
+# defensive guards, annotated as such in-source. cargo-llvm-cov cannot exclude
+# lines on stable, so they stay counted, costing roughly 0.08 percent.
 #
-# Keep this number in sync with the coverage workflow.
-COVERAGE_FLOOR ?= 94
+# This is the only copy of the number. The coverage workflow calls `make
+# coverage` rather than repeating the threshold, so there is nothing to keep in
+# sync.
+COVERAGE_FLOOR ?= 95
 COVERAGE_TARGET := 95
 
 # `--include-ignored` so the Valkey integration tests are measured. Most of what

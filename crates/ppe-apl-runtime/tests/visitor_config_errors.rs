@@ -173,3 +173,49 @@ fn a_visitor_error_is_attributed_to_the_visitor() {
         "the error must name the visitor that raised it: {e}"
     );
 }
+
+// ---- global.apl.attribute_files ----------------------------------------
+
+/// `attribute_files` supplies the static `data.*` tree a policy reads. Every way
+/// of getting it wrong has to fail the load.
+///
+/// A silently ignored bad path is the failure that matters: every `data.*`
+/// predicate would then read from an empty tree, so a rule like
+/// `data.allowed_tools contains name` matches nothing and the route it guards
+/// either opens or closes wholesale, with no error anywhere to explain it.
+#[test]
+fn a_malformed_attribute_files_block_is_rejected() {
+    let e = load_err("global:\n  apl:\n    attribute_files: attrs.yaml\n");
+    assert!(
+        e.contains("attribute_files"),
+        "the message must name the field: {e}"
+    );
+    assert!(e.contains("list"), "and say it wanted a list: {e}");
+}
+
+#[test]
+fn an_attribute_files_entry_that_is_not_a_path_is_rejected_with_its_index() {
+    let e = load_err("global:\n  apl:\n    attribute_files:\n      - 42\n");
+    assert!(
+        e.contains("attribute_files[0]"),
+        "the message must index the bad entry: {e}"
+    );
+}
+
+/// A path that does not exist is a load failure, not an empty tree.
+#[test]
+fn an_attribute_file_that_does_not_exist_is_rejected() {
+    let e =
+        load_err("global:\n  apl:\n    attribute_files:\n      - /nonexistent/praxis-attrs.yaml\n");
+    assert!(
+        e.contains("praxis-attrs.yaml") || e.contains("attribute"),
+        "the message must point at the file it could not read: {e}"
+    );
+}
+
+/// An empty list is not an error: it means the same as omitting the key. Without
+/// this, the rejections above could be coming from the key being present at all.
+#[test]
+fn an_empty_attribute_files_list_loads() {
+    loads("global:\n  apl:\n    attribute_files: []\n");
+}

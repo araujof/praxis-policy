@@ -479,4 +479,193 @@ mod tests {
         let msg: Message = serde_json::from_str(json).unwrap();
         assert_eq!(msg.schema_version, "2.0");
     }
+
+    // ---- the content selectors --------------------------------------------
+
+    /// A message holding one of every part these selectors care about, so each
+    /// one has both something to find and something it must not return.
+    fn mixed_message() -> Message {
+        Message::with_content(
+            Role::Assistant,
+            vec![
+                ContentPart::Text {
+                    text: "visible".into(),
+                },
+                ContentPart::Thinking {
+                    text: "hidden".into(),
+                },
+                ContentPart::ToolCall {
+                    content: ToolCall {
+                        tool_call_id: "tc_1".into(),
+                        name: "transfer".into(),
+                        arguments: std::collections::HashMap::new(),
+                        namespace: None,
+                    },
+                },
+                ContentPart::ToolResult {
+                    content: ToolResult {
+                        tool_call_id: "tc_1".into(),
+                        tool_name: "transfer".into(),
+                        content: serde_json::json!("done"),
+                        is_error: false,
+                    },
+                },
+                ContentPart::Resource {
+                    content: Resource {
+                        resource_request_id: "rr_1".into(),
+                        uri: "file:///inline.csv".into(),
+                        ..Default::default()
+                    },
+                },
+                ContentPart::ResourceRef {
+                    content: ResourceReference {
+                        resource_request_id: "rr_2".into(),
+                        uri: "file:///pointer.csv".into(),
+                        name: None,
+                        resource_type: crate::cmf::enums::ResourceType::File,
+                        range_start: None,
+                        range_end: None,
+                        selector: None,
+                    },
+                },
+                ContentPart::PromptRequest {
+                    content: PromptRequest {
+                        prompt_request_id: "pr_1".into(),
+                        name: "summarize".into(),
+                        arguments: std::collections::HashMap::new(),
+                        server_id: None,
+                    },
+                },
+                ContentPart::PromptResult {
+                    content: PromptResult {
+                        prompt_request_id: "pr_1".into(),
+                        prompt_name: "summarize".into(),
+                        messages: vec![],
+                        content: None,
+                        is_error: false,
+                        error_message: None,
+                    },
+                },
+            ],
+        )
+    }
+
+    /// Each selector returns exactly its own parts from a message holding all of
+    /// them. They are separate filters over the same list, so one matching the
+    /// wrong variant would hand a caller a part it cannot use, and the mistake
+    /// is invisible in a message that carries only one kind of content.
+    #[test]
+    fn each_selector_returns_only_the_parts_it_names() {
+        let msg = mixed_message();
+
+        assert_eq!(msg.get_text_content(), "visible");
+        assert_eq!(
+            msg.get_thinking_content().as_deref(),
+            Some("hidden"),
+            "reasoning is separate from visible text"
+        );
+
+        assert_eq!(msg.get_tool_calls().len(), 1);
+        assert_eq!(msg.get_tool_calls()[0].name, "transfer");
+        assert_eq!(msg.get_tool_results().len(), 1);
+        assert_eq!(msg.get_tool_results()[0].tool_name, "transfer");
+
+        assert_eq!(msg.get_resources().len(), 1, "inline resources only");
+        assert_eq!(msg.get_resource_refs().len(), 1, "references only");
+        assert_eq!(
+            msg.get_all_resource_uris(),
+            vec!["file:///inline.csv", "file:///pointer.csv"],
+            "the combined view spans both resource kinds, in content order"
+        );
+        assert!(msg.has_resources());
+
+        assert_eq!(msg.get_prompt_requests().len(), 1);
+        assert_eq!(msg.get_prompt_requests()[0].name, "summarize");
+        assert_eq!(msg.get_prompt_results().len(), 1);
+        assert_eq!(msg.get_prompt_results()[0].prompt_name, "summarize");
+    }
+
+    /// A message whose only resource is a reference still reports having
+    /// resources.
+    ///
+    /// `has_resources` matches two variants, and the mixed message above holds
+    /// an inline resource as well, so that assertion passes even if the
+    /// reference arm is dropped. A reference-only message is what makes the arm
+    /// load-bearing: it is also the common shape, since a large resource is
+    /// usually passed by uri rather than inline, and a rule scoped to resource
+    /// access would skip exactly those.
+    #[test]
+    fn a_message_whose_only_resource_is_a_reference_still_has_resources() {
+        let msg = Message::with_content(
+            Role::User,
+            vec![ContentPart::ResourceRef {
+                content: ResourceReference {
+                    resource_request_id: "rr".into(),
+                    uri: "file:///pointer.csv".into(),
+                    name: None,
+                    resource_type: crate::cmf::enums::ResourceType::File,
+                    range_start: None,
+                    range_end: None,
+                    selector: None,
+                },
+            }],
+        );
+        assert!(
+            msg.has_resources(),
+            "a reference is a resource for the purposes of a resource rule"
+        );
+        assert!(
+            msg.get_resources().is_empty(),
+            "and it is not an inline resource"
+        );
+        assert_eq!(msg.get_all_resource_uris(), vec!["file:///pointer.csv"]);
+    }
+
+    /// The mirror: an inline-only message, so neither arm can be dropped without
+    /// a failure.
+    #[test]
+    fn a_message_whose_only_resource_is_inline_still_has_resources() {
+        let msg = Message::with_content(
+            Role::User,
+            vec![ContentPart::Resource {
+                content: Resource {
+                    resource_request_id: "rr".into(),
+                    uri: "file:///inline.csv".into(),
+                    ..Default::default()
+                },
+            }],
+        );
+        assert!(msg.has_resources());
+        assert!(msg.get_resource_refs().is_empty());
+        assert_eq!(msg.get_all_resource_uris(), vec!["file:///inline.csv"]);
+    }
+
+    #[test]
+    fn the_mixed_message_reports_both_prompt_kinds() {
+        let msg = mixed_message();
+        assert_eq!(msg.get_prompt_requests().len(), 1);
+        assert_eq!(msg.get_prompt_requests()[0].name, "summarize");
+        assert_eq!(msg.get_prompt_results().len(), 1);
+        assert_eq!(msg.get_prompt_results()[0].prompt_name, "summarize");
+    }
+
+    /// The empty answers. A message with no reasoning reports none rather than
+    /// an empty string, since `get_thinking_content` is an `Option` precisely so
+    /// a caller can tell "no reasoning" from "reasoning that was blank".
+    #[test]
+    fn a_message_with_none_of_a_kind_reports_empty_rather_than_guessing() {
+        let msg = Message::text(Role::User, "just text");
+        assert_eq!(msg.get_thinking_content(), None);
+        assert!(msg.get_tool_calls().is_empty());
+        assert!(msg.get_tool_results().is_empty());
+        assert!(msg.get_resources().is_empty());
+        assert!(msg.get_resource_refs().is_empty());
+        assert!(msg.get_all_resource_uris().is_empty());
+        assert!(
+            !msg.has_resources(),
+            "a text-only message carries no resources"
+        );
+        assert!(msg.get_prompt_requests().is_empty());
+        assert!(msg.get_prompt_results().is_empty());
+    }
 }
