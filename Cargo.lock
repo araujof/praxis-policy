@@ -2273,7 +2273,6 @@ dependencies = [
  "async-trait",
  "cedar-policy",
  "futures",
- "praxis-policy-apl-cmf",
  "praxis-policy-apl-core",
  "praxis-policy-apl-runtime",
  "praxis-policy-core",
@@ -2290,7 +2289,6 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "cel",
- "praxis-policy-apl-cmf",
  "praxis-policy-apl-core",
  "praxis-policy-apl-runtime",
  "praxis-policy-core",
@@ -2305,7 +2303,6 @@ name = "praxis-policy-pdp-opa"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "praxis-policy-apl-cmf",
  "praxis-policy-apl-core",
  "praxis-policy-apl-runtime",
  "praxis-policy-core",
