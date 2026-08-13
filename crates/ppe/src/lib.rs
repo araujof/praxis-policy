@@ -72,6 +72,15 @@ pub use praxis_policy_apl_runtime::{
 };
 pub use praxis_policy_core::manager::PluginManager;
 
+/// The two types a host needs to accept a plugin it did not compile in:
+/// [`PluginManager::register_factory`] takes a `Box<dyn PluginFactory>`, and
+/// [`PluginInstance`] is what that factory returns.
+///
+/// Surfaced here so a host embedding the engine can name them without reaching
+/// through to `praxis_policy_core`. Plugin *authors* get the same two names from
+/// [`prelude`].
+pub use praxis_policy_core::factory::{PluginFactory, PluginInstance};
+
 /// Curated re-exports for plugin authors, so a plugin crate can depend on this
 /// facade alone. See [`praxis_policy_core::prelude`].
 pub use praxis_policy_core::prelude;
