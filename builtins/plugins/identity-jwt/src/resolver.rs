@@ -723,6 +723,11 @@ fn validate_token(
     let mut validation = Validation::new(primary);
     validation.algorithms = issuer.algorithms.clone();
     validation.set_issuer(&[&issuer.issuer]);
+    // `nbf` is off by default in jsonwebtoken, unlike `exp`. Leaving it off
+    // accepts a token whose own issuer says it is not valid yet, which is how a
+    // credential minted ahead of time becomes usable the moment it is minted.
+    // The same `leeway` below covers clock skew between us and the IdP.
+    validation.validate_nbf = true;
     validation.leeway = if issuer.leeway_seconds == 0 {
         DEFAULT_LEEWAY_SECONDS
     } else {
@@ -757,6 +762,7 @@ fn classify_jwt_error(e: &jsonwebtoken::errors::Error) -> (&'static str, String)
 #[allow(
     clippy::expect_used,
     clippy::indexing_slicing,
+    clippy::panic,
     clippy::unwrap_used,
     reason = "tests"
 )]
@@ -770,6 +776,18 @@ mod tests {
         let payload = URL_SAFE_NO_PAD.encode(payload_json.as_bytes());
         let sig = URL_SAFE_NO_PAD.encode(b"fake-signature");
         format!("{header}.{payload}.{sig}")
+    }
+
+    /// Name a `ValidateError` variant for an assertion message. The enum
+    /// carries no `Debug`, and "the error was wrong" without saying which error
+    /// is the difference between a one-minute and a ten-minute diagnosis.
+    fn variant_of(e: &ValidateError) -> String {
+        match e {
+            ValidateError::UnknownKid(kid) => format!("UnknownKid({kid:?})"),
+            ValidateError::KeysUnavailable => "KeysUnavailable".to_owned(),
+            ValidateError::NoAlgorithms => "NoAlgorithms".to_owned(),
+            ValidateError::Jwt(inner) => format!("Jwt({inner})"),
+        }
     }
 
     fn cfg_with_config(name: &str, config: Value) -> PluginConfig {
@@ -1059,6 +1077,437 @@ mod tests {
         assert_eq!(
             deny_code_for(&resolver, payload).await,
             "auth.malformed_header"
+        );
+    }
+
+    // ---- configuration the resolver has to refuse -------------------------
+
+    /// Config mistakes an operator can actually make, each of which has to be
+    /// refused at load rather than at the first request.
+    ///
+    /// The stakes differ per case but point the same way. A resolver that
+    /// constructs with no usable key would deny every request in production
+    /// with a message about the token instead of about the config, and one that
+    /// constructs with a blank `header:` would look for a header no client can
+    /// send. Failing at load turns both into a gateway that refuses to start.
+    #[test]
+    fn each_malformed_config_is_refused_at_load_with_a_message_naming_the_fault() {
+        let cases: [(&str, Value, &str); 5] = [
+            (
+                "trusted_issuers is not a list",
+                json!({ "trusted_issuers": "https://idp.example" }),
+                "parse failed",
+            ),
+            (
+                "an issuer entry lists no algorithms",
+                json!({
+                    "trusted_issuers": [{
+                        "issuer": "https://idp.example",
+                        "algorithms": [],
+                        "decoding_key": { "kind": "secret", "secret": "x" },
+                    }],
+                }),
+                "at least one algorithm",
+            ),
+            (
+                "an issuer's decoding key cannot be built",
+                json!({
+                    "trusted_issuers": [{
+                        "issuer": "https://idp.example",
+                        "algorithms": ["RS256"],
+                        "decoding_key": { "kind": "pem", "pem": "not a pem document" },
+                    }],
+                }),
+                "decoding_key build failed",
+            ),
+            (
+                "role names a host-defined slot the framework has no home for",
+                json!({
+                    "trusted_issuers": [{
+                        "issuer": "https://idp.example",
+                        "algorithms": ["HS256"],
+                        "decoding_key": { "kind": "secret", "secret": "x" },
+                    }],
+                    "role": "auditor",
+                }),
+                "not yet supported",
+            ),
+            (
+                "header is blank",
+                json!({
+                    "trusted_issuers": [{
+                        "issuer": "https://idp.example",
+                        "algorithms": ["HS256"],
+                        "decoding_key": { "kind": "secret", "secret": "x" },
+                    }],
+                    "header": "   ",
+                }),
+                "non-empty HTTP header name",
+            ),
+        ];
+
+        for (label, config, expected) in cases {
+            let err = JwtIdentityResolver::new(cfg_with_config("jwt", config))
+                .err()
+                .map(|e| format!("{e}"))
+                .unwrap_or_else(|| panic!("{label}: this config must not load"));
+            assert!(
+                err.contains(expected),
+                "{label}: the message must contain {expected:?}, got: {err}"
+            );
+            assert!(
+                err.contains("jwt"),
+                "{label}: and must name the plugin instance, got: {err}"
+            );
+        }
+    }
+
+    /// An unrecognized `role:` string deserializes into `TokenRole::Custom`
+    /// rather than failing to parse, because the variant is `untagged`. That is
+    /// what makes the construction-time check above the only thing standing
+    /// between a typo and a token written nowhere a `subject.*` predicate can
+    /// see it. This pins the deserialization half of that pair.
+    #[test]
+    fn an_unrecognized_role_string_becomes_a_custom_role() {
+        let role: TokenRole = serde_json::from_value(json!("auditor"))
+            .expect("an untagged variant accepts any string");
+        assert_eq!(role, TokenRole::Custom("auditor".to_owned()));
+    }
+
+    // ---- verify-time denials, against real signatures ---------------------
+
+    /// Sign a claim set the way the trusted issuer in these tests expects.
+    /// Tokens elsewhere in this file carry a fake signature, which is enough to
+    /// test the paths that reject before verification but cannot reach anything
+    /// past it.
+    fn sign_with(secret: &[u8], claims: &Value) -> String {
+        jsonwebtoken::encode(
+            &jsonwebtoken::Header::new(jsonwebtoken::Algorithm::HS256),
+            claims,
+            &jsonwebtoken::EncodingKey::from_secret(secret),
+        )
+        .expect("signing a test token")
+    }
+
+    fn seconds_from_now(offset: i64) -> i64 {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("the clock is after the epoch")
+            .as_secs();
+        i64::try_from(now).expect("a timestamp that fits in i64") + offset
+    }
+
+    /// A well-formed token for the test issuer, plus whatever extra claims the
+    /// caller merges in.
+    fn valid_claims(extra: Value) -> Value {
+        let mut claims = json!({
+            "iss": "https://idp.example",
+            "aud": "test-aud",
+            "sub": "alice",
+            "exp": seconds_from_now(3_600),
+        });
+        let map = claims.as_object_mut().expect("an object");
+        for (k, v) in extra.as_object().expect("extra claims must be an object") {
+            map.insert(k.clone(), v.clone());
+        }
+        claims
+    }
+
+    /// A resolver for the test issuer under a given token role.
+    fn resolver_for_role(role: &str) -> JwtIdentityResolver {
+        JwtIdentityResolver::new(cfg_with_config(
+            "jwt",
+            json!({
+                "trusted_issuers": [{
+                    "issuer": "https://idp.example",
+                    "audiences": ["test-aud"],
+                    "algorithms": ["HS256"],
+                    "decoding_key": { "kind": "secret", "secret": "test-secret" },
+                }],
+                "header": "authorization",
+                "role": role,
+                "claim_mapper": "standard",
+            }),
+        ))
+        .expect("a valid resolver config")
+    }
+
+    async fn result_for(
+        resolver: &JwtIdentityResolver,
+        token: &str,
+    ) -> PluginResult<IdentityPayload> {
+        let payload = IdentityPayload::new(token, TokenSource::Bearer);
+        resolver
+            .handle(&payload, &Extensions::default(), &mut PluginContext::new())
+            .await
+    }
+
+    /// The control for everything below: a correctly signed token is accepted,
+    /// the subject is populated, and the raw token is stashed under the
+    /// configured role. Without this, a denial in any test below could be
+    /// coming from the fixture rather than from the case under test.
+    #[tokio::test]
+    async fn a_correctly_signed_token_is_accepted_and_populates_the_subject() {
+        let resolver = resolver_for_role("user");
+        let token = sign_with(b"test-secret", &valid_claims(json!({})));
+        let result = result_for(&resolver, &token).await;
+
+        assert!(
+            result.continue_processing,
+            "a valid token must be accepted: {:?}",
+            result.violation
+        );
+        let updated = result
+            .modified_payload
+            .expect("an accepted token replaces the payload");
+        let subject = updated.subject.expect("the subject slot must be filled");
+        assert_eq!(subject.id.as_deref(), Some("alice"));
+        assert_eq!(
+            updated
+                .raw_credentials
+                .expect("the raw token is stashed for forwarding plugins")
+                .inbound_tokens
+                .get(&TokenRole::User)
+                .map(|t| t.token.as_str()),
+            Some(token.as_str()),
+            "the stash is keyed by the configured role"
+        );
+    }
+
+    /// Signature, expiry and audience failures each get their own code. They are
+    /// separated because an operator reading `auth.audience_mismatch` looks at
+    /// the audience config, and one reading `auth.signature_invalid` looks at
+    /// keys; collapsing them into one code sends them to the wrong place.
+    #[tokio::test]
+    async fn each_verification_failure_reports_its_own_code() {
+        let resolver = resolver_for_role("user");
+
+        let cases: [(&str, String, &str); 4] = [
+            (
+                "signed with the wrong key",
+                sign_with(b"not-the-secret", &valid_claims(json!({}))),
+                "auth.signature_invalid",
+            ),
+            (
+                "already expired",
+                sign_with(
+                    b"test-secret",
+                    &valid_claims(json!({ "exp": seconds_from_now(-3_600) })),
+                ),
+                "auth.token_expired",
+            ),
+            (
+                "minted for another audience",
+                sign_with(
+                    b"test-secret",
+                    &valid_claims(json!({ "aud": "some-other-api" })),
+                ),
+                "auth.audience_mismatch",
+            ),
+            (
+                "not valid until later",
+                sign_with(
+                    b"test-secret",
+                    &valid_claims(json!({ "nbf": seconds_from_now(3_600) })),
+                ),
+                "auth.token_not_yet_valid",
+            ),
+        ];
+
+        for (label, token, expected) in cases {
+            let payload = IdentityPayload::new(&token, TokenSource::Bearer);
+            assert_eq!(
+                deny_code_for(&resolver, payload).await,
+                expected,
+                "a token {label} must deny as {expected}"
+            );
+        }
+    }
+
+    /// A token whose `nbf` is barely in the future is still accepted, because
+    /// the issuer's clock is not ours and the leeway exists for exactly that.
+    ///
+    /// This is the other half of the `nbf` case above, and the reason it is
+    /// worth its own test: the obvious response to a skew complaint from
+    /// production is to stop validating `nbf` at all, which would silently
+    /// restore accepting a token its issuer says is not yet valid. Widening the
+    /// leeway is the fix; this test fails if the check is removed instead.
+    #[tokio::test]
+    async fn a_token_whose_nbf_is_within_the_leeway_is_accepted() {
+        let resolver = resolver_for_role("user");
+        let token = sign_with(
+            b"test-secret",
+            &valid_claims(json!({ "nbf": seconds_from_now(30) })),
+        );
+        let result = result_for(&resolver, &token).await;
+        assert!(
+            result.continue_processing,
+            "30 seconds of skew is inside the {DEFAULT_LEEWAY_SECONDS}s default \
+             leeway and must be tolerated: {:?}",
+            result.violation
+        );
+    }
+
+    /// A token whose `iss` matches no configured issuer is refused before any
+    /// key is consulted, since there is no key to consult. The signature here is
+    /// valid for the test secret, so only the issuer mismatch can cause this.
+    #[tokio::test]
+    async fn a_token_from_an_unconfigured_issuer_denies() {
+        let resolver = resolver_for_role("user");
+        let token = sign_with(
+            b"test-secret",
+            &valid_claims(json!({ "iss": "https://attacker.example" })),
+        );
+        assert_eq!(
+            deny_code_for(&resolver, IdentityPayload::new(&token, TokenSource::Bearer)).await,
+            "auth.untrusted_issuer"
+        );
+    }
+
+    /// Each role reads a different claim to build its principal, and a token
+    /// that verifies but carries the wrong claims cannot fill the slot. Denying
+    /// is the only safe answer: continuing would leave `subject.*` unset while
+    /// the request looks authenticated, so a rule requiring a subject would pass
+    /// a request that has none.
+    #[tokio::test]
+    async fn a_verified_token_missing_the_claims_its_role_needs_denies() {
+        // `sub` is what the user role maps; an empty override drops it.
+        let mut without_sub = valid_claims(json!({}));
+        without_sub
+            .as_object_mut()
+            .expect("an object")
+            .remove("sub");
+
+        let cases: [(&str, &str, Value); 3] = [
+            ("user", "no `sub` claim", without_sub),
+            (
+                "client",
+                "no `client_id` or `azp` claim",
+                valid_claims(json!({})),
+            ),
+            (
+                "caller_workload",
+                "a `sub` that is not a SPIFFE id",
+                valid_claims(json!({ "sub": "alice" })),
+            ),
+        ];
+
+        for (role, label, claims) in cases {
+            let resolver = resolver_for_role(role);
+            let token = sign_with(b"test-secret", &claims);
+            assert_eq!(
+                deny_code_for(&resolver, IdentityPayload::new(&token, TokenSource::Bearer)).await,
+                "auth.mapping_failed",
+                "role {role} with {label} must deny as a mapping failure"
+            );
+        }
+    }
+
+    /// The counterpart to the case above: given the claims each role does need,
+    /// the matching slot is filled. Without this the test above would pass even
+    /// if every role mapped nothing at all.
+    #[tokio::test]
+    async fn each_role_fills_its_own_slot_when_the_claims_are_present() {
+        let client = result_for(
+            &resolver_for_role("client"),
+            &sign_with(
+                b"test-secret",
+                &valid_claims(json!({ "client_id": "gateway-app" })),
+            ),
+        )
+        .await
+        .modified_payload
+        .expect("a verified client token is accepted");
+        assert_eq!(
+            client.client.map(|c| c.client_id),
+            Some("gateway-app".to_owned())
+        );
+
+        let workload = result_for(
+            &resolver_for_role("caller_workload"),
+            &sign_with(
+                b"test-secret",
+                &valid_claims(json!({ "sub": "spiffe://example.org/ns/default/sa/api" })),
+            ),
+        )
+        .await
+        .modified_payload
+        .expect("a verified workload token is accepted");
+        assert!(
+            workload.caller_workload.is_some(),
+            "a SPIFFE-shaped sub must fill the caller workload slot"
+        );
+    }
+
+    /// An issuer whose `KeyStore` is empty is the soft-fail boot state: the
+    /// initial JWKS fetch failed and the refresh task has not yet recovered.
+    /// That must report as unavailable keys rather than as a bad token, because
+    /// the token is fine and the fault is upstream.
+    #[test]
+    fn an_issuer_with_no_keys_reports_unavailable_rather_than_blaming_the_token() {
+        let issuer = TrustedIssuer {
+            issuer: "https://idp.example".into(),
+            audiences: vec![],
+            keys: std::sync::Arc::new(std::sync::RwLock::new(KeyStore::empty())),
+            algorithms: vec![jsonwebtoken::Algorithm::HS256],
+            leeway_seconds: 0,
+        };
+        let token = sign_with(b"test-secret", &valid_claims(json!({})));
+        let err = validate_token(&token, &issuer).expect_err("no keys, no verification");
+        assert!(
+            matches!(err, ValidateError::KeysUnavailable),
+            "an empty KeyStore must surface as KeysUnavailable, got {}",
+            variant_of(&err)
+        );
+    }
+
+    /// With a kid-indexed store, a token whose `kid` matches nothing is a
+    /// distinct failure from a bad signature: it usually means the issuer
+    /// rotated and the refresh has not landed. Conflating it with
+    /// `signature_invalid` would point an operator at the wrong thing.
+    #[test]
+    fn a_token_whose_kid_matches_no_key_is_reported_as_an_unknown_kid() {
+        let issuer = TrustedIssuer {
+            issuer: "https://idp.example".into(),
+            audiences: vec![],
+            keys: std::sync::Arc::new(std::sync::RwLock::new(KeyStore::from_jwks_entries([(
+                "key-1".to_owned(),
+                jsonwebtoken::DecodingKey::from_secret(b"test-secret"),
+            )]))),
+            algorithms: vec![jsonwebtoken::Algorithm::HS256],
+            leeway_seconds: 0,
+        };
+
+        let mut header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::HS256);
+        header.kid = Some("key-2".to_owned());
+        let token = jsonwebtoken::encode(
+            &header,
+            &valid_claims(json!({})),
+            &jsonwebtoken::EncodingKey::from_secret(b"test-secret"),
+        )
+        .expect("signing a test token");
+
+        let err = validate_token(&token, &issuer).expect_err("kid key-2 is not in the store");
+        assert!(
+            matches!(err, ValidateError::UnknownKid(Some(ref k)) if k == "key-2"),
+            "the unknown kid must be named so an operator can compare it against \
+             the issuer's JWKS, got {}",
+            variant_of(&err)
+        );
+
+        // The control: the kid that is in the store verifies, so the failure
+        // above is attributable to the kid and not to the fixture.
+        let mut header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::HS256);
+        header.kid = Some("key-1".to_owned());
+        let good = jsonwebtoken::encode(
+            &header,
+            &valid_claims(json!({})),
+            &jsonwebtoken::EncodingKey::from_secret(b"test-secret"),
+        )
+        .expect("signing a test token");
+        assert!(
+            validate_token(&good, &issuer).is_ok(),
+            "the kid present in the store must verify"
         );
     }
 }
