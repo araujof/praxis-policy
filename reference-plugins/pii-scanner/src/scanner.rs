@@ -1,4 +1,4 @@
-// Location: ./builtins/plugins/pii-scanner/src/scanner.rs
+// Location: ./reference-plugins/pii-scanner/src/scanner.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor

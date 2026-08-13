@@ -48,8 +48,6 @@ default = []
 builtins = [
     "jwt",
     "oauth",
-    "pii",
-    "audit",
     "elicitation-ciba",
     "cedar",
     "cel",
@@ -61,8 +59,6 @@ builtins = [
 # these, so they are deliberately shorter than the crate names they pull.
 jwt = ["_builtin", "dep:praxis-policy-plugin-identity-jwt"]
 oauth = ["_builtin", "dep:praxis-policy-plugin-delegator-oauth"]
-pii = ["_builtin", "dep:praxis-policy-plugin-pii-scanner"]
-audit = ["_builtin", "dep:praxis-policy-plugin-audit-logger"]
 elicitation-ciba = ["_builtin", "dep:praxis-policy-plugin-elicitation-ciba"]
 cedar = ["_builtin", "dep:praxis-policy-pdp-cedar-direct"]
 cel = ["_builtin", "dep:praxis-policy-pdp-cel"]
@@ -83,8 +79,12 @@ praxis-policy-apl-cmf = { workspace = true }
 praxis-policy-apl-runtime = { workspace = true }
 
 # Bundled extension crates, each behind its feature above.
-praxis-policy-plugin-pii-scanner = { workspace = true, optional = true }
-praxis-policy-plugin-audit-logger = { workspace = true, optional = true }
+#
+# The PII scanner and audit logger used to live here. They are now unpublished
+# reference implementations under `reference-plugins/`, registered by the host
+# rather than compiled in, because neither earned a supported slot: one is a
+# regex matcher with no Luhn check, the other a stderr writer. Each manifest
+# there says so, and the CPEX demo registers both as custom plugins.
 praxis-policy-plugin-identity-jwt = { workspace = true, optional = true }
 praxis-policy-plugin-delegator-oauth = { workspace = true, optional = true }
 praxis-policy-plugin-elicitation-ciba = { workspace = true, optional = true }

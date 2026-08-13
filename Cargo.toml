@@ -14,8 +14,6 @@ members = [
     "crates/ppe-apl-core",
     "crates/ppe-apl-cmf",
     "crates/ppe-apl-runtime",
-    "builtins/plugins/pii-scanner",
-    "builtins/plugins/audit-logger",
     "builtins/plugins/identity-jwt",
     "builtins/plugins/delegator-oauth",
     "builtins/plugins/elicitation-ciba",
@@ -23,6 +21,12 @@ members = [
     "builtins/pdps/cel",
     "builtins/pdps/opa",
     "builtins/session/valkey",
+    # Reference implementations, not published and not in the `builtins`
+    # umbrella. Workspace members so they stay built, linted and tested, and so
+    # they keep working as examples of an out-of-tree plugin. Each manifest says
+    # why it is not a builtin.
+    "reference-plugins/pii-scanner",
+    "reference-plugins/audit-logger",
 ]
 
 # The session store pulls a redis client and a TLS stack, which slows a default
@@ -35,14 +39,18 @@ default-members = [
     "crates/ppe-apl-core",
     "crates/ppe-apl-cmf",
     "crates/ppe-apl-runtime",
-    "builtins/plugins/pii-scanner",
-    "builtins/plugins/audit-logger",
     "builtins/plugins/identity-jwt",
     "builtins/plugins/delegator-oauth",
     "builtins/plugins/elicitation-ciba",
     "builtins/pdps/cedar-direct",
     "builtins/pdps/cel",
     "builtins/pdps/opa",
+    # Reference implementations, not published and not in the `builtins`
+    # umbrella. Workspace members so they stay built, linted and tested, and so
+    # they keep working as examples of an out-of-tree plugin. Each manifest says
+    # why it is not a builtin.
+    "reference-plugins/pii-scanner",
+    "reference-plugins/audit-logger",
 ]
 
 [workspace.package]
@@ -109,8 +117,6 @@ praxis-policy-orchestration            = { path = "crates/ppe-orchestration",   
 praxis-policy-apl-core                      = { path = "crates/ppe-apl-core",          version = "0.1.0" }
 praxis-policy-apl-cmf                       = { path = "crates/ppe-apl-cmf",           version = "0.1.0" }
 praxis-policy-apl-runtime                      = { path = "crates/ppe-apl-runtime",       version = "0.1.0" }
-praxis-policy-plugin-pii-scanner       = { path = "builtins/plugins/pii-scanner",      version = "0.1.0" }
-praxis-policy-plugin-audit-logger      = { path = "builtins/plugins/audit-logger",     version = "0.1.0" }
 praxis-policy-plugin-identity-jwt      = { path = "builtins/plugins/identity-jwt",     version = "0.1.0" }
 praxis-policy-plugin-delegator-oauth   = { path = "builtins/plugins/delegator-oauth",  version = "0.1.0" }
 praxis-policy-plugin-elicitation-ciba  = { path = "builtins/plugins/elicitation-ciba", version = "0.1.0" }

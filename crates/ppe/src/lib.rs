@@ -56,10 +56,21 @@
 //!
 //! No plugins are on by default (`praxis-policy` alone is the engine).
 //! `builtins` enables every bundled extension, including the Valkey session
-//! store; or pick a granular subset (`jwt`, `oauth`, `pii`, `audit`,
-//! `elicitation-ciba`, `cedar`, `cel`, `opa`, `valkey`). Any of them brings in
-//! the registration helpers, and each one re-exports its own concrete factory
-//! type here.
+//! store; or pick a granular subset (`jwt`, `oauth`, `elicitation-ciba`,
+//! `cedar`, `cel`, `opa`, `valkey`). Any of them brings in the registration
+//! helpers, and each one re-exports its own concrete factory type here.
+//!
+//! # Plugins the host supplies
+//!
+//! A plugin does not have to be bundled. Implement [`PluginFactory`] and hand it
+//! to [`PluginManager::register_factory`] under the `kind:` your YAML names;
+//! [`prelude`] is the surface to write it against. An unrecognised `kind` is a
+//! load-time error, so a missing registration fails at startup rather than
+//! silently skipping the plugin.
+//!
+//! `reference-plugins/` in this repository holds two worked examples, a PII
+//! scanner and an audit logger. They were bundled builtins until neither earned
+//! a supported slot, and they are now unpublished and host-registered.
 
 // Whole-crate re-exports for advanced use (types not surfaced below).
 pub use {
@@ -92,16 +103,12 @@ pub use praxis_policy_pdp_cedar_direct::CedarDirectPdpFactory;
 pub use praxis_policy_pdp_cel::CelPdpFactory;
 #[cfg(feature = "opa")]
 pub use praxis_policy_pdp_opa::OpaPdpFactory;
-#[cfg(feature = "audit")]
-pub use praxis_policy_plugin_audit_logger::{AuditLoggerFactory, KIND as AUDIT_KIND};
 #[cfg(feature = "oauth")]
 pub use praxis_policy_plugin_delegator_oauth::{KIND as OAUTH_KIND, OAuthDelegatorFactory};
 #[cfg(feature = "elicitation-ciba")]
 pub use praxis_policy_plugin_elicitation_ciba::{CibaApproverFactory, KIND as CIBA_KIND};
 #[cfg(feature = "jwt")]
 pub use praxis_policy_plugin_identity_jwt::{JwtIdentityFactory, KIND as JWT_KIND};
-#[cfg(feature = "pii")]
-pub use praxis_policy_plugin_pii_scanner::{KIND as PII_KIND, PiiScannerFactory};
 #[cfg(feature = "valkey")]
 pub use praxis_policy_session_valkey::{
     KIND as VALKEY_KIND, ValkeyConfig, ValkeySessionStoreFactory,
@@ -131,9 +138,12 @@ pub use praxis_policy_session_valkey::{
 macro_rules! register_builtins {
     ( $( feature $feat:literal => $krate:ident :: $factory:ident ),* $(,)? ) => {
         /// Register every enabled by-kind plugin factory on `mgr`: identity
-        /// (`jwt`), delegators (`oauth`), validators (`pii`), and observers
-        /// (`audit`). Call before loading a config so the manager can
+        /// (`jwt`), delegators (`oauth`), and elicitation approvers
+        /// (`elicitation-ciba`). Call before loading a config so the manager can
         /// instantiate plugins whose YAML `kind:` matches.
+        ///
+        /// A host adds its own with [`PluginManager::register_factory`], after
+        /// this call so a host registration wins on a shared `kind`.
         ///
         /// PDP and session-store factories are wired through [`AplOptions`]
         /// instead; see [`builtin_pdp_factories`] and
@@ -153,8 +163,6 @@ register_builtins! {
     feature "jwt"              => praxis_policy_plugin_identity_jwt::JwtIdentityFactory,
     feature "oauth"            => praxis_policy_plugin_delegator_oauth::OAuthDelegatorFactory,
     feature "elicitation-ciba" => praxis_policy_plugin_elicitation_ciba::CibaApproverFactory,
-    feature "pii"              => praxis_policy_plugin_pii_scanner::PiiScannerFactory,
-    feature "audit"            => praxis_policy_plugin_audit_logger::AuditLoggerFactory,
 }
 
 /// The enabled PDP factories, ready to drop into
@@ -238,5 +246,70 @@ mod tests {
             expected,
             "one session-store factory per enabled feature",
         );
+    }
+
+    /// Load a one-plugin config against a manager with the builtins installed,
+    /// and return the error text (empty string on success).
+    ///
+    /// Goes through `load_config_yaml` rather than inspecting the registry
+    /// because that is the path an operator hits: the question is whether their
+    /// YAML `kind:` resolves, not what the map contains.
+    fn load_error_for_kind(kind: &str) -> String {
+        let mgr = Arc::new(PluginManager::default());
+        install_builtins(&mgr);
+        let yaml =
+            format!("plugins:\n  - name: probe\n    kind: {kind}\n    hooks: [identity.resolve]\n");
+        match mgr.load_config_yaml(&yaml) {
+            Ok(()) => String::new(),
+            Err(e) => format!("{e}"),
+        }
+    }
+
+    /// The by-kind plugin table had no test, unlike the PDP and session-store
+    /// lists. So a builtin could leave the umbrella, or quietly rejoin it, with
+    /// nothing failing. This pins the set.
+    ///
+    /// Each enabled builtin must resolve its `kind`. The probe config is
+    /// deliberately minimal, so most of these still fail on their own settings —
+    /// what matters is that they fail on settings rather than on a missing
+    /// factory, which is a different message and a different operator problem.
+    #[test]
+    fn every_enabled_builtin_resolves_its_kind() {
+        let expected = [
+            (cfg!(feature = "jwt"), "identity/jwt"),
+            (cfg!(feature = "oauth"), "delegator/oauth"),
+            (cfg!(feature = "elicitation-ciba"), "elicitation/ciba"),
+        ];
+        for (enabled, kind) in expected {
+            if !enabled {
+                continue;
+            }
+            let err = load_error_for_kind(kind);
+            assert!(
+                !err.contains("no factory registered"),
+                "{kind} is enabled, so its factory must be registered; got: {err}"
+            );
+        }
+    }
+
+    /// The PII scanner and audit logger are reference implementations now, so the
+    /// umbrella must not register them. A host supplies them instead.
+    ///
+    /// Asserted as the exact operator-visible failure, because that message is
+    /// what tells someone their config needs a host registration rather than a
+    /// different feature flag.
+    #[test]
+    fn the_reference_plugins_are_not_registered_by_the_umbrella() {
+        for kind in ["validator/pii-scan", "audit/logger"] {
+            let err = load_error_for_kind(kind);
+            assert!(
+                err.contains("no factory registered"),
+                "{kind} must not be bundled; got: {err}"
+            );
+            assert!(
+                err.contains(kind),
+                "the error must name the unresolved kind: {err}"
+            );
+        }
     }
 }

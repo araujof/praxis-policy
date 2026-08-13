@@ -1,4 +1,4 @@
-// Location: ./builtins/plugins/audit-logger/src/lib.rs
+// Location: ./reference-plugins/audit-logger/src/lib.rs
 // Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
