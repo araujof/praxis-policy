@@ -10,17 +10,14 @@
 
 [package]
 name = "praxis-policy-plugin-audit-logger"
-# Not published, and not part of the `builtins` umbrella.
+# Reference implementation. Not published, and not in the `builtins` umbrella:
+# the record shape is useful but the sink is stderr or `tracing::info!`, and a
+# real deployment routes audit at a SIEM, a queue, or an append-only store.
+# Shipping it as supported would mean versioning a stderr writer.
 #
-# The record shape is useful; the sink is not. It writes to stderr or
-# `tracing::info!`, and every real deployment routes audit somewhere specific: a
-# SIEM, a queue, an append-only store. Shipping this as a supported builtin would
-# have us versioning a stderr writer.
-#
-# It stays in the workspace so it is built, linted and tested on every change,
-# and so it doubles as a reference implementation of an out-of-tree plugin. A
-# host registers it with `PluginManager::register_factory`; the CPEX demo does
-# exactly that. See `praxis_policy_core::prelude` for the author-facing surface.
+# Still a workspace member, so it is built, linted and tested here. A host
+# registers it with `PluginManager::register_factory`; write your own against
+# `praxis_policy_core::prelude`.
 publish = false
 version.workspace      = true
 edition.workspace      = true

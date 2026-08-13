@@ -378,7 +378,7 @@ pub trait PdpResolver: Send + Sync {
 /// reported `kind()`, it calls `build` with the rest of that block.
 ///
 /// The error type is `Box<dyn Error + Send + Sync>` to keep this trait
-/// in praxis-policy-apl-core (which has no cpex deps). praxis-policy-apl-runtime's visitor wraps
+/// in praxis-policy-apl-core (which has no engine deps). praxis-policy-apl-runtime's visitor wraps
 /// the boxed error into `VisitorError` → `PluginError::Config` at the
 /// manager boundary.
 pub trait PdpFactory: Send + Sync {

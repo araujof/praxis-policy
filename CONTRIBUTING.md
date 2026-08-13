@@ -72,10 +72,9 @@ Two rules for contributors:
   an invitation to add more.
 - **Do not suppress a lint at a wider scope than the code that needs it.** A
   module-level allow that covers lints the module does not violate hides the next
-  real one. Sixty-three such entries were removed once; prefer the narrowest
-  scope, with a `reason`.
+  real one, so prefer the narrowest scope, with a `reason`.
 
-Closing a group is welcome as a focused change, one lint at a time, separate from
-feature work. Read `docs/lints.md` first: it records which lints clippy reports as
-machine-fixable but cannot actually fix, and where a lint's suggested rewrite is
-worse than the code it replaces.
+Enforcing one of the allowed groups is welcome as a focused change, one lint at a
+time, separate from feature work. `docs/lints.md` is worth reading first: it
+records which lints clippy reports as machine-fixable but cannot actually fix, and
+where a lint's suggested rewrite is worse than the code it replaces.

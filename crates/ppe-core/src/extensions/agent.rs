@@ -4,7 +4,7 @@
 // Authors: Teryl Taylor
 //
 // AgentExtension — session, conversation, agent lineage.
-// Mirrors cpex/framework/extensions/agent.py.
+// Mirrors the Python framework/extensions/agent.py.
 
 use serde::{Deserialize, Serialize};
 

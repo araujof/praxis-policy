@@ -118,12 +118,11 @@ pub use praxis_policy_session_valkey::{
 // Builtin registration
 // =============================================================================
 //
-// Which builtins exist and how they are registered lives here rather than in a
-// separate aggregator crate. It was split for a while, and the split cost a real
-// bug: both layers defined an umbrella over the same set, and the forwarding
-// between them left these factory re-exports unreachable, so enabling
-// `builtins` compiled every builtin in and exported none of their types. One
-// layer cannot disagree with itself.
+// The feature list, the factory re-exports above, and the registration table
+// below all describe the same set, so they belong in one crate. Split across two,
+// each side needs its own umbrella feature forwarding to the other, and the two
+// can disagree: an umbrella that compiles every builtin in while exporting none
+// of their types still builds.
 
 /// Generate [`register_builtin_plugins`] from a feature to factory table. Each
 /// entry expands to a `#[cfg(feature = ...)]`-gated, **explicit**
@@ -131,7 +130,8 @@ pub use praxis_policy_session_valkey::{
 /// crate's own `KIND` const.
 ///
 /// Explicit calls (rather than `inventory` / `linkme` link-section registration)
-/// are deliberate: in the CPEX FFI staticlib the linker garbage-collects
+/// are deliberate: when this engine is linked into an FFI staticlib the linker
+/// garbage-collects
 /// sections nothing references, which would silently drop auto-registered
 /// plugins. Naming each factory here keeps its object code alive.
 #[cfg(feature = "_builtin")]

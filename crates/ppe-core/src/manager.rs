@@ -22,7 +22,7 @@
 //   config loader → manager → PluginRef → executor
 //
 // Mirrors the Python framework's PluginManager in
-// cpex/framework/manager.py.
+// the Python framework/manager.py.
 
 use std::hash::{Hash, Hasher};
 use std::path::Path;

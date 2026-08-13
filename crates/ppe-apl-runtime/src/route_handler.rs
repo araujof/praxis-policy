@@ -295,7 +295,7 @@ impl AnyHookHandler for AplRouteHandler {
             .with_data(&self.attribute_tree)
             .build();
 
-        // Phase 5 retry seeding: if the agent echoed an elicitation id (from
+        // Retry seeding: if the agent echoed an elicitation id (from
         // a prior `-32120`) in the `X-Policy-Elicitation-Id` header, seed it
         // into the bag *before* evaluation. `dispatch_elicitation` then takes
         // the "id present → check" path (poll the existing approval) instead
@@ -828,7 +828,7 @@ fn pending_violation(p: &praxis_policy_apl_core::step::PendingElicitation) -> Pl
     clippy::unwrap_used,
     reason = "tests"
 )]
-mod phase5_tests {
+mod tests {
     use super::*;
     use praxis_policy_core::extensions::HttpExtension;
     use std::sync::Arc;

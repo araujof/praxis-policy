@@ -4,7 +4,7 @@
 // Authors: Teryl Taylor
 //
 // HttpExtension — HTTP request and response headers.
-// Mirrors cpex/framework/extensions/http.py.
+// Mirrors the Python framework/extensions/http.py.
 
 use std::collections::HashMap;
 

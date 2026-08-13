@@ -4,7 +4,7 @@
 // Authors: Teryl Taylor
 //
 // ProvenanceExtension — origin and message threading.
-// Mirrors cpex/framework/extensions/provenance.py.
+// Mirrors the Python framework/extensions/provenance.py.
 
 use serde::{Deserialize, Serialize};
 

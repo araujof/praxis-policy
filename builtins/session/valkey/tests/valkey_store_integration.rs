@@ -19,13 +19,10 @@
 //   - `VALKEY_TESTS_OPTIONAL=1` opts back into skipping, for a local run with
 //     no Docker where a failure would just be noise.
 //
-// The failure is the point. This previously skipped by default and printed a
-// SKIPPED line, on the reasoning that a visible line prevents a silent green.
-// It does not: cargo captures stderr from *passing* tests, so in the default
-// invocation the line never appears and the run reports "5 passed" with four of
-// the five having asserted nothing. Verified against a real endpoint, all five
-// do pass and take `store.rs` to 91.67 percent, so there is real signal here to
-// protect.
+// Failing rather than skipping matters, and printing a SKIPPED line is not an
+// alternative: cargo captures stderr from *passing* tests, so such a line never
+// reaches the default invocation and the run reports every test passed while
+// most of them asserted nothing.
 
 #![allow(
     missing_docs,

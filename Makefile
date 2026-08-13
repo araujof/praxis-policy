@@ -84,8 +84,8 @@ fmt:
 clippy:
 	@$(CARGO) clippy --workspace --all-targets -- -D warnings
 
-# CI-safe gate: read-only fmt check plus clippy. Lint levels come from the
-# [workspace.lints] wall in Cargo.toml, including the parked seed entries.
+# CI-safe gate: read-only fmt check plus clippy. Lint levels come from
+# [workspace.lints] in Cargo.toml.
 .PHONY: lint
 lint:
 	@echo "fmt --check + clippy -D warnings ..."
@@ -98,8 +98,9 @@ lint-fix:
 	@$(CARGO) fmt --all
 	@$(CARGO) clippy --workspace --all-targets --fix --allow-dirty --allow-staged -- -D warnings
 
-# Advisory: cargo-machete false-positives on macro- and derive-only crates, so
-# it is not part of the blocking lint gate.
+# Advisory, not part of the blocking gate: machete is wrong in both directions. It
+# reports macro- and derive-only crates as unused, and it misses a genuinely
+# unused dependency whose name appears in a comment.
 .PHONY: machete
 machete:
 	@command -v cargo-machete >/dev/null 2>&1 || $(CARGO) install cargo-machete --locked
@@ -109,17 +110,10 @@ machete:
 # Test
 # =============================================================================
 
-# Two passes, because a single one cannot see everything.
-#
-# The default pass is the configuration a host gets with no features named. The
-# all-features pass is the only way to reach `#[cfg(feature = ...)]` test
-# modules, and the facade's are gated that way because its `default` is empty by
-# design: the bare dependency is the engine alone.
-#
-# The second pass is not optional politeness. Folding the builtins aggregator
-# into the facade silently stopped three tests from running, because the
-# aggregator had a non-empty `default` and the facade does not. A green
-# single-pass run said nothing was wrong.
+# Two passes. The first is what a host gets naming no features. The second is the
+# only way to reach `#[cfg(feature = ...)]` test modules, and the facade's tests
+# are gated that way because its `default` is empty: the bare dependency is the
+# engine alone. Dropping either pass hides tests without failing.
 .PHONY: test
 test:
 	@$(CARGO) test --workspace
@@ -134,52 +128,22 @@ audit:
 	@command -v cargo-deny >/dev/null 2>&1 || $(CARGO) install cargo-deny --locked
 	@cargo deny check
 
-# The target is met: the imported tree measured just under 90, it now measures a
-# little over 95, and the floor sits at the target. The gate rose as the tests
-# landed rather than ahead of them, because a red required check that nobody can
-# make green teaches people to ignore it.
+# Minimum line coverage. Raise it, never lower it: a drop means coverage
+# regressed. There is no headroom above the floor, so if a platform difference of
+# a few lines turns the gate red, cover something rather than lowering it.
 #
-# Raise this line, do not lower it: a drop means coverage regressed. There is no
-# headroom left below the target, so a platform or ordering difference of a few
-# lines can turn the gate red. Fix that by covering something, not by lowering
-# the floor. (Two unrelated files moved by a line each between consecutive local
-# runs during this work, so the variance is real but small.)
+# 100 percent is not the goal. Some production lines are unreachable defensive
+# guards, marked as such where they appear, and cargo-llvm-cov cannot exclude
+# lines on stable.
 #
-# Note when reading a delta: test-module lines count toward the denominator, so a
-# new test adds total lines as well as covered ones. Test code is close to fully
-# covered, so this lifts the ratio by slightly more than retiring the same number
-# of uncovered lines alone would.
-#
-# What is still uncovered, for anyone pushing higher. About 1,615 lines, and the
-# two files holding most of it are both there by decision rather than oversight:
-#
-#   * The policy parser, roughly 265 lines across ~90 separate error-return
-#     sites of median three lines. Each needs its own hand-written bad-input
-#     case. Tractable, just long.
-#   * The manager, of which about 112 lines are duplicated mock-plugin
-#     scaffolding in its own test module rather than production code.
-#     Consolidating those mocks was considered and declined: each mock's name is
-#     what tells a reader what its test exercises.
-#
-# Also uncovered by design: about 25 production lines are provably unreachable
-# defensive guards, annotated as such in-source. cargo-llvm-cov cannot exclude
-# lines on stable, so they stay counted, costing roughly 0.08 percent.
-#
-# This is the only copy of the number. The coverage workflow calls `make
-# coverage` rather than repeating the threshold, so there is nothing to keep in
-# sync.
+# The coverage workflow calls this target rather than repeating the threshold, so
+# this is the only copy of the number.
 COVERAGE_FLOOR ?= 95
-COVERAGE_TARGET := 95
 
-# `--include-ignored` so the Valkey integration tests are measured. Most of what
-# they cover needs no Valkey at all (the unreachable-endpoint case), which is
-# worth having rather than reading that file as 0 percent.
-#
-# `VALKEY_TESTS_OPTIONAL=1` because this target measures, it does not assert. The
-# tests fail loudly without an endpoint under `make test`, which is the gate;
-# making coverage fail for a missing container would only stop the measurement
-# from running at all. Supply `VALKEY_TEST_URL` to measure the container paths
-# too, which takes that file from 75 to about 92 percent.
+# `--include-ignored` reaches the Valkey integration tests, much of which needs no
+# Valkey at all. `VALKEY_TESTS_OPTIONAL=1` lets them skip instead of fail, because
+# this target measures and `make test` is what asserts. Set `VALKEY_TEST_URL` to
+# measure the paths that do need a server.
 .PHONY: coverage
 coverage:
 	@command -v cargo-llvm-cov >/dev/null 2>&1 || $(CARGO) install cargo-llvm-cov --locked

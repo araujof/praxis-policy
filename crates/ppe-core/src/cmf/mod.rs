@@ -7,7 +7,7 @@
 //
 // Canonical message representation for interactions between users,
 // agents, tools, and language models. All models mirror the Python
-// CMF in cpex/framework/cmf/message.py.
+// CMF in the Python framework/cmf/message.py.
 //
 // Extensions are NOT part of the Message — they are passed separately
 // to handlers via the framework's Extensions type in hooks/payload.rs.

@@ -4,7 +4,7 @@
 // Authors: Teryl Taylor
 //
 // SecurityExtension — labels, classification, identity, data policy.
-// Mirrors cpex/framework/extensions/security.py.
+// Mirrors the Python framework/extensions/security.py.
 
 use std::collections::{HashMap, HashSet};
 

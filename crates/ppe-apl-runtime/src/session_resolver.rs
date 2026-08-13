@@ -4,7 +4,7 @@
 // Authors: Teryl Taylor
 //
 // 3-tier session-id resolver. The Python apl-plugins `SessionResolver`
-// (cpex/framework/session.py) shipped a 4-tier version including a
+// (Python framework/session.py) shipped a 4-tier version including a
 // client-supplied `X-PPE-Session-Id` header tier. **That tier is
 // excluded by design here**: an authenticated client can set the
 // header to another subject's known session id and inherit their
@@ -496,7 +496,7 @@ mod tests {
     // The client-supplied `X-PPE-Session-Id` header tier is
     // intentionally absent — it has no slot in the walk above.
     //
-    // The Python `SessionResolver` included a header tier; cpex Rust
+    // The Python `SessionResolver` included a header tier; this port
     // does not. See the module-level doc comment for the threat model.
     // A spoofing-regression guard lives below in
     // `header_x_policy_session_id_is_ignored`.

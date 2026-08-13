@@ -4,7 +4,7 @@
 // Authors: Teryl Taylor
 //
 // CompletionExtension — LLM completion information.
-// Mirrors cpex/framework/extensions/completion.py.
+// Mirrors the Python framework/extensions/completion.py.
 
 use serde::{Deserialize, Serialize};
 

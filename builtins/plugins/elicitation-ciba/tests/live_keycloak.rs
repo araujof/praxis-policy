@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
-// Phase 0 verification — runs the *automatable* half of the CIBA flow
-// (dispatch → check-pending) against a REAL Keycloak, so "Phase 0
-// verified" is a repeatable test, not just the manual runbook.
+// Runs the automatable half of the CIBA flow (dispatch, then check-pending)
+// against a real Keycloak, so the parts that do not need a human are a
+// repeatable test rather than a manual runbook.
 //
-// The approval step is decoupled and human-driven,
-// so it can't be asserted here — but dispatch + the first poll exercise
-// the realm/client/auth config end-to-end, which is what usually breaks.
+// The approval itself is human-driven and cannot be asserted here. Dispatch and
+// the first poll still exercise the realm, client and auth config end to end,
+// which is what usually breaks.
 //
 // `#[ignore]` by default. To run against a Keycloak configured per the
 // runbook:
@@ -91,7 +91,7 @@ async fn live_dispatch_then_pending() {
 
     // 1. dispatch → backchannel auth request.
     let dispatch = ElicitationPayload::new(ElicitationOp::Dispatch, "approval", &login_hint)
-        .with_purpose("Phase 0 verification — please ignore");
+        .with_purpose("live CIBA config check — please ignore");
     let mut ctx = PluginContext::new();
     let out = approver.handle(&dispatch, &ext, &mut ctx).await;
     assert!(

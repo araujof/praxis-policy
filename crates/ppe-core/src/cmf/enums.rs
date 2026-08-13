@@ -5,7 +5,7 @@
 //
 // CMF enums — Role, Channel, ContentType, ResourceType.
 //
-// Mirrors the Python enums in cpex/framework/cmf/message.py.
+// Mirrors the Python enums in framework/cmf/message.py.
 // All use snake_case serialization to match Python string values.
 
 use serde::{Deserialize, Serialize};

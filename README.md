@@ -36,10 +36,10 @@ A host does not have to use a bundled plugin. Implement `PluginFactory` against
 unrecognised `kind` fails at load, so a missing registration surfaces at startup
 rather than as a plugin that silently never runs.
 
-`reference-plugins/` holds two of these: a PII scanner and an audit logger. Both
-were bundled builtins until neither earned a supported slot — the scanner is
-regex matching with no Luhn check, and the logger writes to stderr. They are
-still built, linted and tested here, and the CPEX HR demo registers both as host
+`reference-plugins/` holds two worked examples: a PII scanner and an audit logger.
+Neither is published or bundled, because neither is production-grade — the scanner
+is regex matching with no Luhn check, and the logger writes to stderr. Both are
+built, linted and tested here, and the reference HR demo registers them as host
 plugins.
 
 ## Building

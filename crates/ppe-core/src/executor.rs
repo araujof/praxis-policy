@@ -22,7 +22,7 @@
 //   - Disable: log error, mark plugin disabled, continue
 //
 // Mirrors the Python framework's PluginExecutor in
-// cpex/framework/manager.py.
+// the Python framework/manager.py.
 
 use std::any::Any;
 use std::fmt;

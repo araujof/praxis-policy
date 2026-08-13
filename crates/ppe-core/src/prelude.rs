@@ -10,10 +10,9 @@
 //! and the factory types a plugin exposes so a host can construct it. Import it
 //! as a block rather than tracking which module each name lives in.
 //!
-//! A whole plugin, from this module alone. Compiled rather than `ignore`d,
-//! because "everything needed to write a plugin" is a claim that regresses
-//! silently: the factory group below was missing for exactly as long as nothing
-//! checked it.
+//! A whole plugin, from this module alone. The example is compiled, not
+//! `ignore`d, so that a name dropped from the groups below fails here rather
+//! than only in a downstream crate.
 //!
 //! ```rust
 //! use std::sync::Arc;
@@ -64,20 +63,13 @@
 //! }
 //! ```
 //!
-//! This was a separate `praxis-policy-sdk` crate, on the reasoning that plugin
-//! authors could depend on it "instead of the full runtime" for a smaller
-//! dependency tree. That did not hold: every name here is re-exported from this
-//! crate, so depending on the wrapper pulled the same graph. What it really
-//! offered was the curated namespace, which a module provides without a second
-//! crate to version and publish.
+//! This is a module rather than a companion crate because it offers a namespace,
+//! not a smaller dependency tree: every name here is re-exported from this crate,
+//! so depending on a wrapper would pull the same graph.
 //!
-//! The factory group below was missing until the bundled PII scanner and audit
-//! logger moved out of the published builtins and became worked examples of
-//! out-of-tree plugins. The omission traced to reading this module as "nothing
-//! that only a host needs": `PluginFactory` is what a *host* calls, so it looked
-//! host-only. But the plugin is what implements it, so a plugin crate that could
-//! not name it could not expose itself at all, and every bundled plugin reached
-//! past this module into `crate::factory` to write its own `factory.rs`.
+//! Note that `PluginFactory` belongs here even though a *host* is what calls it.
+//! The plugin is what implements it, so a plugin crate that cannot name it cannot
+//! expose itself at all.
 
 // Plugin lifecycle
 pub use crate::plugin::{OnError, Plugin, PluginConfig, PluginMode};

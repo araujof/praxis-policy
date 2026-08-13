@@ -4,7 +4,7 @@
 // Authors: Teryl Taylor
 //
 // RequestExtension — execution environment and tracing.
-// Mirrors cpex/framework/extensions/request.py.
+// Mirrors the Python framework/extensions/request.py.
 
 use serde::{Deserialize, Serialize};
 

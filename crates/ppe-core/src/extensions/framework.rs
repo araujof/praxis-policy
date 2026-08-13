@@ -4,7 +4,7 @@
 // Authors: Teryl Taylor
 //
 // FrameworkExtension — agentic framework context.
-// Mirrors cpex/framework/extensions/framework.py.
+// Mirrors the Python framework/extensions/framework.py.
 
 use std::collections::HashMap;
 

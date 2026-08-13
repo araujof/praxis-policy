@@ -28,7 +28,7 @@
 //
 // An earlier draft had `IdentityPayload` (input) and `IdentityResult`
 // (output) as distinct types — the Python framework's split
-// (`cpex/framework/hooks/identity.py`). That made the first handler
+// (Python `framework/hooks/identity.py`). That made the first handler
 // awkward: it received an "empty IdentityResult" with no way to read
 // the raw token without dropping back to `Extensions`. Folding the
 // two types into one means handler N always has the inputs it needs

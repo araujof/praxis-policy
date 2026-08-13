@@ -15,18 +15,18 @@
 # endpoint with `grant_type=urn:ietf:params:oauth:grant-type:token-exchange`,
 # parse the JSON response, build a `RawDelegatedToken`.
 #
-# # When to reach for this vs the CPEX Biscuit delegator
+# # When to reach for this vs a Biscuit delegator
 #
 # - **`praxis-policy-plugin-delegator-oauth`** (this crate) — IdP-mediated. Use when
 #   the deployment already runs an OAuth server (Keycloak, Auth0,
 #   Hydra, Zitadel, Janssen Jans Auth Server) and wants centralized
 #   audit/revocation. Every delegation costs an IdP roundtrip;
 #   gateway must hold IdP client credentials.
-# - **the CPEX Biscuit delegator** (slice 7) — decentralized capability
-#   tokens via biscuit attenuation. No IdP roundtrip. Use for
-#   federated agent ecosystems where there's no shared IdP.
+# - **a Biscuit delegator** — decentralized capability tokens via biscuit
+#   attenuation. No IdP roundtrip. Use for federated agent ecosystems where
+#   there is no shared IdP. Not implemented here.
 #
-# Both implement `HookHandler<TokenDelegateHook>` and are
+# Any delegator implements `HookHandler<TokenDelegateHook>`, so they are
 # swappable at config time.
 
 [package]

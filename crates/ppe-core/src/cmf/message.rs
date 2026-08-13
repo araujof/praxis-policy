@@ -14,7 +14,7 @@
 // extensions to be shared across payload types and avoids copying
 // the message when extensions change.
 //
-// Mirrors the Python Message in cpex/framework/cmf/message.py.
+// Mirrors the Python Message in framework/cmf/message.py.
 
 use serde::{Deserialize, Serialize};
 
@@ -33,7 +33,7 @@ use crate::hooks::trait_def::PluginResult;
 /// (identity, security, HTTP, agent context) are passed separately
 /// to handlers — not inside the message.
 ///
-/// Mirrors the Python `Message` in `cpex/framework/cmf/message.py`.
+/// Mirrors the Python `Message` in `framework/cmf/message.py`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
     /// Message schema version.

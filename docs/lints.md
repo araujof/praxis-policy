@@ -1,12 +1,11 @@
 # Lints
 
-`[workspace.lints]` in `Cargo.toml` is the authority on what is enforced. The
-entries that are not enforced are grouped there by why, and that grouping is a
-settled decision rather than a backlog. This document carries the numbers behind
-it, how to reproduce them, and what closing the rest cost or would cost.
+`[workspace.lints]` in `Cargo.toml` is the authority on what is enforced. Entries
+that are not enforced are grouped there by reason, and each group is a settled
+decision rather than a backlog. This document explains those decisions: why a lint
+is allowed, what enforcing it would take, and the traps in measuring that.
 
-There is no longer a moving gate. Every lint that can silently change an
-enforcement decision is denied.
+Every lint that could silently change an enforcement decision is denied.
 
 ## How the counts are produced
 
@@ -38,15 +37,19 @@ surface look clean. All 462 such attributes in `src` currently sit inside a test
 region. A gate that reports green because its suppressions are misplaced is worse
 than one that reports a large number.
 
-## Where the tree stands against Praxis
+## Relationship to Praxis's lint set
 
-Of Praxis's 171 rules, **131 are enforced identically here and 38 are weaker**.
-Two are stricter, and three more are denied that Praxis does not configure at
-all: `unexpected_cfgs`, `clippy::unreachable`, and `clippy::get_unwrap`.
+Every lint Praxis configures has an explicit level here, so nothing is enforced by
+accident or left unconsidered. Most match Praxis exactly; the rest are either
+weaker, with the reason recorded in the group tables below, or stricter, which is
+allowed to stand.
 
-Started at 55 identical and 113 weaker.
+Deliberately not recorded: a count of how many match. That number moves when
+Praxis changes its own lints, so a figure written here goes stale without anything
+in this repository changing. Compare the two `[workspace.lints]` blocks directly
+when the question comes up.
 
-The 41 entries that are not enforced, by group:
+The entries that are not enforced, by group:
 
 | Group | Lints |
 |---|---:|
@@ -63,7 +66,7 @@ The 41 entries that are not enforced, by group:
 Thirty-eight of the 41 are rules Praxis enforces more strictly. The other three
 are lints Praxis also does not enforce, or does not configure.
 
-## Documentation: closed for the public API
+## Documentation lints
 
 Every public item is documented and `missing_docs` is enforced, along with
 `missing_errors_doc`, `doc_markdown`, `doc_lazy_continuation`,
@@ -92,11 +95,11 @@ Two doc links of my own were caught by `make doc` on the way: one pointed at a
 private method from a public section, and one repeated a path the label already
 resolved. That is the doc gate paying for itself.
 
-`missing_docs_in_private_items` stays parked, at 243 items. Private items never
+`missing_docs_in_private_items` stays allowed, at 243 items. Private items never
 reach docs.rs, so it is documentation for readers of the source rather than for
 callers, and it is the one docs lint whose absence costs nothing externally.
 
-## Applying the gate to a later import
+## Applying this lint set to newly imported code
 
 The Rego decision point arrived after the gate was already closed, which made it
 a useful test of whether the gate is a one-time cleanup or a standing bar. It
@@ -117,9 +120,9 @@ The rest was test-scope suppressions. Nothing in the lint table changed to
 accommodate the import, which is the outcome that matters: a new crate meets the
 existing bar rather than the bar bending to admit it.
 
-## What closing the cheap remainder found
+## Counting pitfall: numbers taken on a tree that does not compile
 
-Fourteen lints were parked with production counts that turned out to be zero:
+Fourteen lints were left allowed on production counts that were really zero:
 they fired only in test code, which is scope-allowed. Those are now enforced, at
 the cost of scoped allows in the affected test modules and no production change
 at all.
@@ -130,7 +133,7 @@ fails to compile blocks its dependents from being linted, so every count taken
 before the tree was clean understated some lints and left others looking larger
 than they were. Re-measure after each class closes.
 
-## What the machine-applicable sweep taught
+## Where a lint's own suggested fix is wrong
 
 Clippy reported 718 sites across 22 lints as `MachineApplicable`. Fourteen lints
 closed cleanly. The other eight did not, and the reasons are worth recording
@@ -151,7 +154,7 @@ because the applicability flag is not a promise:
   cannot satisfy that under every feature set: `register_builtins` and
   `builtin_pdps` have bodies that are entirely `#[cfg(feature)]`-gated, so
   `unused_variables` and `unused_mut` fire with no features enabled and not with
-  all of them. No single attribute is correct for both, so the lint stays parked.
+  all of them. No single attribute is correct for both, so the lint stays allowed.
 
 That last one paid for itself anyway. Because `#[expect]` fails when a lint stops
 firing, the conversion surfaced **63 stale suppression entries** in test-module
@@ -165,7 +168,7 @@ lint, as one `single_match_else` rewrite left a tail expression that tripped
 `#[derive]` rather than merging into the existing one, which compiles but reads
 badly.
 
-## The numeric-cast and unsafe classes: closed
+## Numeric casts and unsafe code
 
 Three of the 35 cast sites were live defects rather than provably-safe
 conversions.
@@ -197,7 +200,7 @@ Two related classes were checked and needed no work. `await_holding_lock` and
 `integer_division` and `modulo_arithmetic` measured zero from the start, which
 retires divide-by-zero.
 
-`significant_drop_tightening` stays parked at 9 sites, deliberately. The scopes
+`significant_drop_tightening` stays allowed at 9 sites, deliberately. The scopes
 where tightening removed a real hazard are closed: the plugin factory lookup no
 longer holds the registry read lock across host-supplied `create` code, which
 could re-enter the manager and deadlock, and the CEL compile cache now logs
@@ -205,7 +208,7 @@ outside its guard while keeping the capacity check and the insert under one lock
 so the cap cannot be exceeded by two threads racing. The rest hold a guard across
 a synchronous call on purpose and document why.
 
-## The panic gate: closed
+## Panic sources
 
 Every panic source is enforced. There are no `gate:` entries left.
 
@@ -251,14 +254,9 @@ would apply the wrong plugin's `on_error` and turn a configured `Fail` into an
 
 ## Coverage
 
-Separate target, tracked here because it lands near the same work: 95 percent
-lines against 89.98 measured, roughly 1,400 more covered lines out of about
-27,900. The gate sits at 89 and is deliberately not raised ahead of the tests,
-because a required check nobody can make green teaches people to ignore it.
+Not a lint concern. `COVERAGE_FLOOR` in the `Makefile` is the gate, and the only
+place that threshold is written down.
 
-Closing the sites above will not close that gap. The structurally-eliminable class
-adds no branches, so it moves coverage by close to nothing. The largest single
-block of uncovered behavior is the six ignored session-store integration tests,
-which need a running service rather than more test code. The acceptance demo
-exercises that store for real, including taint across a restart, so the behavior
-is validated even though the unit tests skip.
+Worth knowing when reading both documents: enforcing a lint from the tables above
+barely moves coverage, because those changes remove or restructure code without
+adding branches.

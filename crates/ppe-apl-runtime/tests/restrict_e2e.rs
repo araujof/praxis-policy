@@ -72,7 +72,7 @@ fn constraint(ext: &Extensions) -> Option<CandidateConstraintExtension> {
 }
 
 /// A single unconditional `restrict` emits its constraint on
-/// `cpex.candidate_constraint`, and the request still continues (restrict
+/// `candidate_constraint`, and the request still continues (restrict
 /// never denies).
 #[tokio::test]
 async fn restrict_emits_constraint_on_side_channel() {

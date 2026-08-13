@@ -434,7 +434,7 @@ impl ConfigVisitor for AplConfigVisitor {
     ) -> Result<(), VisitorError> {
         // Translate praxis-policy-core's typed PluginConfig into praxis-policy-apl-core's
         // PluginDeclaration. Field-for-field except `capabilities` is a
-        // `HashSet` on the cpex side and a `Vec` on the apl side, and
+        // `HashSet` on the engine side and a `Vec` on the APL side, and
         // `config` is wrapped in `serde_yaml::Value::Mapping` to match
         // praxis-policy-apl-core's opaque shape. praxis-policy-core has already validated
         // uniqueness by this point so we don't re-check.

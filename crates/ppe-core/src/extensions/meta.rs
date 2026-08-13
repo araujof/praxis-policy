@@ -4,7 +4,7 @@
 // Authors: Teryl Taylor
 //
 // MetaExtension — host-provided operational metadata.
-// Mirrors cpex/framework/extensions/meta.py.
+// Mirrors the Python framework/extensions/meta.py.
 
 use std::collections::{HashMap, HashSet};
 

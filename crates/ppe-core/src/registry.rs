@@ -27,7 +27,7 @@
 //    registered under multiple hook names (the CMF pattern).
 //
 // Mirrors the Python framework's PluginRef and PluginInstanceRegistry
-// in cpex/framework/base.py and cpex/framework/registry.py.
+// in the Python framework/base.py and framework/registry.py.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};

@@ -4,7 +4,7 @@
 // Authors: Teryl Taylor
 //
 // DelegationExtension — token delegation chain.
-// Mirrors cpex/framework/extensions/delegation.py.
+// Mirrors the Python framework/extensions/delegation.py.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

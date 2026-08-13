@@ -8,7 +8,7 @@
 // Each extension slot has a mutability tier that controls how plugins
 // can interact with it. Capabilities gate per-plugin access.
 //
-// Mirrors cpex/framework/extensions/tiers.py.
+// Mirrors the Python framework/extensions/tiers.py.
 
 use serde::{Deserialize, Serialize};
 
@@ -101,7 +101,7 @@ pub enum Capability {
     /// empty token strings. It can still gate delivery of plaintext
     /// out-of-process on a host's purpose-built side channel: see
     /// `RawCredentialsExtension`'s module docs and
-    /// the CPEX Python host's `credential` DTO.
+    /// the Python host bridge's `credential` DTO.
     ReadInboundCredentials,
     /// Read minted outbound delegated tokens
     /// (`raw_credentials.delegated_tokens`) — the credentials a

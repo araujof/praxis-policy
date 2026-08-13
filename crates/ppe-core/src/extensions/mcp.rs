@@ -4,7 +4,7 @@
 // Authors: Teryl Taylor
 //
 // MCPExtension — tool, resource, or prompt metadata.
-// Mirrors cpex/framework/extensions/mcp.py.
+// Mirrors the Python framework/extensions/mcp.py.
 
 use std::collections::HashMap;
 

@@ -46,7 +46,7 @@
 //
 // It is **not** true that raw material never leaves the host process.
 // A host may read the in-memory `Zeroizing` field directly and put
-// the plaintext on a purpose-built side channel. the CPEX Python host
+// the plaintext on a purpose-built side channel. The Python host bridge
 // does exactly that: `crates/ppe-hosts-python/src/credentials.rs`
 // builds a dedicated `credential` DTO carrying the token as a plain
 // string, so an identity resolver or token delegator can run in a

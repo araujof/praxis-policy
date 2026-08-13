@@ -572,7 +572,7 @@ async fn dispatch_effect(
 
         Effect::Taint { label, scopes } => {
             // Emit the taint into the phase's accumulator so it flows
-            // into `RouteDecision.taints`. Apl-cpex's invoker handles
+            // into `RouteDecision.taints`. The runtime's invoker handles
             // the session-store persistence side at request end — here
             // we only record the event. Scopes come straight from the
             // parser (`taint(label, session, message)` syntax).

@@ -9,18 +9,15 @@
 
 [package]
 name = "praxis-policy-plugin-pii-scanner"
-# Not published, and not part of the `builtins` umbrella.
+# Reference implementation. Not published, and not in the `builtins` umbrella:
+# the detectors are plain regexes and the credit-card one does not Luhn-check
+# (see `PiiPattern::CreditCard`), so shipping it as supported would invite
+# operators to read "bundled PII scanner" as data-loss prevention. Real
+# deployments want Presidio, a cloud DLP API, or their own detectors.
 #
-# The detectors are regexes, and the credit-card one does not Luhn-check (see
-# `PiiPattern::CreditCard`). That is fine for a worked example and not fine as a
-# supported builtin of a security product, where operators would reasonably read
-# "bundled PII scanner" as data-loss prevention. Real deployments want Presidio,
-# a cloud DLP API, or their own detectors.
-#
-# It stays in the workspace so it is built, linted and tested on every change,
-# and so it doubles as a reference implementation of an out-of-tree plugin. A
-# host registers it with `PluginManager::register_factory`; the CPEX demo does
-# exactly that. See `praxis_policy_core::prelude` for the author-facing surface.
+# Still a workspace member, so it is built, linted and tested here. A host
+# registers it with `PluginManager::register_factory`; write your own against
+# `praxis_policy_core::prelude`.
 publish = false
 version.workspace      = true
 edition.workspace      = true

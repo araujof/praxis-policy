@@ -10,7 +10,7 @@
 // properties are computed on-demand by borrowing the underlying
 // content part and extensions directly.
 //
-// Mirrors the Python MessageView in cpex/framework/cmf/view.py.
+// Mirrors the Python MessageView in framework/cmf/view.py.
 
 use serde::{Deserialize, Serialize};
 

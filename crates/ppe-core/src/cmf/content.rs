@@ -9,7 +9,7 @@
 // reusable outside of message content parts. ContentPart is a tagged
 // enum that wraps them for message serialization.
 //
-// Mirrors the Python types in cpex/framework/cmf/message.py.
+// Mirrors the Python types in framework/cmf/message.py.
 
 use std::collections::HashMap;
 
@@ -221,7 +221,7 @@ pub struct DocumentSource {
 /// either a text string or a domain object.
 ///
 /// Mirrors the Python `ContentPartUnion` discriminated union in
-/// `cpex/framework/cmf/message.py`.
+/// the Python `framework/cmf/message.py`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "content_type")]
 pub enum ContentPart {

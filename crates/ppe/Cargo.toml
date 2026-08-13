@@ -80,11 +80,9 @@ praxis-policy-apl-runtime = { workspace = true }
 
 # Bundled extension crates, each behind its feature above.
 #
-# The PII scanner and audit logger used to live here. They are now unpublished
-# reference implementations under `reference-plugins/`, registered by the host
-# rather than compiled in, because neither earned a supported slot: one is a
-# regex matcher with no Luhn check, the other a stderr writer. Each manifest
-# there says so, and the CPEX demo registers both as custom plugins.
+# Not everything shipped in this repository belongs here. `reference-plugins/`
+# holds unpublished examples a host registers itself; each of those manifests says
+# why it is not a builtin.
 praxis-policy-plugin-identity-jwt = { workspace = true, optional = true }
 praxis-policy-plugin-delegator-oauth = { workspace = true, optional = true }
 praxis-policy-plugin-elicitation-ciba = { workspace = true, optional = true }

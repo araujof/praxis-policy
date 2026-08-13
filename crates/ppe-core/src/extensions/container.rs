@@ -41,7 +41,7 @@ use super::security::SecurityExtension;
 /// `OwnedExtensions` with mutable/monotonic/guarded slots cloned
 /// out of Arc and write tokens propagated.
 ///
-/// Mirrors Python's `cpex.framework.extensions.Extensions`.
+/// Mirrors Python's `framework.extensions.Extensions`.
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Extensions {
     /// Execution environment and request tracing (immutable).

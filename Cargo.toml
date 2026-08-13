@@ -148,17 +148,12 @@ strip = true
 # a backlog: each group's comment says why those lints cannot silently change an
 # enforcement decision. Do not add new violations of one.
 #
-# Of Praxis's 171 rules, 131 are enforced identically here and 38 are weaker. Two
-# are stricter, and three more are denied that Praxis does not configure at all.
-# docs/lints.md carries the per-lint counts, how to reproduce them, and the cases
-# where a lint's own suggested fix is worse than the code it replaces.
-#
-# Counts come from clippy rather than from reading the source, and a site inside
-# a `#[cfg(test)]` region or a tests/ target is not a production site: test code
-# is scope-allowed at the module or crate level, so a parked entry describes the
-# library's own surface. Measure one lint at a time where the number matters.
-# Some clippy lints suppress each other, and `rustdoc::` lints are not checked by
-# clippy at all.
+# Each group below carries its own reason. If you need to count occurrences of a
+# lint, take the number from clippy rather
+# than by reading source, and measure one lint at a time: some clippy lints
+# suppress each other, and `rustdoc::` lints are not checked by clippy at all.
+# A site inside a `#[cfg(test)]` module or a tests/ target does not count, since
+# test code carries its own scoped allows.
 [workspace.lints.rust]
 # --- Enforced ---
 unused_imports = "deny"
@@ -406,7 +401,7 @@ return_self_not_must_use = "allow"
 #
 # attributes: Suppression style. `allow_attributes` wants `#[expect]`, which asserts
 # the lint still fires; two feature-gated bodies here cannot satisfy that under
-# every feature set, so no single attribute is correct. See docs/lints.md.
+# every feature set, so no single attribute is correct.
 allow_attributes = "allow"
 allow_attributes_without_reason = "allow"
 #

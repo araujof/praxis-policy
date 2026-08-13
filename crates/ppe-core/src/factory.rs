@@ -15,7 +15,7 @@
 // "python" plugin. The factory does.
 //
 // Mirrors the Python framework's PluginLoader in
-// cpex/framework/loader/plugin.py.
+// the Python framework/loader/plugin.py.
 
 use std::collections::HashMap;
 use std::sync::Arc;

@@ -4,7 +4,7 @@
 // Authors: Teryl Taylor
 //
 // LLMExtension — model identity and capabilities.
-// Mirrors cpex/framework/extensions/llm.py.
+// Mirrors the Python framework/extensions/llm.py.
 
 use serde::{Deserialize, Serialize};
 

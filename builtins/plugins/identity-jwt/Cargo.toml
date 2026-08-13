@@ -71,11 +71,10 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 futures = { workspace = true }
 
 # `tokio::spawn` + `tokio::time::interval` for the background JWKS
-# refresh tasks introduced in Slice B. The runtime is already in
-# the workspace dep tree via praxis-policy-core / praxis-policy-apl-runtime, so this just
-# makes the existing types directly nameable here. We only need
-# the runtime + time features at runtime; full "macros / rt / rt-multi-thread"
-# was test-only previously.
+# refresh tasks. The runtime is already in the workspace dep tree via
+# praxis-policy-core / praxis-policy-apl-runtime, so this only makes the existing
+# types directly nameable here. Only `rt` and `time` are needed at runtime; the
+# dev-dependency below adds what the tests use.
 tokio = { workspace = true, features = ["rt", "time"] }
 
 [dev-dependencies]

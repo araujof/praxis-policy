@@ -9,7 +9,7 @@
 // mutability tier enforced by the processing pipeline. Extensions
 // are always passed separately from the payload to handlers.
 //
-// Mirrors the Python extensions in cpex/framework/extensions/.
+// Mirrors the Python extensions in framework/extensions/.
 
 /// Agent session, conversation, and lineage.
 pub mod agent;

@@ -69,9 +69,8 @@ use crate::error::PluginError;
 /// # Implementors
 ///
 /// - Native Rust plugins (implement directly)
-/// - the CPEX WASM host bridge, which is not part of this project
-/// - the CPEX Python host bridge, which is not part of this project
-/// - the CPEX native host bridge, which is not part of this project
+/// - Out-of-process host bridges (WASM, Python, dlopen'd native), which live
+///   outside this repository
 #[async_trait]
 pub trait Plugin: Send + Sync {
     /// Returns the plugin's configuration.
@@ -291,7 +290,7 @@ fn default_priority() -> i32 {
 /// (`routes:` in config) supersedes this — when routes are used,
 /// conditions are ignored.
 ///
-/// Mirrors Python's `PluginCondition` in `cpex/framework/models.py`.
+/// Mirrors Python's `PluginCondition` in `framework/models.py`.
 ///
 /// # Examples
 ///

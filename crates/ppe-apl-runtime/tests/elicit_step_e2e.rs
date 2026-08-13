@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Authors: Teryl Taylor
 //
-// End-to-end test for the elicitation bridge (Phase 2).
+// End-to-end test for the elicitation bridge.
 //
 // Verifies the full flow:
 //   * praxis-policy-apl-runtime's `RouteDispatchPlan::build` resolves an elicitation

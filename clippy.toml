@@ -2,12 +2,12 @@
 # `[workspace.lints.clippy]` in Cargo.toml; this file only tunes the knobs the
 # complexity and style lints read.
 #
-# Thresholds are Praxis's, not the source tree's, so that closing the parked
-# complexity lints lands at Praxis's bar rather than a softer one. They are
-# materially tighter than the source tree used: function length 30 against 100,
-# arguments 5 against 8, struct bools 2 against 3, enum variant size 128 against
-# 256. The corresponding lints are parked in the seed allow-list, so these values
-# do not bite until those entries are closed.
+# The thresholds are deliberately tighter than the code was originally written
+# against: function length 30 rather than 100, arguments 5 rather than 8, struct
+# bools 2 rather than 3, enum variant size 128 rather than 256. Several of the
+# lints that read them are still `allow` in Cargo.toml, so those values have no
+# effect yet; they are set now so that enforcing a lint later lands at this bar
+# rather than a softer one chosen to fit whatever the code happened to do.
 too-many-lines-threshold = 30
 # Raised from 10 to 25 upstream because recent clippy counts macro expansion
 # toward cognitive complexity, and each tracing call adds several points.
