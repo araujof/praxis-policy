@@ -1,12 +1,9 @@
-// Location: ./crates/ppe-core/src/cmf/enums.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // CMF enums — Role, Channel, ContentType, ResourceType.
 //
-// Mirrors the Python enums in framework/cmf/message.py.
-// All use snake_case serialization to match Python string values.
+// All serialize as snake_case strings.
 
 use serde::{Deserialize, Serialize};
 

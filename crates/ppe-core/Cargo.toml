@@ -1,8 +1,6 @@
-# Location: ./crates/ppe-core/Cargo.toml
-# Copyright 2025
 # SPDX-License-Identifier: Apache-2.0
-# Authors: Teryl Taylor
-#
+# Copyright (c) 2026 Praxis Contributors
+
 # PPE Core — pure Rust plugin runtime with no FFI dependencies.
 # Contains the PluginManager, 5-phase executor, hook registry,
 # config parser, and all core types.

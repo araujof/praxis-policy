@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/delegation/payload.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `DelegationPayload` — the unified state struct threaded through the
 // TokenDelegate hook chain. Same input/output split pattern as
 // `IdentityPayload`:

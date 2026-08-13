@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-core/src/route.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Phase orchestration: runs `args → pre_invocation → result → post_invocation` against a
 // `CompiledRoute` and a mutable payload, returning a unified decision plus
 // accumulated taints.

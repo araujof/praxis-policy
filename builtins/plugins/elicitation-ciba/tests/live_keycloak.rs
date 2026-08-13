@@ -1,8 +1,6 @@
-// Location: ./builtins/plugins/elicitation-ciba/tests/live_keycloak.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Runs the automatable half of the CIBA flow (dispatch, then check-pending)
 // against a real Keycloak, so the parts that do not need a human are a
 // repeatable test rather than a manual runbook.

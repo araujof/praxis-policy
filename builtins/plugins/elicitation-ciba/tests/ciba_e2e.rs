@@ -1,8 +1,6 @@
-// Location: ./builtins/plugins/elicitation-ciba/tests/ciba_e2e.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Integration tests for the CIBA elicitation handler against a mock OP
 // (mockito). Exercises the real request shapes and the lifecycle mapping
 // for dispatch → check → validate without a live Keycloak.

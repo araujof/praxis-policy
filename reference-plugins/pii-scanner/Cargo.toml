@@ -1,8 +1,6 @@
-# Location: ./reference-plugins/pii-scanner/Cargo.toml
-# Copyright 2026
 # SPDX-License-Identifier: Apache-2.0
-# Authors: Teryl Taylor
-#
+# Copyright (c) 2026 Praxis Contributors
+
 # praxis-policy-plugin-pii-scanner — CMF plugin that detects PII patterns (SSN,
 # credit card, email) in tool/prompt/resource args and either denies
 # the call, taints the session, or redacts the matching values.

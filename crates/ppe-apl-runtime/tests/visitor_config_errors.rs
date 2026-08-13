@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/tests/visitor_config_errors.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // What the APL visitor does with wiring config it cannot honour.
 //
 // `global.apl.pdp` and `global.apl.session_store` name a factory by `kind`. If

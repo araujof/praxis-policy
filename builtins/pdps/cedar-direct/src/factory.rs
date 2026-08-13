@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/cedar-direct/src/factory.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `CedarDirectPdpFactory` — the `PdpFactory` implementation that lets
 // the praxis-policy-apl-runtime visitor instantiate `CedarDirectResolver` from a
 // unified-config YAML block:

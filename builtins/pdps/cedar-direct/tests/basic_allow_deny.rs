@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/cedar-direct/tests/basic_allow_deny.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Smoke tests for `CedarDirectResolver`. Cover the canonical
 // allow/deny paths, the role-driven case (proves bag attributes reach
 // the principal entity), and the policy-id attribution that operators

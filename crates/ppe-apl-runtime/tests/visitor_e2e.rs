@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/tests/visitor_e2e.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // End-to-end integration: unified-config YAML → praxis-policy-core
 // `load_config_yaml` → `AplConfigVisitor` walks global / defaults / tags
 // / routes → `PluginManager::annotate_route` installs phase-bound

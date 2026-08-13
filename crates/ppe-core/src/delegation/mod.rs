@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/delegation/mod.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Token-delegation hook family — TokenDelegate.
 //
 // Mirrors the identity/ module layout: the hook marker + handler

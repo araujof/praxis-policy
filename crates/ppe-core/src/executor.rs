@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/executor.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // 5-phase plugin execution engine.
 //
 // Dispatches plugins in strict phase order:
@@ -20,9 +18,6 @@
 //   - Fail: propagate error, halt pipeline
 //   - Ignore: log error, continue pipeline
 //   - Disable: log error, mark plugin disabled, continue
-//
-// Mirrors the Python framework's PluginExecutor in
-// the Python framework/manager.py.
 
 use std::any::Any;
 use std::fmt;

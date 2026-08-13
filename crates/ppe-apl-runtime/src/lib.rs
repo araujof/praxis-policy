@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/src/lib.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // praxis-policy-apl-runtime — bridge between APL evaluator (`praxis-policy-apl-core`) and PPE runtime
 // (`praxis-policy-core`).
 //

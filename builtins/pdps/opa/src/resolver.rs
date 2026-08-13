@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/opa/src/resolver.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `OpaResolver` — the `PdpResolver` implementation over regorus.
 //
 // # Build once, evaluate many

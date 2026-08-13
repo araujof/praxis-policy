@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/tests/cmf_invoker_dispatch.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Integration tests for `CmfPluginInvoker` — exercises the typed
 // dispatch path end-to-end against a real `praxis-policy-core::PluginManager`
 // with hand-rolled test plugins. v0 coverage:

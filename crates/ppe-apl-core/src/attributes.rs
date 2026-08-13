@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-core/src/attributes.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // AttributeBag — flat namespace for policy evaluation.
 //
 // The DSL evaluates predicates against a flat bag of named, typed values.

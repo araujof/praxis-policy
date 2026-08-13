@@ -1,14 +1,10 @@
-// Location: ./crates/ppe-core/src/error.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Error types for the PPE plugin framework.
 //
 // Provides structured error types for plugin execution failures,
-// policy violations, timeouts, and configuration errors. Mirrors
-// the Python framework's PluginError, PluginViolation, and
-// PluginViolationError types.
+// policy violations, timeouts, and configuration errors.
 
 use std::collections::HashMap;
 
@@ -21,7 +17,6 @@ use thiserror::Error;
 /// and configuration issues. Each variant carries enough context
 /// for the caller to log, report, or recover.
 ///
-/// Mirrors the Python framework's `PluginErrorModel` with:
 /// - `code` — business-logic error code (e.g., `"rate_limit_exceeded"`)
 /// - `details` — structured diagnostic data for logging
 /// - `proto_error_code` — protocol-level error code for the host to
@@ -205,7 +200,7 @@ impl From<&PluginError> for PluginErrorRecord {
 /// Structured policy violation returned by a plugin that denies execution.
 ///
 /// Carries a machine-readable code, human-readable reason, and optional
-/// diagnostic details. Corresponds to the Python `PluginViolation` type.
+/// diagnostic details.
 ///
 /// # Examples
 ///

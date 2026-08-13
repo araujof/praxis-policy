@@ -1,8 +1,6 @@
-# Location: ./builtins/plugins/elicitation-ciba/Cargo.toml
-# Copyright 2026
 # SPDX-License-Identifier: Apache-2.0
-# Authors: Teryl Taylor
-#
+# Copyright (c) 2026 Praxis Contributors
+
 # praxis-policy-plugin-elicitation-ciba — `ElicitationHandler` that drives manager
 # approval (and other human-in-the-loop kinds) through OpenID Connect
 # CIBA (Client-Initiated Backchannel Authentication) against Keycloak or

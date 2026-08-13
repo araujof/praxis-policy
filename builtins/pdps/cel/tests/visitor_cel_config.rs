@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/cel/tests/visitor_cel_config.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // End-to-end integration: a unified-config YAML that
 //
 //   1. declares a `cel` PDP under `global.apl.pdp[]`,

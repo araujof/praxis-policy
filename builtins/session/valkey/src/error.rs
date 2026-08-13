@@ -1,8 +1,6 @@
-// Location: ./builtins/session/valkey/src/error.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Construction-time errors for the Valkey session-store backend. These
 // surface when the `global.apl.session_store` config block is malformed
 // or the connection pool cannot be built — i.e. at `load_config_yaml`

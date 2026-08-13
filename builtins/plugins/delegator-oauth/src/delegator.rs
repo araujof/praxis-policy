@@ -1,8 +1,6 @@
-// Location: ./builtins/plugins/delegator-oauth/src/delegator.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `OAuthDelegator` — `HookHandler<TokenDelegateHook>` that performs
 // RFC 8693 OAuth 2.0 Token Exchange against the configured IdP.
 //

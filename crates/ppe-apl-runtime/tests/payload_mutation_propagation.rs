@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/tests/payload_mutation_propagation.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // A plugin mutation has to survive the whole way to the host, whichever
 // part of the message it touched. These tests drive the real
 // `AplRouteHandler` through `invoke_named::<CmfHook>` and assert on the

@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/cel/src/lib.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // praxis-policy-pdp-cel — `PdpResolver` over the `cel` (Common Expression Language)
 // interpreter.
 //

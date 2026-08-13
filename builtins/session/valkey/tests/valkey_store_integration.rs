@@ -1,8 +1,6 @@
-// Location: ./builtins/session/valkey/tests/valkey_store_integration.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Integration tests for ValkeySessionStore against a real `valkey/valkey`
 // container (testcontainers). These are `#[ignore]`d by default so unit
 // runs don't require Docker; run them with:

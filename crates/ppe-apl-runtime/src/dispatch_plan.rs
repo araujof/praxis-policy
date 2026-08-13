@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/src/dispatch_plan.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `RouteDispatchPlan` + `DispatchCache` — pre-resolved per-route plugin
 // lineup that lets APL bypass praxis-policy-core's hook-name + condition routing
 // while still going through the executor's full 5-phase pipeline.

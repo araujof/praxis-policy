@@ -1,8 +1,6 @@
-# Location: ./crates/ppe-apl-cmf/Cargo.toml
-# Copyright 2025
 # SPDX-License-Identifier: Apache-2.0
-# Authors: Teryl Taylor
-#
+# Copyright (c) 2026 Praxis Contributors
+
 # praxis-policy-apl-cmf — bridge from praxis-policy-core typed extensions into praxis-policy-apl-core's
 # AttributeBag. The "where the policy vocabulary comes from" crate.
 

@@ -1,8 +1,6 @@
-// Location: ./builtins/session/valkey/src/lib.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // praxis-policy-session-valkey — a Valkey-backed `praxis_policy_apl_runtime::SessionStore` for
 // distributed, cross-restart persistence of session security labels.
 //

@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/cedar-direct/src/cedar_attrs.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Canonical Cedar entity attribute names.
 //
 // Cedar policy authors write `principal.roles.contains("hr")`,

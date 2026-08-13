@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/extensions/authorization.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // AuthorizationDetail — RFC 9396 Rich Authorization Requests.
 //
 // Carried on DelegationHop alongside `scopes_granted`. Each hop can narrow

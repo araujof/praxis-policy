@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/cedar-direct/src/error.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Build-time errors for `CedarDirectResolver`. All variants fire at
 // construction (parse, validate, load); never at request time.
 //

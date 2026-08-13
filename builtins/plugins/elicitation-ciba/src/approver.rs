@@ -1,8 +1,6 @@
-// Location: ./builtins/plugins/elicitation-ciba/src/approver.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `CibaApprover` — `HookHandler<ElicitationHook>` that reaches a human
 // through OIDC CIBA. One `handle` entry point dispatches on
 // `ElicitationPayload::operation` to the three short, synchronous

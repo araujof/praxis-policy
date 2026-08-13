@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/tests/global_http_authz.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // End-to-end: a `global` APL policy is evaluated for a generic
 // (non-MCP/A2A) HTTP request that carries no entity. The visitor installs
 // a catch-all handler under (ENTITY_HTTP, ENTITY_NAME_GLOBAL,

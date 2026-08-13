@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/tests/end_to_end_route.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // End-to-end integration: APL YAML config → `compile_config` →
 // `evaluate_route` → `CmfPluginInvoker::invoke` → typed PPE dispatch
 // via `invoke_named::<CmfHook>` → real plugin handler → result mapped

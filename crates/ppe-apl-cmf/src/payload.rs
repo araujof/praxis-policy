@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-cmf/src/payload.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // JSON args/result payload → AttributeBag.
 //
 // Leaf scalars at any nesting depth land in the bag under their dotted

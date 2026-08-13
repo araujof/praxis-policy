@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-cmf/src/custom.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `Extensions.custom` (HashMap<String, Value>) → AttributeBag.
 //
 // Open-ended user namespace. Each top-level key becomes `custom.<key>`,

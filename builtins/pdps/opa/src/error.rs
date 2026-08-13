@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/opa/src/error.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Build-time errors for the OPA PDP. These surface at config-load time (when
 // the praxis-policy-apl-runtime visitor calls the factory), so an operator sees bad policy or
 // malformed config at deploy rather than on the first request. Mirrors the

@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/src/session_store.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `SessionStore` — pluggable backend for cross-request session state.
 // v0 surface is intentionally tiny: monotonic label append + load. That
 // covers `extensions.security.labels` persistence, which is the only
@@ -13,10 +11,9 @@
 // State that survives between requests in the same session (accumulated
 // taint labels, delegation history, conversation context) needs to be
 // pluggable: in-memory for tests and single-process deployments, Redis
-// or DynamoDB for distributed ones. The previous Python implementation
-// had a `SessionState` abstraction with the same shape; this is the
-// Rust port. Only the labels surface lands in v0 — delegation hops,
-// conversation history, and arbitrary KV come when their consumers do.
+// or DynamoDB for distributed ones. Only the labels surface exists so far;
+// delegation hops, conversation history, and arbitrary KV come when their
+// consumers do.
 //
 // # String-typed deliberately
 //

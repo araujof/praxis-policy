@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/identity/hook.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `IdentityHook` — the `HookTypeDef` marker for the IdentityResolve
 // hook family. Plugins implement `HookHandler<IdentityHook>`; the
 // framework dispatches into them at request entry to populate

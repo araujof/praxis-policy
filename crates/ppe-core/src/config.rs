@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/config.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Unified YAML configuration parsing.
 //
 // Parses the config format that combines global settings, plugin

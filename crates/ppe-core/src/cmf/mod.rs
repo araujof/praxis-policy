@@ -1,13 +1,10 @@
-// Location: ./crates/ppe-core/src/cmf/mod.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // ContextForge Message Format (CMF).
 //
 // Canonical message representation for interactions between users,
-// agents, tools, and language models. All models mirror the Python
-// CMF in the Python framework/cmf/message.py.
+// agents, tools, and language models.
 //
 // Extensions are NOT part of the Message — they are passed separately
 // to handlers via the framework's Extensions type in hooks/payload.rs.

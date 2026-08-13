@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-cmf/src/lib.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // praxis-policy-apl-cmf — bridges typed praxis-policy-core extensions into praxis-policy-apl-core's flat
 // AttributeBag. This is where the *attribute vocabulary* APL policy
 // authors write against gets defined.

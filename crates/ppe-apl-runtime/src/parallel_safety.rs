@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/src/parallel_safety.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Route-compile-time plugin-mode validation for APL `parallel:` blocks.
 //
 // `praxis-policy-apl-core::Effect::validate_parallel_purity` already rejects FieldOp /

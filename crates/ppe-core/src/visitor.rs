@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/visitor.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `ConfigVisitor` — extension point for external orchestrators (APL,
 // future Rego/Cedar-direct/custom) to participate in unified-config
 // loading without praxis-policy-core taking a dep on any specific orchestrator.

@@ -1,8 +1,6 @@
-// Location: ./builtins/plugins/elicitation-ciba/src/factory.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `PluginFactory` impl for the CIBA elicitation handler. Lives here
 // (alongside the approver) so every host wires it up the same way.
 //

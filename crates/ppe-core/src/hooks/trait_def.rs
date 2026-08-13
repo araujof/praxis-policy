@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/hooks/trait_def.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // HookTypeDef trait and PluginResult type.
 //
 // Every hook in the PPE framework is defined by a marker type that
@@ -173,7 +171,6 @@ pub trait HookHandler<H: HookTypeDef>: Plugin + Send + Sync {
 /// - Sequential/Concurrent: `continue_processing = false` halts the pipeline.
 /// - Transform/Audit/FireAndForget: blocks are suppressed.
 ///
-/// Mirrors Python's `PluginResult[T]` with separate `modified_payload`
 /// and `modified_extensions` fields.
 ///
 /// # Examples

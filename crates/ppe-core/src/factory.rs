@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/factory.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Plugin factory registry.
 //
 // Provides a factory pattern for creating plugin instances from
@@ -11,11 +9,8 @@
 // looks up the factory for each plugin's `kind` and calls create().
 //
 // This decouples plugin instantiation from the manager — the
-// manager doesn't know how to create a "builtin" vs "wasm" vs
-// "python" plugin. The factory does.
-//
-// Mirrors the Python framework's PluginLoader in
-// the Python framework/loader/plugin.py.
+// manager doesn't know how to create a "builtin" vs "wasm"
+// The factory does.
 
 use std::collections::HashMap;
 use std::sync::Arc;

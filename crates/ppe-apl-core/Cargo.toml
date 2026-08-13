@@ -1,8 +1,6 @@
-# Location: ./crates/ppe-apl-core/Cargo.toml
-# Copyright 2025
 # SPDX-License-Identifier: Apache-2.0
-# Authors: Teryl Taylor
-#
+# Copyright (c) 2026 Praxis Contributors
+
 # APL core — predicate language, compiler, evaluator.
 # Module structure follows docs/specs/apl-design.md §4.
 

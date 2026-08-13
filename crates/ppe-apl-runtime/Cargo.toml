@@ -1,8 +1,6 @@
-# Location: ./crates/ppe-apl-runtime/Cargo.toml
-# Copyright 2025
 # SPDX-License-Identifier: Apache-2.0
-# Authors: Teryl Taylor
-#
+# Copyright (c) 2026 Praxis Contributors
+
 # praxis-policy-apl-runtime — the bridge between APL's evaluator (`praxis-policy-apl-core`) and PPE's
 # runtime (`praxis-policy-core`). Provides per-hook-type implementations of
 # `praxis-policy-apl-core::PluginInvoker` that translate APL plugin dispatch into typed

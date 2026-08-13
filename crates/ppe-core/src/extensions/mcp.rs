@@ -1,10 +1,7 @@
-// Location: ./crates/ppe-core/src/extensions/mcp.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // MCPExtension — tool, resource, or prompt metadata.
-// Mirrors the Python framework/extensions/mcp.py.
 
 use std::collections::HashMap;
 

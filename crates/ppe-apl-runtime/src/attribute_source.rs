@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/src/attribute_source.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // FileAttributeSource — the built-in `data.*` provider.
 //
 // Reads a list of attribute files (YAML, each wrapping everything under a

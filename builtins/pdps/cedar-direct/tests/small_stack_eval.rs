@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/cedar-direct/tests/small_stack_eval.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Regression test for the musl small-stack / cedar "recursion limit" trap.
 //
 // cedar-policy-core guards evaluation against stack exhaustion by checking

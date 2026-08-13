@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-orchestration/src/lib.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Async concurrency primitives shared by the PPE runtime.
 //
 // Two callers today, both running "N async branches concurrently with

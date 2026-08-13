@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-core/src/pipeline.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Pipe-chain IR for APL `args:` and `result:` phases.
 //
 // A field-level pipeline is a sequence of `Stage`s separated by `|` in the

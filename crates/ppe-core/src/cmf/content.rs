@@ -1,15 +1,11 @@
-// Location: ./crates/ppe-core/src/cmf/content.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // CMF domain objects and ContentPart hierarchy.
 //
 // Domain objects (ToolCall, Resource, etc.) are standalone structs
 // reusable outside of message content parts. ContentPart is a tagged
 // enum that wraps them for message serialization.
-//
-// Mirrors the Python types in framework/cmf/message.py.
 
 use std::collections::HashMap;
 
@@ -220,8 +216,6 @@ pub struct DocumentSource {
 /// Discriminated by the `content_type` field. Each variant wraps
 /// either a text string or a domain object.
 ///
-/// Mirrors the Python `ContentPartUnion` discriminated union in
-/// the Python `framework/cmf/message.py`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "content_type")]
 pub enum ContentPart {

@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-core/src/constraint.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Backend candidate-constraint IR for the `restrict` effect.
 //
 // `restrict` narrows the set of backends the host's router/load-balancer

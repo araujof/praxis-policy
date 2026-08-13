@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/cedar-direct/tests/resolver_config.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Every shape an operator can write in a `cedar:` PDP config block.
 //
 // One existing test covers `policy_text` with no schema. Everything else was

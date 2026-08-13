@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/lib.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // PPE Core library root.
 //
 // Pure Rust plugin runtime with no FFI, WASM, or PyO3 dependencies.

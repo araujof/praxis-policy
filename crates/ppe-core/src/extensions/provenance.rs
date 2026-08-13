@@ -1,10 +1,7 @@
-// Location: ./crates/ppe-core/src/extensions/provenance.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // ProvenanceExtension — origin and message threading.
-// Mirrors the Python framework/extensions/provenance.py.
 
 use serde::{Deserialize, Serialize};
 

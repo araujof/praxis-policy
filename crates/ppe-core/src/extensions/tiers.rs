@@ -1,14 +1,10 @@
-// Location: ./crates/ppe-core/src/extensions/tiers.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Mutability tiers and capability definitions.
 //
 // Each extension slot has a mutability tier that controls how plugins
 // can interact with it. Capabilities gate per-plugin access.
-//
-// Mirrors the Python framework/extensions/tiers.py.
 
 use serde::{Deserialize, Serialize};
 

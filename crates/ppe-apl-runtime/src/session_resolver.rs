@@ -1,22 +1,16 @@
-// Location: ./crates/ppe-apl-runtime/src/session_resolver.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
+// Copyright (c) 2026 Praxis Contributors
+
+// 3-tier session-id resolver.
 //
-// 3-tier session-id resolver. The Python apl-plugins `SessionResolver`
-// (Python framework/session.py) shipped a 4-tier version including a
-// client-supplied `X-PPE-Session-Id` header tier. **That tier is
-// excluded by design here**: an authenticated client can set the
-// header to another subject's known session id and inherit their
-// accumulated taint labels, or to a new value and escape their own
-// tainted session — defeating `session.labels`-based deny policies
-// entirely. The Python comment framed the header as a feature ("lets
-// a smart client maintain its own session boundary"); under threat
-// modeling it is a privilege-escalation channel with no surviving
-// use case the other tiers don't cover. If a future deployment needs
-// client-supplied session grouping, the right shape is a subject-
-// bound hash (`sha256(subject_id : client_value)`), not the raw
-// header value.
+// **There is deliberately no client-supplied header tier.** Letting a client
+// name its own session id reads like a feature — a smart client maintaining its
+// own session boundary — but an authenticated client could set the header to
+// another subject's known session id and inherit their accumulated taint labels,
+// or to a fresh value and escape its own tainted session. Either defeats
+// `session.labels`-based deny policies outright. If a deployment ever needs
+// client-supplied grouping, the shape to use is a subject-bound hash
+// (`sha256(subject_id : client_value)`), never the raw header value.
 //
 // The resolver walks these tiers in order, returning the first hit:
 //
@@ -83,8 +77,7 @@ impl SessionSource {
 
 /// 16 hex chars (64 bits) of `sha256(raw)`. Shared by the identity tier
 /// and the subject-binding of the Agent/TokenClaim tiers so all derived
-/// session ids have one keying scheme. Matches the Python implementation's
-/// `hexdigest()[:16]`.
+/// session ids have one keying scheme.
 fn short_hash(raw: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(raw.as_bytes());
@@ -496,7 +489,7 @@ mod tests {
     // The client-supplied `X-PPE-Session-Id` header tier is
     // intentionally absent — it has no slot in the walk above.
     //
-    // The Python `SessionResolver` included a header tier; this port
+    // A client-supplied header tier is excluded by design; this
     // does not. See the module-level doc comment for the threat model.
     // A spoofing-regression guard lives below in
     // `header_x_policy_session_id_is_ignored`.
@@ -519,7 +512,7 @@ mod tests {
 
         let (sid, src) = resolve_session(&ext).expect("should resolve");
         assert_eq!(src, SessionSource::Identity);
-        // 16 hex chars (matches Python `sha256(...)[:16]`).
+        // 16 hex chars of the sha256 digest.
         assert_eq!(sid.len(), 16);
         assert!(sid.chars().all(|c| c.is_ascii_hexdigit()));
     }
@@ -631,7 +624,7 @@ mod tests {
 
     #[test]
     fn header_x_policy_session_id_is_ignored() {
-        // The Python apl-plugins resolver honored an `X-PPE-Session-Id`
+        // A client-supplied `X-PPE-Session-Id`
         // header tier between token_claim and identity. We deliberately
         // dropped it: an authenticated client could set the header to
         // another subject's session id and inherit their accumulated

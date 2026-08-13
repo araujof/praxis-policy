@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/src/route_handler.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor, Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `AplRouteHandler` — synthetic plugin that drives APL evaluation when
 // praxis-policy-core's `filter_entries_by_route` matches an annotated route. Each
 // instance is bound to ONE phase (Pre or Post) so the unified-config

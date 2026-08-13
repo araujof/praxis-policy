@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/elicitation/payload.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `ElicitationPayload` — the unified state struct threaded through the
 // Elicitation hook chain. Same input/accumulator split as
 // `DelegationPayload`:

@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/src/register.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `register_apl` — sugar function that bundles "construct
 // `AplConfigVisitor` + register it with the manager" into one call.
 //

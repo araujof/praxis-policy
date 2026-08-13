@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-core/src/plugin_decl.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Plugin declarations — the parsed shape of the `plugins:` block in a
 // unified-config YAML document, plus the per-route override block and
 // the 2-layer resolver that merges them.

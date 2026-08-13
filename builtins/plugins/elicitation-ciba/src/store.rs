@@ -1,8 +1,6 @@
-// Location: ./builtins/plugins/elicitation-ciba/src/store.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Correlation store — maps an elicitation id (the CIBA `auth_req_id`,
 // which the agent echoes on retry) to the state the handler needs across
 // the dispatch → check → validate lifetime: who the *expected* approver is

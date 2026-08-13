@@ -1,7 +1,5 @@
-// Location: ./crates/ppe-core/src/prelude.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
+// Copyright (c) 2026 Praxis Contributors
 
 //! Curated surface for plugin authors.
 //!
@@ -72,6 +70,7 @@
 //! expose itself at all.
 
 // Plugin lifecycle
+
 pub use crate::plugin::{OnError, Plugin, PluginConfig, PluginMode};
 
 // Hook system

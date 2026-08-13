@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-cmf/src/constants.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // String constants used across praxis-policy-apl-cmf — capability names praxis-policy-core
 // recognizes for `filter_extensions`, plus the bag-attribute
 // prefixes APL extractors write under. Centralizing both makes the

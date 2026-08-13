@@ -1,8 +1,6 @@
-# Location: ./crates/ppe-orchestration/Cargo.toml
-# Copyright 2026
 # SPDX-License-Identifier: Apache-2.0
-# Authors: Teryl Taylor
-#
+# Copyright (c) 2026 Praxis Contributors
+
 # Shared async orchestration primitives.
 #
 # This crate is a leaf utility — no internal workspace dependencies.

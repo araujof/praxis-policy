@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/cedar-direct/src/lib.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // praxis-policy-pdp-cedar-direct — `PdpResolver` over the bare `cedar-policy` crate.
 //
 // # Where this lives in the stack

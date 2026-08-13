@@ -1,8 +1,6 @@
-// Location: ./builtins/plugins/elicitation-ciba/src/lib.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // praxis-policy-plugin-elicitation-ciba — `ElicitationHandler` backed by OIDC CIBA
 // (Client-Initiated Backchannel Authentication).
 //

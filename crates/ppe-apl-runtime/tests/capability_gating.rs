@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/tests/capability_gating.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Capability-gating end-to-end. praxis-policy-core's executor calls
 // `filter_extensions(&ext, &caps)` before every handler invoke — so the
 // synthetic `AplRouteHandler` must declare a capability set wide enough

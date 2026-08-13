@@ -1,8 +1,6 @@
-# Location: ./builtins/pdps/opa/Cargo.toml
-# Copyright 2026
 # SPDX-License-Identifier: Apache-2.0
-# Authors: Fred Araujo
-#
+# Copyright (c) 2026 Praxis Contributors
+
 # praxis-policy-pdp-opa — a `PdpResolver` that evaluates OPA/Rego policy in-process via
 # the pure-Rust `regorus` interpreter. Global and/or inline Rego modules plus
 # external `data`; the request `AttributeBag` maps to the Rego `input`

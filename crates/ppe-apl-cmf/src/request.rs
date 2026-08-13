@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-cmf/src/request.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // RequestExtension → AttributeBag.
 //
 // Namespace:

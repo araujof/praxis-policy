@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/opa/src/input.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Bag → Rego `input` mapping.
 //
 // APL's `AttributeBag` is a flat `HashMap<String, AttributeValue>` with dotted

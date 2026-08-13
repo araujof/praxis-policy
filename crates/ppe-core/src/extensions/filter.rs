@@ -1,14 +1,10 @@
-// Location: ./crates/ppe-core/src/extensions/filter.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Extension filtering — capability-gated visibility.
 //
 // Builds a Extensions from Extensions + declared capabilities.
 // Secure by default: slots not explicitly included are None.
-//
-// Mirrors the Python framework/extensions/tiers.py::filter_extensions().
 
 use std::collections::HashSet;
 use std::sync::Arc;

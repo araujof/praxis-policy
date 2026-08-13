@@ -1,10 +1,7 @@
-// Location: ./crates/ppe-core/src/extensions/llm.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // LLMExtension — model identity and capabilities.
-// Mirrors the Python framework/extensions/llm.py.
 
 use serde::{Deserialize, Serialize};
 

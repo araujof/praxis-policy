@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/tests/attribute_source_e2e.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // End-to-end: a static `data.*` attribute tree, set on the visitor before
 // the config walk, flows into every request's bag so policy predicates can
 // read it. Covers the load → bag path for static dot-path references;

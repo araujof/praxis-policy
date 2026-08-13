@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/context.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Execution context types.
 //
 // Provides PluginContext — the per-plugin, per-invocation execution

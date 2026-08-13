@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/delegation/hook.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `TokenDelegateHook` — the `HookTypeDef` marker for the
 // TokenDelegate hook family. Plugins implement
 // `HookHandler<TokenDelegateHook>`; outbound code dispatches into it

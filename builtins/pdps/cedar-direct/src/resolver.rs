@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/cedar-direct/src/resolver.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `CedarDirectResolver` — the `PdpResolver` implementation. Wraps a
 // loaded `PolicySet`, an `Authorizer`, and an optional `Schema`, and
 // translates each APL `PdpCall` into a Cedar request → decision.

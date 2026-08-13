@@ -1,8 +1,6 @@
-// Location: ./builtins/plugins/elicitation-ciba/src/config.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Typed configuration for `CibaApprover`. Deserializes from the
 // plugin's `PluginConfig.config` field; the approver's constructor reads
 // it and builds the runtime state (the shared `reqwest::Client`, the

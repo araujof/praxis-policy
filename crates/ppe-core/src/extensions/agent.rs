@@ -1,10 +1,7 @@
-// Location: ./crates/ppe-core/src/extensions/agent.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // AgentExtension — session, conversation, agent lineage.
-// Mirrors the Python framework/extensions/agent.py.
 
 use serde::{Deserialize, Serialize};
 

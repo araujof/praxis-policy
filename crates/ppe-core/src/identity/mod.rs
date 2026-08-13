@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/identity/mod.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Identity hook family — IdentityResolve.
 //
 // Mirrors the cmf/ module layout: the hook marker + handler trait

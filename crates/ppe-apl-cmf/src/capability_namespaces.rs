@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-cmf/src/capability_namespaces.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Capability → bag-namespace mapping for operator visibility.
 //
 // praxis-policy-core's `filter_extensions(&ext, &caps)` decides which

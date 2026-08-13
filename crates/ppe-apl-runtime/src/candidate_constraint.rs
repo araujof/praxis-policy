@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/src/candidate_constraint.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Fold — combine the `restrict` constraints a request emitted (praxis-policy-apl-core
 // authoring IR) into one typed `CandidateConstraintExtension` (praxis-policy-core
 // wire type) the host router reads off the returned `Extensions`. This is

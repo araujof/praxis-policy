@@ -1,14 +1,12 @@
-// Location: ./crates/ppe-core/src/hooks/mod.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Hook system.
 //
 // Provides the core abstractions for defining and dispatching hooks:
 //
 // - [`HookTypeDef`] — marker trait associating a typed payload + result with a hook name.
-// - [`PluginPayload`] — base trait for all hook payloads (mirrors Python's PluginPayload).
+// - [`PluginPayload`] — base trait for all hook payloads.
 // - [`PluginResult`] — result type with separate payload and extension modifications.
 // - [`Extensions`] — capability-gated extension view passed to handlers.
 // - [`define_hook!`] — macro for declaring new hook types with handler traits.

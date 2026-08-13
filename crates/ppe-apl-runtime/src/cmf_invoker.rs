@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/src/cmf_invoker.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `CmfPluginInvoker` — `praxis-policy-apl-core::PluginInvoker` impl bound to the CMF
 // hook family. Drives dispatch off a pre-resolved [`RouteDispatchPlan`]
 // (from [`DispatchCache`]) and forwards entries to

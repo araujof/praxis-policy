@@ -1,8 +1,6 @@
-// Location: ./builtins/plugins/delegator-oauth/tests/oauth_e2e.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // End-to-end tests for `OAuthDelegator` against a `mockito`-backed
 // fake IdP. Exercises the full handler path:
 // `mgr.invoke_named::<TokenDelegateHook>(...)` → delegator builds

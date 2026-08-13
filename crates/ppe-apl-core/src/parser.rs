@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-core/src/parser.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // APL parser — DSL string → IR, and YAML config → HashMap<route_key, CompiledRoute>.
 //
 // Runs once at config load. The IR it produces is what the evaluator walks

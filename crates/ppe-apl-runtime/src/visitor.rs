@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/src/visitor.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `AplConfigVisitor` — the praxis-policy-core `ConfigVisitor` implementation that
 // stacks the unified-config hierarchy (global → defaults → tag bundles
 // → routes) into a single `CompiledRoute` per route and installs an

@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/src/message_projection.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor, Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Projections between a CMF `Message` and the flat JSON APL evaluates
 // against (`RoutePayload.args` / `RoutePayload.result`), plus their
 // inverses.

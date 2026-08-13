@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/cedar-direct/tests/request_context.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // The context block a Cedar policy reads, and the parse rejections that guard it.
 //
 // `parse` assembles `context.delegation`, `context.meta` and `context.security`

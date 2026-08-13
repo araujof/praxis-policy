@@ -1,8 +1,6 @@
-// Location: ./builtins/session/valkey/src/factory.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `ValkeySessionStoreFactory` — the `SessionStoreFactory` that lets the
 // praxis-policy-apl-runtime visitor build a `ValkeySessionStore` from a
 // `global.apl.session_store: { kind: valkey, ... }` block. Mirrors the

@@ -1,8 +1,6 @@
-// Location: ./builtins/plugins/delegator-oauth/src/lib.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // praxis-policy-plugin-delegator-oauth — `TokenDelegateHandler` backed by RFC 8693
 // OAuth 2.0 Token Exchange.
 //

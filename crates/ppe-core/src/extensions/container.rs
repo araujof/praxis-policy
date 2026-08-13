@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/extensions/container.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Extensions and OwnedExtensions — typed containers for all
 // extension data passed separately from the payload to handlers.
 //
@@ -41,7 +39,6 @@ use super::security::SecurityExtension;
 /// `OwnedExtensions` with mutable/monotonic/guarded slots cloned
 /// out of Arc and write tokens propagated.
 ///
-/// Mirrors Python's `framework.extensions.Extensions`.
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Extensions {
     /// Execution environment and request tracing (immutable).

@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/cedar-direct/src/template.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `${bag-key}` substitution for `cedar:(...)` step args.
 //
 // APL authors write Cedar requests like:

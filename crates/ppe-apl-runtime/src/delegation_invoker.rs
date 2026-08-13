@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/src/delegation_invoker.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `DelegationPluginInvoker` — `praxis-policy-apl-core::DelegationInvoker` impl
 // bound to the `TokenDelegateHook` family. Drives dispatch off a
 // pre-resolved [`RouteDispatchPlan::delegation_entries`] and forwards

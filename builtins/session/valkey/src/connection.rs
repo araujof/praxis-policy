@@ -1,8 +1,6 @@
-// Location: ./builtins/session/valkey/src/connection.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Internal connection layer: builds and holds the deadpool-redis
 // pool for the Valkey backend. Kept private to this crate — it is NOT a
 // public reusable API. When a second consumer (the planned OAuth token

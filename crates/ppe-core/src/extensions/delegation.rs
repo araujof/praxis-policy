@@ -1,10 +1,7 @@
-// Location: ./crates/ppe-core/src/extensions/delegation.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // DelegationExtension — token delegation chain.
-// Mirrors the Python framework/extensions/delegation.py.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

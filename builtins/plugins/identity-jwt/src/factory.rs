@@ -1,8 +1,6 @@
-// Location: ./builtins/plugins/identity-jwt/src/factory.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `PluginFactory` impl for the JWT identity resolver. Lives in this
 // crate (not in any consuming integration) so that every host —
 // Praxis filter, Envoy bridge, CLI test harness — wires it up the

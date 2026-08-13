@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-core/tests/yaml_end_to_end.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // End-to-end integration: YAML config → compiled IR → evaluated against a
 // realistic AttributeBag and payload. This exercises the public crate API
 // only (`compile_config` + `evaluate_route` + traits) and serves as the

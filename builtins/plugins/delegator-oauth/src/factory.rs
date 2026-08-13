@@ -1,8 +1,6 @@
-// Location: ./builtins/plugins/delegator-oauth/src/factory.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `PluginFactory` impl for the OAuth 2.0 (RFC 8693) token-exchange
 // delegator. Lives here (alongside the delegator) so every host —
 // Praxis filter, Envoy bridge, CLI runner, test harness — wires it

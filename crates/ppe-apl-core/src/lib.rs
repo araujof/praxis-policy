@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-core/src/lib.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // APL core — Authorization Policy Language compiler + evaluator.
 //
 // This crate is the language nucleus. It does not depend on PPE directly;

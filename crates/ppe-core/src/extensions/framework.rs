@@ -1,10 +1,7 @@
-// Location: ./crates/ppe-core/src/extensions/framework.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // FrameworkExtension — agentic framework context.
-// Mirrors the Python framework/extensions/framework.py.
 
 use std::collections::HashMap;
 

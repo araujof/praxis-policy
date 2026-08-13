@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-cmf/src/http.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // HttpExtension → AttributeBag.
 //
 // Header names are lowercased in the bag (HTTP is case-insensitive). A

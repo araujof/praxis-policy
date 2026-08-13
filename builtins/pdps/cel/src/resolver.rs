@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/cel/src/resolver.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `CelResolver` — the `PdpResolver` implementation. Compiles each distinct
 // `cel: { expr: "..." }` expression once (cached by source string) and
 // evaluates it against the policy `AttributeBag` on every call.

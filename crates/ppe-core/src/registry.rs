@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/registry.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Plugin and hook registries.
 //
 // PluginRef wraps a plugin implementation with the manager's
@@ -25,9 +23,6 @@
 //
 // 2. **Name-based** (`register_for_names::<H>()`) — same handler
 //    registered under multiple hook names (the CMF pattern).
-//
-// Mirrors the Python framework's PluginRef and PluginInstanceRegistry
-// in the Python framework/base.py and framework/registry.py.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};

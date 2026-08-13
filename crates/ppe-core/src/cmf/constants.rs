@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/cmf/constants.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // CMF constants — schema version, serialization field names, and defaults.
 
 /// Current CMF message schema version.

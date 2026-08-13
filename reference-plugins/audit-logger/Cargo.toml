@@ -1,8 +1,6 @@
-# Location: ./reference-plugins/audit-logger/Cargo.toml
-# Copyright 2026
 # SPDX-License-Identifier: Apache-2.0
-# Authors: Teryl Taylor
-#
+# Copyright (c) 2026 Praxis Contributors
+
 # praxis-policy-plugin-audit-logger — CMF plugin that emits a structured audit
 # record for every dispatched request. Subject, client, action,
 # delegation outcome, and capability-filtered context fields land

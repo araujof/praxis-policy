@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/identity/payload.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `IdentityPayload` — the unified state struct threaded through the
 // IdentityResolve hook chain. Plays two roles in one type:
 //
@@ -26,10 +24,9 @@
 //
 // # Why one struct instead of separate Payload + Result
 //
-// An earlier draft had `IdentityPayload` (input) and `IdentityResult`
-// (output) as distinct types — the Python framework's split
-// (Python `framework/hooks/identity.py`). That made the first handler
-// awkward: it received an "empty IdentityResult" with no way to read
+// Splitting input and output into `IdentityPayload` and `IdentityResult` makes
+// the first handler awkward: it receives an "empty IdentityResult" with no way to
+// read
 // the raw token without dropping back to `Extensions`. Folding the
 // two types into one means handler N always has the inputs it needs
 // (private getters) plus whatever previous handlers have already
@@ -160,7 +157,7 @@ pub struct IdentityPayload {
 
     /// Raw decoded token claims, when a handler wants to expose them
     /// for audit/policy without elevating each claim to a typed
-    /// field. Mirrors the Python `raw_claims: dict[str, Any]`.
+    /// field.
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub raw_claims: HashMap<String, serde_json::Value>,
 }

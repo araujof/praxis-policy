@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-cmf/tests/end_to_end.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Full vertical slice: praxis-policy-core extensions → praxis-policy-apl-cmf bridge → praxis-policy-apl-core
 // evaluator on a YAML-compiled route. If this test breaks, the whole
 // stack is misaligned (extension shape, bag vocabulary, or compiler).

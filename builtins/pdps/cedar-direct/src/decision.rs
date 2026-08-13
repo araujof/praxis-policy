@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/cedar-direct/src/decision.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Translation from `cedar_policy::Response` into `praxis_policy_apl_core::PdpDecision`.
 //
 // What we preserve:

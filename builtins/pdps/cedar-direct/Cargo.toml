@@ -1,8 +1,6 @@
-# Location: ./builtins/pdps/cedar-direct/Cargo.toml
-# Copyright 2025
 # SPDX-License-Identifier: Apache-2.0
-# Authors: Teryl Taylor
-#
+# Copyright (c) 2026 Praxis Contributors
+
 # praxis-policy-pdp-cedar-direct — a `PdpResolver` implementation that wraps the bare
 # `cedar-policy` crate (Amazon's Cedar engine, no JWT validation, no policy
 # store loading, no Lock Server integration).

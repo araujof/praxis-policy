@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/cel/src/activation.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Bag → CEL activation mapping.
 //
 // APL's `AttributeBag` is a flat `HashMap<String, AttributeValue>` with

@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/hooks/metadata.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Hook routing metadata — answers "what dispatch context does this
 // hook name belong to?"
 //

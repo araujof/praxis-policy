@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/cedar-direct/tests/entities_unit.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Direct tests for the bag-to-Cedar-entity translation.
 //
 // The scenario tests reach this code only through `evaluate`, and they all use

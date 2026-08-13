@@ -1,12 +1,10 @@
-// Location: ./crates/ppe-core/src/plugin.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Plugin trait and supporting types.
 //
 // Defines the core Plugin trait that all plugin implementations satisfy —
-// native Rust, WASM hosts, Python bridge hosts, and dlopen'd shared
+// native Rust, WASM hosts, and dlopen'd shared
 // libraries. Also defines PluginConfig (YAML-declared plugin settings),
 // PluginMode (5-phase execution modes), and OnError (failure behavior).
 //
@@ -69,7 +67,7 @@ use crate::error::PluginError;
 /// # Implementors
 ///
 /// - Native Rust plugins (implement directly)
-/// - Out-of-process host bridges (WASM, Python, dlopen'd native), which live
+/// - Out-of-process host bridges (WASM, dlopen'd native), which live
 ///   outside this repository
 #[async_trait]
 pub trait Plugin: Send + Sync {
@@ -131,7 +129,6 @@ pub struct PluginConfig {
     /// - `"builtin"` — compiled into the runtime
     /// - `"native://path/to/lib.so"` — dlopen'd shared library
     /// - `"wasm://path/to/plugin.wasm"` — wasmtime sandbox
-    /// - `"python://module.path.ClassName"` — `PyO3` bridge
     /// - `"external"` — MCP/gRPC/Unix socket transport
     pub kind: String,
 
@@ -198,8 +195,7 @@ pub struct PluginConfig {
 impl PluginConfig {
     /// Whether this plugin's `conditions` allow it to fire for the given
     /// request `Extensions`. Used in legacy mode (`routing_enabled: false`)
-    /// to filter which plugins run per request — mirrors the Python
-    /// implementation's per-plugin condition filtering.
+    /// to filter which plugins run per request.
     ///
     /// Semantics:
     /// - Empty `conditions` Vec → fire always (no restriction).
@@ -290,7 +286,6 @@ fn default_priority() -> i32 {
 /// (`routes:` in config) supersedes this — when routes are used,
 /// conditions are ignored.
 ///
-/// Mirrors Python's `PluginCondition` in `framework/models.py`.
 ///
 /// # Examples
 ///

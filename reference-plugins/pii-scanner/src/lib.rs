@@ -1,8 +1,6 @@
-// Location: ./reference-plugins/pii-scanner/src/lib.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // praxis-policy-plugin-pii-scanner — CMF `HookHandler` that walks the message's
 // ToolCall / PromptRequest argument map and tests each string value
 // against configured PII patterns. Modes:

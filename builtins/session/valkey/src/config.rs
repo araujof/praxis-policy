@@ -1,8 +1,6 @@
-// Location: ./builtins/session/valkey/src/config.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Parses and validates the `global.apl.session_store` block for the
 // Valkey backend. Deliberately minimal: a single endpoint, TLS,
 // auth, key prefix, optional sliding TTL, and fail-closed timeout/retry

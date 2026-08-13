@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-core/src/evaluator.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // APL evaluator — walks the IR against an AttributeBag and returns a Decision.
 //
 // The evaluator is sync and infallible by design. Missing attributes resolve

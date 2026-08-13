@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/cel/src/error.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Build-time errors for `CelResolver`. These fire at construction
 // (parsing the unified-config block); never at request time.
 //

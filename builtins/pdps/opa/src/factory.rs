@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/opa/src/factory.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `OpaPdpFactory` — the `PdpFactory` the praxis-policy-apl-runtime visitor uses to instantiate
 // an `OpaResolver` from a unified-config block:
 //

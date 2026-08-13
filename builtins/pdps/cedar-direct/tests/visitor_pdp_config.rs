@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/cedar-direct/tests/visitor_pdp_config.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // End-to-end integration: a unified-config YAML that
 //
 //   1. declares a `cedar-direct` PDP under `global.apl.pdp[]`,

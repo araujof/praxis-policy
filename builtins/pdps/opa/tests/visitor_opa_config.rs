@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/opa/tests/visitor_opa_config.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // End-to-end integration: a unified-config YAML that
 //
 //   1. declares an `opa` PDP under `global.apl.pdp[]` with Rego module(s),

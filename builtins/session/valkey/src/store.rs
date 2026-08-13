@@ -1,8 +1,6 @@
-// Location: ./builtins/session/valkey/src/store.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `ValkeySessionStore` — the Valkey-backed `SessionStore`. Labels live in
 // a Redis SET per session so `append_labels` is a single atomic
 // server-side union (`SADD`), never a client-side read-modify-write that

@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/tests/config_override.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Route-level `config:` override propagation. The unified-config spec
 // allows a route to declare `plugins.<name>.config: { ... }` that
 // REPLACES (not merges) the plugin's base config for THIS route only.

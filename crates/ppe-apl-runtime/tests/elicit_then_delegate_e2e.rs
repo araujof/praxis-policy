@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/tests/elicit_then_delegate_e2e.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Integration test for the composition of two effects in one route:
 // an approval gate (`require_approval` → ElicitationPluginInvoker) that
 // must pass before a delegation (`delegate` → DelegationPluginInvoker)

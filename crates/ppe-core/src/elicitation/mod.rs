@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/elicitation/mod.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Elicitation hook family — human-in-the-loop dispatch (approval,
 // confirmation, step-up, attestation, …).
 //

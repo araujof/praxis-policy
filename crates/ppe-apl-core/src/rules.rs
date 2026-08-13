@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-core/src/rules.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // APL intermediate representation.
 //
 // The compiler (later) produces a `CompiledRoute` per route_key from

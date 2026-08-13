@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/hooks/types.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Hook type definitions.
 //
 // Hook types are open strings — hosts define hook points appropriate

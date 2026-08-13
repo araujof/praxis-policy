@@ -1,8 +1,6 @@
-// Location: ./builtins/plugins/identity-jwt/src/trusted_issuer.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `TrustedIssuer` — config for one OIDC issuer the resolver trusts,
 // plus the `KeyStore` that holds its (possibly-multiple) JWKS keys
 // indexed by `kid` for token-header-driven key selection.

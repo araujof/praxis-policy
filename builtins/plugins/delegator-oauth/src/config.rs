@@ -1,8 +1,6 @@
-// Location: ./builtins/plugins/delegator-oauth/src/config.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Typed configuration for `OAuthDelegator`. Deserializes from the
 // plugin's `PluginConfig.config: Option<JsonValue>` field; the
 // delegator's constructor reads this and builds the runtime state

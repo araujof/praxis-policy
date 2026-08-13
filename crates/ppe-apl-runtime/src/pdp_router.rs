@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/src/pdp_router.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `PdpRouter` — composite `PdpResolver` that dispatches each call to the
 // resolver matching the requested `PdpDialect`. Lets a single host (or a
 // single `AplRouteHandler`) carry resolvers for several backends at the

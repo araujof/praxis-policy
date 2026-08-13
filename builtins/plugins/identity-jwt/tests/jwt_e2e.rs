@@ -1,8 +1,6 @@
-// Location: ./builtins/plugins/identity-jwt/tests/jwt_e2e.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // End-to-end tests for `JwtIdentityResolver` against a real RSA
 // keypair + signed JWTs. Exercises the full handler path:
 // `mgr.invoke_named::<IdentityHook>(...)` → resolver decodes /

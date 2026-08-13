@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/opa/src/decision.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Query-result → decision mapping.
 //
 // A Rego query resolves to a `regorus::Value`. This module turns that value

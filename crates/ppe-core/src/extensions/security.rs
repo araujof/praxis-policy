@@ -1,10 +1,7 @@
-// Location: ./crates/ppe-core/src/extensions/security.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // SecurityExtension — labels, classification, identity, data policy.
-// Mirrors the Python framework/extensions/security.py.
 
 use std::collections::{HashMap, HashSet};
 

@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/elicitation/hook.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `ElicitationHook` — the `HookTypeDef` marker for the Elicitation hook
 // family. Plugins implement `HookHandler<ElicitationHook>`; the praxis-policy-apl-runtime
 // bridge dispatches into it to drive a human-in-the-loop step (approval,

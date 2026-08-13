@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-cmf/src/security.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // SecurityExtension → AttributeBag.
 //
 // Namespace map (canonical — extend this comment when adding a new key):

@@ -1,7 +1,5 @@
-// Location: ./reference-plugins/audit-logger/src/logger.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
+// Copyright (c) 2026 Praxis Contributors
 
 use async_trait::async_trait;
 use serde_json::{Map, Value, json};

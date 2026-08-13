@@ -1,8 +1,6 @@
-// Location: ./builtins/pdps/opa/src/lib.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // praxis-policy-pdp-opa — `PdpResolver` over Microsoft's pure-Rust `regorus` Rego
 // interpreter.
 //

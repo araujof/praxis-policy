@@ -1,14 +1,11 @@
-// Location: ./crates/ppe-core/src/hooks/payload.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // PluginPayload trait and Extensions stub.
 //
-// PluginPayload is the base trait for all hook payloads, mirroring
-// Python's PluginPayload(BaseModel, frozen=True). All payloads in
-// the framework implement this trait, giving the executor and
-// registry a common bound for type safety.
+// PluginPayload is the base trait for all hook payloads. Every payload
+// implements it, giving the executor and registry a common bound for type
+// safety.
 //
 // The trait is object-safe — the executor works with `Box<dyn PluginPayload>`
 // instead of `Box<dyn Any>`, catching type errors at compile time.
@@ -31,7 +28,6 @@ pub use crate::extensions::{Extensions, Guarded, MetaExtension, OwnedExtensions,
 
 /// Base trait for all hook payloads.
 ///
-/// Mirrors Python's `PluginPayload(BaseModel, frozen=True)`. Every
 /// payload type in the framework implements this trait. The executor
 /// and registry use `Box<dyn PluginPayload>` (not `Box<dyn Any>`)
 /// for type-safe dispatch.

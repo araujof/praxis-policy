@@ -1,7 +1,5 @@
-// Location: ./crates/ppe/src/lib.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Fred Araujo
+// Copyright (c) 2026 Praxis Contributors
 
 //! **PPE is a policy enforcement runtime for AI agents.**
 //!
@@ -73,6 +71,7 @@
 //! a supported slot, and they are now unpublished and host-registered.
 
 // Whole-crate re-exports for advanced use (types not surfaced below).
+
 pub use {
     praxis_policy_apl_cmf, praxis_policy_apl_core, praxis_policy_apl_runtime, praxis_policy_core,
 };

@@ -1,8 +1,6 @@
-// Location: ./reference-plugins/audit-logger/src/lib.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // praxis-policy-plugin-audit-logger — CMF plugin that emits one structured JSON
 // audit record per dispatched request. The record captures:
 //

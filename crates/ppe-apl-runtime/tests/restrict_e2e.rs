@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/tests/restrict_e2e.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // End-to-end: an APL route with `restrict` effects, driven through the
 // real PluginManager + APL visitor, must fold the emitted constraints
 // and surface them on the typed `candidate_constraint` extension slot

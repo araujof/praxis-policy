@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/identity/route_config.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Route-level identity configuration — the parsed shape of a
 // route's `identity:` block in unified-config YAML.
 //

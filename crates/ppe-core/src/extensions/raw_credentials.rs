@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/extensions/raw_credentials.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `RawCredentialsExtension` — Layer 3 of the three-layer credential
 // storage model.
 // Carries the *raw* token material — bearer JWTs, opaque session
@@ -46,11 +44,10 @@
 //
 // It is **not** true that raw material never leaves the host process.
 // A host may read the in-memory `Zeroizing` field directly and put
-// the plaintext on a purpose-built side channel. The Python host bridge
-// does exactly that: `crates/ppe-hosts-python/src/credentials.rs`
-// builds a dedicated `credential` DTO carrying the token as a plain
-// string, so an identity resolver or token delegator can run in a
-// separate worker process. The reversal is deliberate — without it
+// the plaintext on a purpose-built side channel. An out-of-process host
+// bridge does exactly that: it builds a dedicated `credential` DTO carrying
+// the token as a plain string, so an identity resolver or token delegator can
+// run in a separate worker process. The reversal is deliberate — without it
 // those two handler kinds cannot work out-of-process at all — and it
 // is narrow by construction, not by policy: the DTO is a distinct
 // type with a hand-written redacting `Debug`, and it is the only

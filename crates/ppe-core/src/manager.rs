@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/src/manager.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor, Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Plugin manager.
 //
 // Owns the plugin lifecycle (initialize, dispatch, shutdown) and
@@ -20,9 +18,6 @@
 // each plugin in a PluginRef with the authoritative config. Plugins
 // never provide their own config to the manager. Trust flows:
 //   config loader → manager → PluginRef → executor
-//
-// Mirrors the Python framework's PluginManager in
-// the Python framework/manager.py.
 
 use std::hash::{Hash, Hasher};
 use std::path::Path;
@@ -1384,7 +1379,7 @@ impl PluginManager {
         // Routing disabled (or no config): fall back to per-plugin
         // condition filtering. Empty conditions Vec means "fire always",
         // so this is backward-compatible with configs that don't use
-        // conditions. Mirrors the Python implementation.
+        // conditions.
         let policy_config = match &snapshot.policy_config {
             Some(c) if c.routing_enabled() => c,
             _ => {
@@ -2264,7 +2259,6 @@ mod tests {
     /// When `routing_enabled` is `false` (the legacy / default mode),
     /// each plugin's `conditions:` must be evaluated per request — a
     /// non-matching condition should keep the plugin from firing.
-    /// Mirrors the Python implementation's per-plugin filtering.
     #[tokio::test]
     async fn test_conditions_filter_plugins_when_routing_disabled() {
         use std::sync::Arc as StdArc;

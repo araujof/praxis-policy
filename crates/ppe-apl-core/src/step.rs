@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-core/src/step.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // Policy-phase Step IR and async dispatch traits.
 //
 // The DSL allows policy:/post_policy: lists to contain three kinds of

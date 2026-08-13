@@ -1,8 +1,6 @@
-# Location: ./builtins/pdps/cel/Cargo.toml
-# Copyright 2026
 # SPDX-License-Identifier: Apache-2.0
-# Authors: Teryl Taylor
-#
+# Copyright (c) 2026 Praxis Contributors
+
 # praxis-policy-pdp-cel — a `PdpResolver` that evaluates CEL (Common Expression
 # Language) boolean predicates against the policy `AttributeBag`, authored
 # inline in route YAML (`cel: { expr: "..." }`).

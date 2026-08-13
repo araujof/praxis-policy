@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/src/elicitation_invoker.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // `ElicitationPluginInvoker` — `praxis-policy-apl-core::ElicitationInvoker` impl
 // bound to the `ElicitationHook` family. Drives dispatch off a
 // pre-resolved [`RouteDispatchPlan::elicitation_entries`] and forwards

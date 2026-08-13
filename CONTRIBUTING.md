@@ -16,6 +16,51 @@ make audit
 
 `make ci` runs the same set CI does.
 
+## File headers
+
+Every source file starts with exactly these two lines, and nothing else:
+
+```rust
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Praxis Contributors
+```
+
+The year is the year the file was added. `#` instead of `//` in TOML and YAML.
+
+No `Authors:` line and no path line. Both go stale: a path breaks the moment a
+file moves, and an author list stops being true as soon as somebody else edits
+the file. `git log --follow` answers both questions accurately.
+
+## Comments explain the code, not the work that produced it
+
+A comment earns its place by telling a reader something they need in order to
+change the code safely. Some things that feel worth writing down are not:
+
+- **Progress and task state.** Remaining-work counts, "started at X, now Y",
+  which items are deferred. It is stale within a sprint and it belongs in the
+  tracker or a `docs/plans/` document.
+- **History.** "This used to be a separate crate", "we tried X first". State the
+  requirement in the present tense. If the reason a mistake is easy to repeat is
+  itself worth knowing, say what the constraint is, not what happened.
+- **Internal milestone names.** "Slice B", "Phase 0". They mean nothing to a
+  reader and can collide with real vocabulary: this codebase documents a
+  five-phase execution model, so an unrelated "Phase 5" points at the wrong idea.
+- **Cross-repository census numbers.** A count of another project's lint set goes
+  stale when they commit, not when we do, so it cannot be kept honest.
+
+```rust
+// no
+// Two passes, because folding the aggregator into the facade silently stopped
+// three tests running. A green single-pass run said nothing was wrong.
+
+// yes
+// Two passes: the second is the only way to reach `#[cfg(feature = ...)]` test
+// modules. Dropping either hides tests without failing.
+```
+
+Some documentation is generated from source comments. `make lint` regenerates and
+compares it, so run the full gate rather than `cargo clippy` alone.
+
 ## Durable text carries no planning identifiers
 
 Commit messages, code comments, rustdoc, changelog entries, and pull-request

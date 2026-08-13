@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/tests/canonical_authn_authz_e2e.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Fred Araujo
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // End-to-end reference for the CANONICAL APL config shape: a route that
 // declares `authentication:` and `authorization:` as sibling blocks, with
 // NO `apl:` wrapper. This is the form the docs teach; this test proves it

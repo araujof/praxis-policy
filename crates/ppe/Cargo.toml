@@ -1,8 +1,6 @@
-# Location: ./crates/ppe/Cargo.toml
-# Copyright 2025
 # SPDX-License-Identifier: Apache-2.0
-# Authors: Fred Araujo
-#
+# Copyright (c) 2026 Praxis Contributors
+
 # praxis-policy — host facade.
 #
 # One dependency instead of a dozen: re-exports the host runtime

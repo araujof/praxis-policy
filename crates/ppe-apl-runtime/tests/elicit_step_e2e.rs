@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-apl-runtime/tests/elicit_step_e2e.rs
-// Copyright 2026
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // End-to-end test for the elicitation bridge.
 //
 // Verifies the full flow:

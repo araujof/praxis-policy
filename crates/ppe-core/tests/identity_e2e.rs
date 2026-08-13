@@ -1,8 +1,6 @@
-// Location: ./crates/ppe-core/tests/identity_e2e.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // End-to-end test for the IdentityResolve hook family.
 //
 // Verifies the host-explicit dispatch model: the host constructs an

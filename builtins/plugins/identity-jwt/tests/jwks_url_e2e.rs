@@ -1,8 +1,6 @@
-// Location: ./builtins/plugins/identity-jwt/tests/jwks_url_e2e.rs
-// Copyright 2025
 // SPDX-License-Identifier: Apache-2.0
-// Authors: Teryl Taylor
-//
+// Copyright (c) 2026 Praxis Contributors
+
 // End-to-end test for `DecodingKeySource::JwksUrl` + the async
 // resolution path:
 //
