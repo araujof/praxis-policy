@@ -468,4 +468,135 @@ mod tests {
         write_args_back_to_message(&mut msg, &serde_json::json!("not an object"));
         assert_eq!(extract_args_from_message(&msg), before);
     }
+
+    // ---- the prompt-request half of the projection -----------------------
+
+    fn prompt_request_message() -> Message {
+        Message::with_content(
+            Role::User,
+            vec![ContentPart::PromptRequest {
+                content: praxis_policy_core::cmf::content::PromptRequest {
+                    prompt_request_id: "pr_1".into(),
+                    name: "summarize".into(),
+                    arguments: [
+                        ("tone".to_owned(), serde_json::json!("terse")),
+                        ("length".to_owned(), serde_json::json!(200)),
+                    ]
+                    .into(),
+                    server_id: None,
+                },
+            }],
+        )
+    }
+
+    /// A prompt request projects its arguments the same way a tool call does.
+    /// The two are separate match arms over separate types, and only the tool
+    /// call had a test, so a prompt request could have projected as the "whole
+    /// text" fallback instead. An `args.tone` predicate would then see nothing
+    /// and every rule scoped to a prompt argument would quietly stop matching.
+    #[test]
+    fn a_prompt_request_projects_its_arguments_not_its_text() {
+        let args = extract_args_from_message(&prompt_request_message());
+        assert_eq!(
+            args,
+            serde_json::json!({ "tone": "terse", "length": 200 }),
+            "prompt arguments must project as an object, not as text"
+        );
+    }
+
+    /// The write-back is the inverse, so a pipeline that rewrites an argument
+    /// has to survive a round trip. Without this, a `set` on a prompt argument
+    /// could be dropped and the upstream would receive the original request
+    /// while the policy reported success.
+    #[test]
+    fn a_rewritten_prompt_argument_survives_the_round_trip() {
+        let mut msg = prompt_request_message();
+        write_args_back_to_message(&mut msg, &serde_json::json!({ "tone": "formal" }));
+        assert_eq!(
+            extract_args_from_message(&msg),
+            serde_json::json!({ "tone": "formal" }),
+            "the rewritten arguments must be what the next read sees"
+        );
+    }
+
+    /// Handing a prompt request the wrong args shape is a documented no-op: the
+    /// upstream sees the original content rather than a malformed rewrite. The
+    /// tool-call arm has this test; this is the prompt arm of the same guard.
+    #[test]
+    fn args_of_the_wrong_shape_leave_a_prompt_request_untouched() {
+        let mut msg = prompt_request_message();
+        let before = extract_args_from_message(&msg);
+        write_args_back_to_message(&mut msg, &serde_json::json!("not an object"));
+        assert_eq!(extract_args_from_message(&msg), before);
+    }
+
+    // ---- the result projection -------------------------------------------
+
+    /// Redaction in the Post phase is a write-back, so what the pipeline
+    /// produced has to be what the next read returns. If it were dropped, the
+    /// policy would report a redaction that never reached the response.
+    #[test]
+    fn a_redacted_result_survives_the_round_trip() {
+        let mut msg = tool_result_message();
+        write_result_back_to_message(&mut msg, &serde_json::json!({ "temp": "[REDACTED]" }));
+        assert_eq!(
+            extract_result_from_message(&msg),
+            serde_json::json!({ "temp": "[REDACTED]" }),
+            "the redacted value must be what the response carries"
+        );
+    }
+
+    /// With no structured result part, both directions fall back to the text
+    /// content. This is the path a plain text response takes, and it is the one
+    /// a `result contains` rule relies on.
+    #[test]
+    fn a_text_only_message_projects_and_accepts_text_as_its_result() {
+        let mut msg = Message::text(Role::Assistant, "salary is 100000");
+        assert_eq!(
+            extract_result_from_message(&msg),
+            Value::String("salary is 100000".to_owned())
+        );
+
+        write_result_back_to_message(&mut msg, &serde_json::json!("salary is [REDACTED]"));
+        assert_eq!(
+            extract_result_from_message(&msg),
+            Value::String("salary is [REDACTED]".to_owned())
+        );
+    }
+
+    /// A non-string result for a text-only message is a no-op rather than a
+    /// stringified object appearing in the reply. Paired with the case above so
+    /// it cannot pass by the write-back being broken outright.
+    #[test]
+    fn a_non_string_result_leaves_a_text_only_message_untouched() {
+        let mut msg = Message::text(Role::Assistant, "unchanged");
+        write_result_back_to_message(&mut msg, &serde_json::json!({ "salary": 1 }));
+        assert_eq!(
+            extract_result_from_message(&msg),
+            Value::String("unchanged".to_owned())
+        );
+    }
+
+    /// Rewriting text on a message that carries no text part appends one rather
+    /// than dropping the rewrite. A tool-result message redacted to a string
+    /// takes this path, and silently discarding it would leave the original
+    /// value in the reply.
+    #[test]
+    fn rewriting_text_on_a_message_with_no_text_part_appends_one() {
+        let mut msg = Message::with_content(Role::User, vec![]);
+        rewrite_message_text(&mut msg, "added");
+        assert_eq!(msg.content.len(), 1, "a text part must be appended");
+        assert_eq!(
+            extract_result_from_message(&msg),
+            Value::String("added".to_owned())
+        );
+
+        // And a second rewrite replaces rather than appends again.
+        rewrite_message_text(&mut msg, "replaced");
+        assert_eq!(msg.content.len(), 1, "the existing part must be reused");
+        assert_eq!(
+            extract_result_from_message(&msg),
+            Value::String("replaced".to_owned())
+        );
+    }
 }

@@ -1021,4 +1021,59 @@ mod phase5_tests {
         };
         assert!(extensions_changed(&before, &after));
     }
+
+    /// The arm that actually runs in production, for both slots that a route can
+    /// mutate without touching security.
+    ///
+    /// The tests above cover absent-to-present. But by the time a route runs, a
+    /// JWT resolver has usually already stashed the inbound token, so
+    /// `raw_credentials` is `Some` before the pipeline starts and the comparison
+    /// that decides whether to merge is the pointer check between two present
+    /// values. If that arm answered "unchanged", a `delegate(...)` step would
+    /// mint a token the upstream request never receives, and the route would
+    /// report success while the downstream call went out unauthenticated.
+    ///
+    /// Both directions are asserted per slot: a replaced `Arc` is a change, and
+    /// the same `Arc` on both sides is not. Without the second, an
+    /// always-changed answer would pass.
+    #[test]
+    fn a_replaced_slot_is_a_change_and_the_same_arc_is_not() {
+        use praxis_policy_core::extensions::DelegationExtension;
+        use praxis_policy_core::extensions::raw_credentials::RawCredentialsExtension;
+
+        let creds = Arc::new(RawCredentialsExtension::default());
+        let with_creds = |c: &Arc<RawCredentialsExtension>| Extensions {
+            raw_credentials: Some(Arc::clone(c)),
+            ..Extensions::default()
+        };
+        assert!(
+            !extensions_changed(&with_creds(&creds), &with_creds(&creds)),
+            "the same raw_credentials Arc on both sides is not a change"
+        );
+        assert!(
+            extensions_changed(
+                &with_creds(&creds),
+                &with_creds(&Arc::new(RawCredentialsExtension::default()))
+            ),
+            "a replaced raw_credentials Arc carries the minted token and must \
+             be detected"
+        );
+
+        let chain = Arc::new(DelegationExtension::default());
+        let with_chain = |c: &Arc<DelegationExtension>| Extensions {
+            delegation: Some(Arc::clone(c)),
+            ..Extensions::default()
+        };
+        assert!(
+            !extensions_changed(&with_chain(&chain), &with_chain(&chain)),
+            "the same delegation Arc on both sides is not a change"
+        );
+        assert!(
+            extensions_changed(
+                &with_chain(&chain),
+                &with_chain(&Arc::new(DelegationExtension::default()))
+            ),
+            "a replaced delegation chain must be detected"
+        );
+    }
 }
