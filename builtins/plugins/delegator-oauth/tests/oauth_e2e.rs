@@ -743,3 +743,343 @@ async fn leg1_rejection_does_not_leak_the_client_assertion() {
         violation.reason,
     );
 }
+
+// =====================================================================
+// Leg-1 failures other than a clean rejection
+// =====================================================================
+
+/// A payload for the two-leg workload shape, so the tests below all enter
+/// through leg 1.
+fn workload_payload() -> DelegationPayload {
+    build_payload(
+        "get_compensation",
+        "https://hr.example.com",
+        &["read:compensation"],
+    )
+    .with_subject(DelegationSubject::CallerWorkload)
+}
+
+async fn violation_for(
+    payload: DelegationPayload,
+    endpoint: &str,
+) -> praxis_policy_core::error::PluginViolation {
+    let mgr = build_manager(endpoint).await;
+    let result = invoke(&mgr, payload).await;
+    assert!(
+        !result.continue_processing,
+        "this case must deny rather than mint a token"
+    );
+    result.violation.expect("a deny carries a violation")
+}
+
+/// Leg 1 against an endpoint with nothing listening. The agent cannot be
+/// authenticated, so the whole delegation has to fail closed: minting on a
+/// failed leg 1 would hand out a downstream token for an agent whose identity
+/// was never established.
+#[tokio::test]
+async fn a_leg1_transport_failure_denies_the_whole_delegation() {
+    // Bind a loopback port, learn its number, then release it. Connecting to a
+    // closed loopback port is refused immediately, which keeps this a transport
+    // failure rather than the timeout a firewalled address would produce.
+    let port = {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("a free loopback port");
+        listener.local_addr().expect("the bound address").port()
+    };
+    let violation = violation_for(
+        workload_payload(),
+        &format!("http://127.0.0.1:{port}/oauth/token"),
+    )
+    .await;
+    assert_eq!(violation.code, "delegation.idp_unreachable");
+    assert!(
+        violation.reason.contains("workload client_assertion"),
+        "the reason must say which leg failed, since both legs post to the \
+         same endpoint: {}",
+        violation.reason
+    );
+}
+
+/// A leg-1 rejection whose body is not the OAuth error JSON at all. The status
+/// is all there is to report, and reporting it is the point: an operator seeing
+/// a bare `idp_rejected` with no detail cannot tell a 400 from a 503.
+#[tokio::test]
+async fn a_leg1_rejection_with_an_unparseable_body_still_reports_the_status() {
+    let mut server = Server::new_async().await;
+    let _leg1 = server
+        .mock("POST", "/oauth/token")
+        .with_status(503)
+        .with_body("<html>gateway timeout</html>")
+        .create_async()
+        .await;
+
+    let violation =
+        violation_for(workload_payload(), &format!("{}/oauth/token", server.url())).await;
+    assert_eq!(violation.code, "delegation.idp_rejected");
+    assert!(
+        violation.reason.contains("503"),
+        "the status is the only detail available and must appear: {}",
+        violation.reason
+    );
+    assert!(
+        !violation.reason.contains("gateway timeout"),
+        "an unparseable body is not echoed, for the same reason \
+         error_description is not: {}",
+        violation.reason
+    );
+}
+
+/// Leg 1 answering 200 with something that is not a token response. Treating a
+/// missing `access_token` as success would carry an empty credential into leg 2
+/// and produce a confusing leg-2 rejection instead of naming the real fault.
+#[tokio::test]
+async fn a_leg1_success_that_is_not_a_token_response_denies() {
+    let mut server = Server::new_async().await;
+    let _leg1 = server
+        .mock("POST", "/oauth/token")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(json!({ "not_a_token": true }).to_string())
+        .create_async()
+        .await;
+
+    let violation =
+        violation_for(workload_payload(), &format!("{}/oauth/token", server.url())).await;
+    assert_eq!(violation.code, "delegation.bad_response");
+    assert!(
+        violation.reason.contains("workload client_assertion"),
+        "the reason must attribute the bad response to leg 1: {}",
+        violation.reason
+    );
+}
+
+// =====================================================================
+// Leg-2 error shapes
+// =====================================================================
+
+/// A leg-2 rejection carrying `error_description` surfaces both the code and
+/// the description.
+///
+/// Note the asymmetry with leg 1, which deliberately drops the description
+/// because an `IdP` may echo the submitted credential back in it. Leg 2 submits
+/// the caller's bearer token as `subject_token`, so the same echo is possible
+/// here. This test records what the code does today rather than endorsing it.
+#[tokio::test]
+async fn a_leg2_rejection_surfaces_the_error_description() {
+    let mut server = Server::new_async().await;
+    let _leg2 = server
+        .mock("POST", "/oauth/token")
+        .with_status(400)
+        .with_header("content-type", "application/json")
+        .with_body(
+            json!({
+                "error": "invalid_scope",
+                "error_description": "read:compensation is not granted to this client",
+            })
+            .to_string(),
+        )
+        .create_async()
+        .await;
+
+    let violation = violation_for(
+        build_payload(
+            "get_compensation",
+            "https://hr.example.com",
+            &["read:compensation"],
+        ),
+        &format!("{}/oauth/token", server.url()),
+    )
+    .await;
+    assert_eq!(violation.code, "delegation.idp_rejected");
+    assert!(
+        violation.reason.contains("invalid_scope"),
+        "the machine-readable code must appear: {}",
+        violation.reason
+    );
+    assert!(
+        violation.reason.contains("not granted to this client"),
+        "and today the description is appended to it: {}",
+        violation.reason
+    );
+}
+
+/// A leg-2 rejection whose body is not OAuth error JSON falls back to the
+/// status. Without the fallback the violation would carry an empty reason.
+#[tokio::test]
+async fn a_leg2_rejection_with_an_unparseable_body_falls_back_to_the_status() {
+    let mut server = Server::new_async().await;
+    let _leg2 = server
+        .mock("POST", "/oauth/token")
+        .with_status(500)
+        .with_body("upstream exploded")
+        .create_async()
+        .await;
+
+    let violation = violation_for(
+        build_payload("get_compensation", "https://hr.example.com", &[]),
+        &format!("{}/oauth/token", server.url()),
+    )
+    .await;
+    assert_eq!(violation.code, "delegation.idp_rejected");
+    assert!(
+        violation.reason.contains("500"),
+        "the status must appear when nothing else is parseable: {}",
+        violation.reason
+    );
+}
+
+/// Leg 2 answering 200 with a body that carries no `access_token`. There is no
+/// token to forward, so this has to deny rather than mint an empty credential.
+#[tokio::test]
+async fn a_leg2_success_with_no_access_token_denies() {
+    let mut server = Server::new_async().await;
+    let _leg2 = server
+        .mock("POST", "/oauth/token")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(json!({ "token_type": "Bearer" }).to_string())
+        .create_async()
+        .await;
+
+    let violation = violation_for(
+        build_payload("get_compensation", "https://hr.example.com", &[]),
+        &format!("{}/oauth/token", server.url()),
+    )
+    .await;
+    assert_eq!(violation.code, "delegation.bad_response");
+}
+
+// =====================================================================
+// Lifetime and metadata of the minted token
+// =====================================================================
+
+/// Run the happy path with a chosen token response and attenuation, and return
+/// the minted payload.
+async fn mint_with(body: String, attenuation: Option<AttenuationConfig>) -> DelegationPayload {
+    let mut server = Server::new_async().await;
+    let _m = server
+        .mock("POST", "/oauth/token")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(body)
+        .create_async()
+        .await;
+
+    let mut payload = DelegationPayload::new("caller-bearer-token-bytes", "get_compensation")
+        .with_target_type(TargetType::Tool)
+        .with_target_audience("https://hr.example.com")
+        .with_auth_enforced_by(AuthEnforcedBy::Target);
+    if let Some(att) = attenuation {
+        payload = payload.with_route_attenuation(att);
+    }
+
+    let mgr = build_manager(&format!("{}/oauth/token", server.url())).await;
+    let result = invoke(&mgr, payload).await;
+    assert!(
+        result.continue_processing,
+        "this case must mint a token; violation = {:?}",
+        result.violation
+    );
+    DelegationPayload::from_pipeline_result(&result).expect("a minted payload")
+}
+
+fn attenuation_with_ttl(ttl: Option<u64>) -> AttenuationConfig {
+    AttenuationConfig {
+        capabilities: Vec::new(),
+        resource_template: None,
+        actions: Vec::new(),
+        ttl_seconds: ttl,
+    }
+}
+
+/// Route attenuation shortens the token's life but never extends it, and an
+/// attenuation hint too large to be a duration must leave the `IdP`'s lifetime
+/// alone rather than wrap into a negative one.
+///
+/// A negative lifetime is the failure worth guarding: the minted token would
+/// already be expired, so every downstream call fails in a way that looks like
+/// an `IdP` problem. The cast saturates for that reason, and nothing else here
+/// would notice if it stopped.
+#[tokio::test]
+async fn attenuation_only_ever_shortens_the_minted_token_lifetime() {
+    let body = json!({ "access_token": "t", "expires_in": 3600 }).to_string();
+
+    let shortened = mint_with(body.clone(), Some(attenuation_with_ttl(Some(60)))).await;
+    let ttl = shortened
+        .delegated_token
+        .expect("a token")
+        .expires_at
+        .signed_duration_since(chrono::Utc::now())
+        .num_seconds();
+    assert!(
+        (0..=60).contains(&ttl),
+        "a 60s attenuation hint must shorten a 3600s grant, got {ttl}s"
+    );
+
+    // A hint larger than any real duration means "no further shortening".
+    let absurd = mint_with(body.clone(), Some(attenuation_with_ttl(Some(u64::MAX)))).await;
+    let ttl = absurd
+        .delegated_token
+        .expect("a token")
+        .expires_at
+        .signed_duration_since(chrono::Utc::now())
+        .num_seconds();
+    assert!(
+        ttl > 0,
+        "an unrepresentable attenuation hint must not produce an \
+         already-expired token, got {ttl}s"
+    );
+    assert!(
+        ttl > 3000,
+        "and must leave the IdP's own lifetime in place, got {ttl}s"
+    );
+}
+
+/// An `IdP` that sends no `expires_in` gets a short default rather than an
+/// unbounded lifetime, so a misconfigured `IdP` cannot cause long-lived tokens.
+#[tokio::test]
+async fn a_token_response_with_no_expiry_gets_a_short_default() {
+    let minted = mint_with(json!({ "access_token": "t" }).to_string(), None).await;
+    let ttl = minted
+        .delegated_token
+        .expect("a token")
+        .expires_at
+        .signed_duration_since(chrono::Utc::now())
+        .num_seconds();
+    assert!(
+        (0..=300).contains(&ttl),
+        "an absent expires_in must default to at most 5 minutes, got {ttl}s"
+    );
+}
+
+/// `issued_token_type` is recorded either way: echoed when the `IdP` sends one,
+/// defaulted when it does not. Downstream reads this from metadata, so an
+/// absent key and a defaulted key are different outcomes for it.
+#[tokio::test]
+async fn the_issued_token_type_is_recorded_whether_or_not_the_idp_sends_one() {
+    let echoed = mint_with(
+        json!({
+            "access_token": "t",
+            "expires_in": 300,
+            "issued_token_type": "urn:ietf:params:oauth:token-type:jwt",
+        })
+        .to_string(),
+        None,
+    )
+    .await;
+    assert_eq!(
+        echoed.metadata.get("issued_token_type"),
+        Some(&json!("urn:ietf:params:oauth:token-type:jwt")),
+        "an explicit issued_token_type must be carried through"
+    );
+
+    let defaulted = mint_with(
+        json!({ "access_token": "t", "expires_in": 300 }).to_string(),
+        None,
+    )
+    .await;
+    assert_eq!(
+        defaulted.metadata.get("issued_token_type"),
+        Some(&json!("urn:ietf:params:oauth:token-type:access_token")),
+        "and an absent one must be defaulted rather than left unset"
+    );
+}
