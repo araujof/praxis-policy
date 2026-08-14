@@ -13,7 +13,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 > - **Fixed**: for any bug fixes.
 > - **Security**: in case of vulnerabilities.
 
-## [0.1.0] - unreleased
+## [0.1.0] - 2026-08-14
 
 First release. The engine was extracted from another project rather than written
 here, so this entry records what moved, what changed on the way, and what the
@@ -62,3 +62,5 @@ public surface now is.
 - **Line coverage at 95%,** gated in CI by `COVERAGE_FLOOR` so it cannot silently regress. The `nbf` gap and the Cedar float defect both surfaced while writing those tests, which is the argument for the exercise.
 
 - **191 lint rules configured across rustc, clippy and rustdoc,** every one at an explicit level. Anything that could silently change an enforcement decision is denied; [`docs/lints.md`](docs/lints.md) explains each group that is not.
+
+[0.1.0]: https://github.com/praxis-proxy/policy/releases/tag/v0.1.0
