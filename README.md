@@ -28,7 +28,7 @@ the public API should be expected to move.
 
     crates/             the engine, its policy language, and the host facade
     builtins/           bundled plugins, decision points, and session stores
-    reference-plugins/  worked examples, not published and not bundled
+    reference/          worked examples, not published and not bundled
 
 A host does not have to use a bundled plugin. Implement `PluginFactory` against
 `praxis_policy_core::prelude` and register it with
@@ -36,7 +36,7 @@ A host does not have to use a bundled plugin. Implement `PluginFactory` against
 unrecognised `kind` fails at load, so a missing registration surfaces at startup
 rather than as a plugin that silently never runs.
 
-`reference-plugins/` holds two worked examples: a PII scanner and an audit logger.
+`reference/plugins/` holds two worked examples: a PII scanner and an audit logger.
 Neither is published or bundled, because neither is production-grade — the scanner
 is regex matching with no Luhn check, and the logger writes to stderr. Both are
 built, linted and tested here, and the reference HR demo registers them as host

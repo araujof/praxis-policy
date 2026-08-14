@@ -66,9 +66,9 @@
 //! load-time error, so a missing registration fails at startup rather than
 //! silently skipping the plugin.
 //!
-//! `reference-plugins/` in this repository holds two worked examples, a PII
-//! scanner and an audit logger. They were bundled builtins until neither earned
-//! a supported slot, and they are now unpublished and host-registered.
+//! `reference/plugins/` in this repository holds two worked examples, a PII
+//! scanner and an audit logger. Neither is published or bundled; a host registers
+//! them.
 
 // Whole-crate re-exports for advanced use (types not surfaced below).
 

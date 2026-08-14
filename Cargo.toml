@@ -28,8 +28,8 @@ members = [
     # umbrella. Workspace members so they stay built, linted and tested, and so
     # they keep working as examples of an out-of-tree plugin. Each manifest says
     # why it is not a builtin.
-    "reference-plugins/pii-scanner",
-    "reference-plugins/audit-logger",
+    "reference/plugins/pii-scanner",
+    "reference/plugins/audit-logger",
 ]
 
 # The session store pulls a redis client and a TLS stack, which slows a default
@@ -52,8 +52,8 @@ default-members = [
     # umbrella. Workspace members so they stay built, linted and tested, and so
     # they keep working as examples of an out-of-tree plugin. Each manifest says
     # why it is not a builtin.
-    "reference-plugins/pii-scanner",
-    "reference-plugins/audit-logger",
+    "reference/plugins/pii-scanner",
+    "reference/plugins/audit-logger",
 ]
 
 [workspace.package]

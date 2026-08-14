@@ -78,9 +78,9 @@ praxis-policy-apl-runtime = { workspace = true }
 
 # Bundled extension crates, each behind its feature above.
 #
-# Not everything shipped in this repository belongs here. `reference-plugins/`
-# holds unpublished examples a host registers itself; each of those manifests says
-# why it is not a builtin.
+# Not everything shipped in this repository belongs here. `reference/` holds
+# unpublished examples a host registers itself; each of those manifests says why it
+# is not a builtin.
 praxis-policy-plugin-identity-jwt = { workspace = true, optional = true }
 praxis-policy-plugin-delegator-oauth = { workspace = true, optional = true }
 praxis-policy-plugin-elicitation-ciba = { workspace = true, optional = true }
