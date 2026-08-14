@@ -19,10 +19,28 @@ go next.
 - **Human approval** out of band, for decisions that should not be automatic.
 - **Audit** emission for every decision.
 
+## Using it
+
+One dependency gets the engine and every bundled extension:
+
+```toml
+praxis-policy = { version = "0.1", features = ["builtins"] }
+```
+
+Without `builtins` you get the engine alone and no extensions compiled in. Name a
+subset instead if you want one: `jwt`, `oauth`, `elicitation-ciba`, `cedar`, `cel`,
+`opa`, `valkey`.
+
+The crates are versioned together and released together, so a single `0.1`
+requirement covers the set. Rust 1.96 or newer.
+
 ## Status
 
-Early. The crates are not yet published, the version series starts at 0.1.0, and
-the public API should be expected to move.
+0.1.x. The public API will move between minor versions while the shape settles; a
+breaking change gets a minor bump, not a patch. What is already settled: the
+policy document format, the `kind:` strings an operator writes, and the violation
+codes a client sees. Those are the surface deployments depend on, and there are
+characterization tests holding them in place.
 
 ## Layout
 
