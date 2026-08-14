@@ -80,9 +80,18 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-release-publish-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
           restore-keys: ${{ runner.os }}-cargo-release-publish-
-      # Publishes in dependency order and waits for each crate to become
-      # available before publishing its dependents.
+      # Dependency order, skipping anything already on crates.io and waiting out
+      # the registry's new-crate rate limit.
+      #
+      # Not `cargo publish --workspace`: that command cannot finish a release with
+      # more new crates than the rate-limit burst allows, and a version cannot be
+      # deleted once uploaded. Its failure mode is a permanently half-published
+      # release. The script is idempotent, so this job can be re-run, and it does
+      # not collide with a release that was published by hand.
       - name: Publish
+        # A rate-limited first release waits ~10 minutes per crate beyond the
+        # burst, so allow well past the 6h default rather than dying mid-run.
+        timeout-minutes: 300
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: cargo publish --workspace --locked
+        run: tools/publish.sh
