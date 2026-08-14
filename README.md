@@ -1,5 +1,12 @@
 # Praxis Policy Engine
 
+<i>Policy enforcement for AI agent traffic.</i>
+
+[![CI](https://github.com/praxis-proxy/policy/actions/workflows/ci.yml/badge.svg)](https://github.com/praxis-proxy/policy/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![crates.io](https://img.shields.io/crates/v/praxis-policy.svg)](https://crates.io/crates/praxis-policy)
+[![MSRV](https://img.shields.io/badge/MSRV-1.96-blue.svg)](rust-toolchain.toml)
+
 Policy engine for [Praxis](https://github.com/praxis-proxy/praxis).
 
 A typed, phased plugin runtime and policy evaluator for agent traffic. It decides
