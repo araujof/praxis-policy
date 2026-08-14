@@ -203,7 +203,7 @@ retires divide-by-zero.
 `significant_drop_tightening` stays allowed at 9 sites, deliberately. The scopes
 where tightening removed a real hazard are closed: the plugin factory lookup no
 longer holds the registry read lock across host-supplied `create` code, which
-could re-enter the manager and deadlock, and the CEL compile cache now logs
+could re-enter the engine and deadlock, and the CEL compile cache now logs
 outside its guard while keeping the capacity check and the insert under one lock
 so the cap cannot be exceeded by two threads racing. The rest hold a guard across
 a synchronous call on purpose and document why.

@@ -4,7 +4,7 @@
 // `AplConfigVisitor` — the praxis-policy-core `ConfigVisitor` implementation that
 // stacks the unified-config hierarchy (global → defaults → tag bundles
 // → routes) into a single `CompiledRoute` per route and installs an
-// [`AplRouteHandler`] for each phase via `PluginManager::annotate_route`.
+// [`AplRouteHandler`] for each phase via `PolicyEngine::annotate_route`.
 //
 // # Hierarchy stacking
 //
@@ -55,7 +55,7 @@ use praxis_policy_core::cmf::constants::{
     HOOK_CMF_TOOL_POST_INVOKE, HOOK_CMF_TOOL_PRE_INVOKE,
 };
 use praxis_policy_core::config::RouteEntry;
-use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::plugin::PluginConfig;
 use praxis_policy_core::visitor::{ConfigVisitor, VisitorError};
 
@@ -93,7 +93,7 @@ fn hook_pair_for_entity(entity_type: &str) -> Option<(&'static str, &'static str
     }
 }
 
-/// Interior state accumulated as the manager walks the visitor.
+/// Interior state accumulated as the engine walks the visitor.
 /// `plugin_registry` is populated by `visit_plugins` (called once per
 /// load); the layer fields are populated as the visitor walks
 /// `global` / `defaults` / `policies` / `routes`; `pdp_router` is
@@ -111,7 +111,7 @@ struct VisitorState {
 
 /// APL implementation of [`praxis_policy_core::visitor::ConfigVisitor`]. Construct
 /// once per host with the shared infrastructure (dispatch cache, session
-/// store, manager handle) and register with `PluginManager::register_visitor`
+/// store, engine handle) and register with `PolicyEngine::register_visitor`
 /// before calling `load_config_yaml`.
 ///
 /// PDPs come from two sources, both feeding the same internal
@@ -143,7 +143,7 @@ pub struct AplConfigVisitor {
     /// it's touched only during the single-threaded config walk, never on
     /// the request hot path (handlers hold their own cloned `Arc`).
     attribute_tree: RwLock<Arc<AttributeTree>>,
-    manager: Weak<PluginManager>,
+    engine: Weak<PolicyEngine>,
     /// Baseline capabilities granted to every synthetic `AplRouteHandler`
     /// the visitor installs. Unioned with the per-route plugin
     /// capability set so APL predicates that touch extensions
@@ -167,14 +167,14 @@ impl AplConfigVisitor {
     pub fn new(
         dispatch_cache: Arc<DispatchCache>,
         session_store: Arc<dyn SessionStore>,
-        manager: Weak<PluginManager>,
+        engine: Weak<PolicyEngine>,
     ) -> Self {
         Self {
             state: RwLock::new(VisitorState::default()),
             dispatch_cache,
             session_store: RwLock::new(session_store),
             attribute_tree: RwLock::new(Arc::new(AttributeTree::empty())),
-            manager,
+            engine,
             base_capabilities: default_base_capabilities(),
             pdp_factories: HashMap::new(),
             session_store_factories: HashMap::new(),
@@ -427,7 +427,7 @@ impl ConfigVisitor for AplConfigVisitor {
 
     fn visit_plugins(
         &self,
-        _mgr: &Arc<PluginManager>,
+        _mgr: &Arc<PolicyEngine>,
         plugins: &[PluginConfig],
     ) -> Result<(), VisitorError> {
         // Translate praxis-policy-core's typed PluginConfig into praxis-policy-apl-core's
@@ -458,7 +458,7 @@ impl ConfigVisitor for AplConfigVisitor {
 
     fn visit_global(
         &self,
-        mgr: &Arc<PluginManager>,
+        mgr: &Arc<PolicyEngine>,
         yaml: &serde_yaml::Value,
     ) -> Result<(), VisitorError> {
         reject_legacy_apl_keys("global", yaml)?;
@@ -554,7 +554,7 @@ impl ConfigVisitor for AplConfigVisitor {
                 &plugin_registry,
                 &self.dispatch_cache,
                 &session_store,
-                &self.manager,
+                &self.engine,
                 Some(pdp_router_arc),
                 &self.base_capabilities,
                 attribute_tree,
@@ -570,7 +570,7 @@ impl ConfigVisitor for AplConfigVisitor {
 
     fn visit_default(
         &self,
-        _mgr: &Arc<PluginManager>,
+        _mgr: &Arc<PolicyEngine>,
         entity_type: &str,
         yaml: &serde_yaml::Value,
     ) -> Result<(), VisitorError> {
@@ -593,7 +593,7 @@ impl ConfigVisitor for AplConfigVisitor {
 
     fn visit_policy_bundle(
         &self,
-        _mgr: &Arc<PluginManager>,
+        _mgr: &Arc<PolicyEngine>,
         tag: &str,
         yaml: &serde_yaml::Value,
     ) -> Result<(), VisitorError> {
@@ -616,7 +616,7 @@ impl ConfigVisitor for AplConfigVisitor {
 
     fn visit_route(
         &self,
-        mgr: &Arc<PluginManager>,
+        mgr: &Arc<PolicyEngine>,
         yaml: &serde_yaml::Value,
         parsed: &RouteEntry,
     ) -> Result<(), VisitorError> {
@@ -729,7 +729,7 @@ impl ConfigVisitor for AplConfigVisitor {
             // lose their mutations inside cloned branches. This is about
             // scheduling correctness only.
             //
-            // Modes are looked up through the praxis-policy-core PluginManager,
+            // Modes are looked up through the praxis-policy-core PolicyEngine,
             // which holds the authoritative registration state, via the
             // `PluginModeLookup` trait it implements. That trait and the check
             // called below both live in the sibling parallel-safety module.
@@ -783,7 +783,7 @@ impl ConfigVisitor for AplConfigVisitor {
                 &plugin_registry,
                 &self.dispatch_cache,
                 &session_store,
-                &self.manager,
+                &self.engine,
                 Some(Arc::clone(&pdp_router_arc)),
                 &self.base_capabilities,
                 Arc::clone(&attribute_tree),
@@ -799,7 +799,7 @@ impl ConfigVisitor for AplConfigVisitor {
                 &plugin_registry,
                 &self.dispatch_cache,
                 &session_store,
-                &self.manager,
+                &self.engine,
                 Some(Arc::clone(&pdp_router_arc)),
                 &self.base_capabilities,
                 attribute_tree,
@@ -812,7 +812,7 @@ impl ConfigVisitor for AplConfigVisitor {
 
 #[allow(clippy::too_many_arguments)]
 fn install_handler(
-    mgr: &Arc<PluginManager>,
+    mgr: &Arc<PolicyEngine>,
     entity_type: &str,
     entity_name: &str,
     scope: Option<String>,
@@ -822,7 +822,7 @@ fn install_handler(
     plugin_registry: &Arc<PluginRegistry>,
     dispatch_cache: &Arc<DispatchCache>,
     session_store: &Arc<dyn SessionStore>,
-    manager: &Weak<PluginManager>,
+    engine: &Weak<PolicyEngine>,
     pdp: Option<Arc<dyn PdpResolver>>,
     base_capabilities: &std::collections::HashSet<String>,
     attribute_tree: Arc<AttributeTree>,
@@ -880,7 +880,7 @@ fn install_handler(
         Arc::clone(plugin_registry),
         Arc::clone(dispatch_cache),
         Arc::clone(session_store),
-        manager.clone(),
+        engine.clone(),
     )
     .with_attribute_tree(attribute_tree);
     if let Some(pdp) = pdp {

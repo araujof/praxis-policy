@@ -35,13 +35,13 @@ use async_trait::async_trait;
 use praxis_policy_core::cmf::enums::Role;
 use praxis_policy_core::cmf::{CmfHook, Message, MessagePayload};
 use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::error::PluginError as CoreError;
 use praxis_policy_core::extensions::{MetaExtension, SecurityExtension};
 use praxis_policy_core::factory::{PluginFactory, PluginInstance};
 use praxis_policy_core::hooks::adapter::TypedHandlerAdapter;
 use praxis_policy_core::hooks::payload::Extensions;
 use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
-use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{Plugin, PluginConfig};
 
 use praxis_policy_apl_runtime::{AplOptions, DispatchCache, MemorySessionStore, register_apl};
@@ -201,7 +201,7 @@ routes:
 "#;
 
     let observed = Arc::new(std::sync::Mutex::new(Vec::new()));
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_factory(
         "label-reader",
         Box::new(LabelReaderFactory {
@@ -262,7 +262,7 @@ routes:
 "#;
 
     let observed = Arc::new(std::sync::Mutex::new(Vec::new()));
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_factory(
         "label-reader",
         Box::new(LabelReaderFactory {
@@ -320,7 +320,7 @@ routes:
         - "plugin(label-writer)"
 "#;
 
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_factory("label-writer", Box::new(LabelWriterFactory));
     register_apl(&mgr, AplOptions::in_process());
     mgr.load_config_yaml(YAML).expect("load_config_yaml");
@@ -374,7 +374,7 @@ routes:
       pre_invocation:
         - "require(authenticated)"
 "#;
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     register_apl(&mgr, AplOptions::in_process());
     mgr.load_config_yaml(YAML).expect("load_config_yaml");
     mgr.initialize().await.expect("initialize");
@@ -416,7 +416,7 @@ routes:
       pre_invocation:
         - "require(authenticated)"
 "#;
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     register_apl(
         &mgr,
         AplOptions {

@@ -24,10 +24,10 @@ use std::sync::Arc;
 
 use praxis_policy_core::cmf::enums::Role;
 use praxis_policy_core::cmf::{CmfHook, Message, MessagePayload};
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::extensions::{
     CandidateConstraintExtension, Extensions, MetaExtension, SecurityExtension, SubjectExtension,
 };
-use praxis_policy_core::manager::PluginManager;
 
 use praxis_policy_apl_runtime::{
     AplOptions, DispatchCache, MemorySessionStore, merge_attribute_docs, register_apl,
@@ -46,9 +46,9 @@ fn meta_for_tool(name: &str) -> MetaExtension {
     meta
 }
 
-/// Build a manager, set the given `data.*` tree, load `yaml`, initialize.
-async fn build_manager_with_data(yaml: &str, data_docs_yaml: &str) -> Arc<PluginManager> {
-    let mgr = Arc::new(PluginManager::default());
+/// Build a engine, set the given `data.*` tree, load `yaml`, initialize.
+async fn build_manager_with_data(yaml: &str, data_docs_yaml: &str) -> Arc<PolicyEngine> {
+    let mgr = Arc::new(PolicyEngine::default());
     let visitor = register_apl(
         &mgr,
         AplOptions {
@@ -72,7 +72,7 @@ async fn build_manager_with_data(yaml: &str, data_docs_yaml: &str) -> Arc<Plugin
     mgr
 }
 
-async fn invoke_tool(mgr: &Arc<PluginManager>, tool: &str) -> bool {
+async fn invoke_tool(mgr: &Arc<PolicyEngine>, tool: &str) -> bool {
     let ext = Extensions {
         meta: Some(Arc::new(meta_for_tool(tool))),
         ..Default::default()
@@ -130,7 +130,7 @@ async fn missing_data_key_is_absent_not_error() {
 // ----- interpolated attribute paths, end-to-end -----
 
 /// Invoke with a subject id so `subject.id` lands in the bag.
-async fn invoke_as_subject(mgr: &Arc<PluginManager>, tool: &str, subject_id: &str) -> bool {
+async fn invoke_as_subject(mgr: &Arc<PolicyEngine>, tool: &str, subject_id: &str) -> bool {
     let mut subject = SubjectExtension::default();
     subject.id = Some(subject_id.to_owned());
     let ext = Extensions {
@@ -187,7 +187,7 @@ async fn interpolation_different_subject_allows() {
 
 /// Invoke as a subject and return the emitted candidate constraint, if any.
 async fn constraint_as_subject(
-    mgr: &Arc<PluginManager>,
+    mgr: &Arc<PolicyEngine>,
     tool: &str,
     subject_id: &str,
 ) -> Option<CandidateConstraintExtension> {
@@ -312,7 +312,7 @@ routes:
         path = paths[0].display()
     );
 
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     register_apl(&mgr, default_opts());
     mgr.load_config_yaml(&yaml).expect("load_config_yaml");
     mgr.initialize().await.expect("initialize");
@@ -355,7 +355,7 @@ routes:
         b = paths[1].display()
     );
 
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     register_apl(&mgr, default_opts());
     mgr.load_config_yaml(&yaml).expect("load_config_yaml");
     mgr.initialize().await.expect("initialize");
@@ -390,7 +390,7 @@ routes:
         path = paths[0].display()
     );
 
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     let visitor = register_apl(&mgr, default_opts());
     // Inject a tree saying `us` — must win over the file's `eu`.
     let doc: serde_json::Value =
@@ -420,7 +420,7 @@ routes:
       pre_invocation:
         - "require(authenticated)"
 "#;
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     register_apl(&mgr, default_opts());
     assert!(
         mgr.load_config_yaml(yaml).is_err(),

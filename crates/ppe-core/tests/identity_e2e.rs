@@ -7,7 +7,7 @@
 // `IdentityPayload`, calls `mgr.invoke_named::<IdentityHook>(...)`,
 // and reads the populated identity slots back out of the returned
 // `PipelineResult.modified_payload`. No bespoke `resolve_identity`
-// method on `PluginManager` — `invoke_named` works for `IdentityHook`
+// method on `PolicyEngine` — `invoke_named` works for `IdentityHook`
 // like every other hook, because Sequential-phase threading already
 // does the right thing for the unified `IdentityPayload`
 // (input + accumulator in one struct).
@@ -35,6 +35,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 
 use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::error::PluginError;
 use praxis_policy_core::extensions::{SubjectExtension, WorkloadIdentity};
 use praxis_policy_core::hooks::payload::Extensions;
@@ -42,7 +43,6 @@ use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
 use praxis_policy_core::identity::{
     HOOK_IDENTITY_RESOLVE, IdentityHook, IdentityPayload, TokenSource,
 };
-use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{OnError, Plugin, PluginConfig, PluginMode};
 
 // =====================================================================
@@ -214,7 +214,7 @@ fn extract_identity(result: &praxis_policy_core::executor::PipelineResult) -> Id
 /// the chain unchanged.
 #[tokio::test]
 async fn single_resolver_populates_subject() {
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     let cfg = config("subject-resolver", 10);
     let plugin = Arc::new(SubjectResolver {
         cfg: cfg.clone(),
@@ -258,7 +258,7 @@ async fn single_resolver_populates_subject() {
 /// what already exists for CMF.
 #[tokio::test]
 async fn two_resolvers_chain_populates_both_slots() {
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
 
     let subject_cfg = config("subject-resolver", 10);
     let subject = Arc::new(SubjectResolver {
@@ -316,7 +316,7 @@ async fn two_resolvers_chain_populates_both_slots() {
 /// a 401/403 to the client.
 #[tokio::test]
 async fn rejecting_resolver_halts_pipeline() {
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     let cfg = config("rejecting-resolver", 10);
     let plugin = Arc::new(RejectingResolver { cfg: cfg.clone() });
     mgr.register_handler::<IdentityHook, _>(plugin, cfg)
@@ -390,7 +390,7 @@ async fn apply_to_extensions_populates_security_and_preserves_existing_fields() 
         }
     }
 
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     let cfg = config("full-resolver", 10);
     let plugin = Arc::new(FullResolver { cfg: cfg.clone() });
     mgr.register_handler::<IdentityHook, _>(plugin, cfg)
@@ -464,7 +464,7 @@ async fn apply_to_extensions_populates_security_and_preserves_existing_fields() 
 /// resolved" from "identity rejected" without a separate type.
 #[tokio::test]
 async fn from_pipeline_result_returns_none_on_deny() {
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     let cfg = config("rejecter", 10);
     let plugin = Arc::new(RejectingResolver { cfg: cfg.clone() });
     mgr.register_handler::<IdentityHook, _>(plugin, cfg)
@@ -616,7 +616,7 @@ async fn cap_gating_post_apply_through_cmf_dispatch() {
     }
 
     // ----- Wire it all up -----
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
 
     // IdentityHook handler.
     let id_cfg = config("full-resolver", 10);

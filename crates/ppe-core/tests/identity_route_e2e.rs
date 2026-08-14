@@ -38,6 +38,7 @@ use async_trait::async_trait;
 
 use praxis_policy_core::config;
 use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::extensions::{MetaExtension, SubjectExtension};
 use praxis_policy_core::factory::{PluginFactory, PluginInstance};
 use praxis_policy_core::hooks::adapter::TypedHandlerAdapter;
@@ -46,7 +47,6 @@ use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
 use praxis_policy_core::identity::{
     HOOK_IDENTITY_RESOLVE, IdentityHook, IdentityPayload, TokenSource,
 };
-use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{Plugin, PluginConfig};
 use praxis_policy_core::registry::AnyHookHandler;
 
@@ -195,18 +195,15 @@ fn build_payload(token: &str) -> IdentityPayload {
     IdentityPayload::new(token, TokenSource::Bearer)
 }
 
-/// Standard set-up: `PluginManager` with the recording factory
+/// Standard set-up: `PolicyEngine` with the recording factory
 /// registered, plus a shared ledger and factory-call counter the
 /// test asserts on. Doesn't wire extensions observation —
 /// existing tests don't need it.
-fn manager_with_recording_factory() -> (
-    Arc<PluginManager>,
-    Arc<Mutex<Vec<String>>>,
-    Arc<AtomicUsize>,
-) {
+fn manager_with_recording_factory() -> (Arc<PolicyEngine>, Arc<Mutex<Vec<String>>>, Arc<AtomicUsize>)
+{
     let ledger = Arc::new(Mutex::new(Vec::new()));
     let factory_calls = Arc::new(AtomicUsize::new(0));
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_factory(
         "recording",
         Box::new(RecordingFactory {
@@ -223,7 +220,7 @@ fn manager_with_recording_factory() -> (
 /// actually saw after invocation. Every plugin the factory builds
 /// writes its observation to this shared Arc (latest wins).
 fn manager_with_observing_factory() -> (
-    Arc<PluginManager>,
+    Arc<PolicyEngine>,
     Arc<Mutex<Vec<String>>>,
     Arc<Mutex<Option<IdentityExtensionsObservation>>>,
 ) {
@@ -231,7 +228,7 @@ fn manager_with_observing_factory() -> (
     let factory_calls = Arc::new(AtomicUsize::new(0));
     let observation_sink: Arc<Mutex<Option<IdentityExtensionsObservation>>> =
         Arc::new(Mutex::new(None));
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_factory(
         "recording",
         Box::new(RecordingFactory {

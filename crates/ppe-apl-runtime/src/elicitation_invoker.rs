@@ -4,7 +4,7 @@
 // `ElicitationPluginInvoker` — `praxis-policy-apl-core::ElicitationInvoker` impl
 // bound to the `ElicitationHook` family. Drives dispatch off a
 // pre-resolved [`RouteDispatchPlan::elicitation_entries`] and forwards
-// to `PluginManager::invoke_entries::<ElicitationHook>(...)`.
+// to `PolicyEngine::invoke_entries::<ElicitationHook>(...)`.
 //
 // # When this runs
 //
@@ -40,8 +40,8 @@ use praxis_policy_core::elicitation::{
     ElicitationHook, ElicitationOp, ElicitationOutcomeKind, ElicitationPayload,
     ElicitationStatusKind,
 };
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::hooks::payload::Extensions;
-use praxis_policy_core::manager::PluginManager;
 
 use praxis_policy_apl_core::step::{
     ElicitStep, ElicitationDispatch, ElicitationError, ElicitationInvoker, ElicitationOutcome,
@@ -53,7 +53,7 @@ use crate::dispatch_plan::RouteDispatchPlan;
 /// Bridges APL elicitation-step dispatch (`require_approval(...)`,
 /// `confirm(...)`, …) to PPE `ElicitationHook` plugins.
 pub struct ElicitationPluginInvoker {
-    manager: Arc<PluginManager>,
+    engine: Arc<PolicyEngine>,
     /// Same `Arc<Mutex<Extensions>>` as the CMF invoker for this request,
     /// so the handler reads the same identity the policy evaluated against.
     extensions: Arc<Mutex<Extensions>>,
@@ -67,12 +67,12 @@ impl ElicitationPluginInvoker {
     /// from `CmfPluginInvoker::extensions_arc()` so this and the CMF
     /// invoker see the same Extensions.
     pub fn new(
-        manager: Arc<PluginManager>,
+        engine: Arc<PolicyEngine>,
         extensions: Arc<Mutex<Extensions>>,
         plan: Arc<RouteDispatchPlan>,
     ) -> Self {
         Self {
-            manager,
+            engine,
             extensions,
             plan,
         }
@@ -107,7 +107,7 @@ impl ElicitationPluginInvoker {
         let current_extensions = self.extensions.lock().await.clone();
 
         let (result, _bg) = self
-            .manager
+            .engine
             .invoke_entries::<ElicitationHook>(
                 std::slice::from_ref(&entry),
                 payload,

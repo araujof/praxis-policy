@@ -3,7 +3,7 @@
 
 // End-to-end integration: unified-config YAML → praxis-policy-core
 // `load_config_yaml` → `AplConfigVisitor` walks global / defaults / tags
-// / routes → `PluginManager::annotate_route` installs phase-bound
+// / routes → `PolicyEngine::annotate_route` installs phase-bound
 // `AplRouteHandler`s → host calls `invoke_named::<CmfHook>` with meta →
 // route-annotation short-circuit fires the handler → APL evaluator runs
 // the layered route → real PPE plugins dispatch through
@@ -38,13 +38,13 @@ use async_trait::async_trait;
 use praxis_policy_core::cmf::enums::Role;
 use praxis_policy_core::cmf::{CmfHook, Message, MessagePayload};
 use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::error::{PluginError as CoreError, PluginViolation};
 use praxis_policy_core::extensions::MetaExtension;
 use praxis_policy_core::factory::{PluginFactory, PluginInstance};
 use praxis_policy_core::hooks::adapter::TypedHandlerAdapter;
 use praxis_policy_core::hooks::payload::Extensions;
 use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
-use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{Plugin, PluginConfig};
 
 use praxis_policy_apl_runtime::{AplOptions, DispatchCache, MemorySessionStore, register_apl};
@@ -175,14 +175,14 @@ fn meta_for_tool(name: &str) -> MetaExtension {
     meta
 }
 
-/// Build a manager with `allow-gate` and `deny-gate` factories registered,
+/// Build a engine with `allow-gate` and `deny-gate` factories registered,
 /// then wire the APL visitor in via `register_apl`. Returns
-/// `Arc<PluginManager>` so the caller can dispatch through
+/// `Arc<PolicyEngine>` so the caller can dispatch through
 /// `invoke_named`. The visitor self-populates its plugin registry from
 /// praxis-policy-core's parsed `Vec<PluginConfig>` via `visit_plugins` — no host
 /// pre-parse needed.
-async fn build_manager_with_visitor(yaml: &str) -> Arc<PluginManager> {
-    let mgr = Arc::new(PluginManager::default());
+async fn build_manager_with_visitor(yaml: &str) -> Arc<PolicyEngine> {
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_factory("allow-gate", Box::new(AllowGateFactory));
     mgr.register_factory("deny-gate", Box::new(DenyGateFactory));
 
@@ -242,7 +242,7 @@ routes:
 }
 
 /// Same shape but with `deny-gate`. The visitor compiles the route,
-/// annotates the manager, dispatch goes through the handler, the handler
+/// annotates the engine, dispatch goes through the handler, the handler
 /// calls into deny-gate via `CmfPluginInvoker`, the violation propagates
 /// out as `PipelineResult.violation` with the original code + reason.
 #[tokio::test]
@@ -420,7 +420,7 @@ routes:
 }
 
 /// Sanity-check: an empty plugin registry + no APL blocks anywhere
-/// means the visitor installs zero annotations and the manager behaves
+/// means the visitor installs zero annotations and the engine behaves
 /// exactly as if no visitor was registered. Smokes the no-op path.
 #[tokio::test]
 async fn visitor_with_no_apl_blocks_installs_nothing() {
@@ -706,7 +706,7 @@ routes:
       pre_invocation:
         - "this-is-not-a-valid-step ::: $$$"
 "#;
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_factory("allow-gate", Box::new(AllowGateFactory));
     register_apl(&mgr, AplOptions::in_process());
 

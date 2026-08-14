@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Praxis Contributors
 
 // Integration tests for `CmfPluginInvoker` — exercises the typed
-// dispatch path end-to-end against a real `praxis-policy-core::PluginManager`
+// dispatch path end-to-end against a real `praxis-policy-core::PolicyEngine`
 // with hand-rolled test plugins. v0 coverage:
 //   - `Step` invocation against an allow-plugin → `Decision::Allow`
 //   - `Step` invocation against a deny-plugin → `Decision::Deny` with
@@ -29,13 +29,13 @@ use async_trait::async_trait;
 use praxis_policy_core::cmf::enums::Role;
 use praxis_policy_core::cmf::{CmfHook, ContentPart, Message, MessagePayload};
 use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::error::{PluginError as CoreError, PluginViolation};
 use praxis_policy_core::extensions::{SecurityExtension, SubjectExtension};
 use praxis_policy_core::factory::{PluginFactory, PluginInstance};
 use praxis_policy_core::hooks::adapter::TypedHandlerAdapter;
 use praxis_policy_core::hooks::payload::Extensions;
 use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
-use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{Plugin, PluginConfig};
 use praxis_policy_core::registry::{HookEntry, PluginRef};
 
@@ -50,11 +50,11 @@ use praxis_policy_apl_runtime::{CmfPluginInvoker, MemorySessionStore, RouteDispa
 /// tests below to exercise the plan-based dispatch path without standing
 /// up a full route.
 fn plan_for(
-    manager: &praxis_policy_core::manager::PluginManager,
+    engine: &praxis_policy_core::engine::PolicyEngine,
     plugin_name: &str,
 ) -> Arc<RouteDispatchPlan> {
-    let entry = RouteDispatchPlan::resolve_plugin(manager, plugin_name)
-        .expect("plugin must be registered with the manager");
+    let entry = RouteDispatchPlan::resolve_plugin(engine, plugin_name)
+        .expect("plugin must be registered with the engine");
     let mut plugins = std::collections::HashMap::new();
     plugins.insert(plugin_name.to_owned(), entry);
     Arc::new(RouteDispatchPlan {
@@ -315,10 +315,10 @@ fn empty_bag() -> AttributeBag {
     AttributeBag::new()
 }
 
-/// Build a manager, register one factory + one plugin under the given
-/// kind, and return the wired manager ready for invocation.
-async fn build_manager(factory_kind: &str, factory: Box<dyn PluginFactory>) -> Arc<PluginManager> {
-    let mgr = PluginManager::default();
+/// Build a engine, register one factory + one plugin under the given
+/// kind, and return the wired engine ready for invocation.
+async fn build_manager(factory_kind: &str, factory: Box<dyn PluginFactory>) -> Arc<PolicyEngine> {
+    let mgr = PolicyEngine::default();
     mgr.register_factory(factory_kind, factory);
 
     let yaml = format!("plugins:\n  - name: {factory_kind}\n    kind: {factory_kind}\n");
@@ -993,15 +993,15 @@ impl PluginFactory for CapturePluginFactory {
     }
 }
 
-/// Build a manager whose registered plugin holds the given capability
+/// Build a engine whose registered plugin holds the given capability
 /// set (wide caps in this test — the override is supposed to narrow
 /// what these caps would have allowed).
 async fn build_manager_with_caps(
     factory_kind: &str,
     factory: Box<dyn PluginFactory>,
     policy_caps: &[&str],
-) -> Arc<PluginManager> {
-    let mgr = PluginManager::default();
+) -> Arc<PolicyEngine> {
+    let mgr = PolicyEngine::default();
     mgr.register_factory(factory_kind, factory);
     let caps_yaml = if policy_caps.is_empty() {
         String::new()
@@ -1035,11 +1035,11 @@ fn extensions_with_subject_and_labels() -> Extensions {
 /// `RouteDispatchPlan::build` does when APL declares a route-level
 /// `plugins.<name>.capabilities:` override.
 fn plan_with_narrowed_caps(
-    manager: &PluginManager,
+    engine: &PolicyEngine,
     plugin_name: &str,
     narrowed_caps: &[&str],
 ) -> Arc<praxis_policy_apl_runtime::RouteDispatchPlan> {
-    let base = manager
+    let base = engine
         .find_plugin_entries(plugin_name)
         .into_iter()
         .next()

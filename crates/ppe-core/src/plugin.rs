@@ -13,7 +13,7 @@
 // define_hook! macro (see hooks/macros.rs). A plugin implements Plugin
 // for lifecycle + one or more handler traits for the hooks it handles.
 //
-// The manager wraps each plugin in a PluginRef with an authoritative
+// The engine wraps each plugin in a PluginRef with an authoritative
 // config from the config loader — the plugin's own config() is for
 // the plugin's reading only, never used by the executor for scheduling.
 
@@ -58,7 +58,7 @@ use crate::error::PluginError;
 ///
 /// # Trust Model
 ///
-/// The manager wraps each plugin in a `PluginRef` with an authoritative
+/// The engine wraps each plugin in a `PluginRef` with an authoritative
 /// config from the config loader. The executor reads scheduling decisions
 /// (mode, priority, hooks, capabilities) from the `PluginRef` — never
 /// from `plugin.config()`. The plugin's own `config()` is available for
@@ -74,7 +74,7 @@ pub trait Plugin: Send + Sync {
     /// Returns the plugin's configuration.
     ///
     /// Available for the plugin's own reading during hook execution.
-    /// The manager/executor never reads this — they use the authoritative
+    /// The engine/executor never reads this — they use the authoritative
     /// config from `PluginRef.trusted_config()`.
     fn config(&self) -> &PluginConfig;
 
@@ -102,7 +102,7 @@ pub trait Plugin: Send + Sync {
 /// Controls how the framework loads, schedules, and gates the plugin.
 /// Corresponds to a single entry in the `plugins:` list in config YAML.
 ///
-/// The manager holds the authoritative copy in `PluginRef.trusted_config`.
+/// The engine holds the authoritative copy in `PluginRef.trusted_config`.
 /// The plugin receives its own copy for reading via `Plugin::config()`.
 ///
 /// # Examples

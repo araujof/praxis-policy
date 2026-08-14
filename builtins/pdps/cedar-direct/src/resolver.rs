@@ -23,7 +23,7 @@
 //
 // Construction errors carry rich Cedar-specific messages via
 // [`BuildError`]; the visitor wraps these into `VisitorError` →
-// `PluginError::Config` at the manager boundary.
+// `PluginError::Config` at the engine boundary.
 
 use std::path::Path;
 use std::sync::Arc;

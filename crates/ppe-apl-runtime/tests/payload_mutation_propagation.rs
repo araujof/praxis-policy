@@ -35,12 +35,12 @@ use praxis_policy_core::cmf::{
     CmfHook, ContentPart, Message, MessagePayload, ToolCall, ToolResult,
 };
 use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::error::PluginError as CoreError;
 use praxis_policy_core::factory::{PluginFactory, PluginInstance};
 use praxis_policy_core::hooks::adapter::TypedHandlerAdapter;
 use praxis_policy_core::hooks::payload::Extensions;
 use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
-use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{Plugin, PluginConfig};
 
 use praxis_policy_apl_runtime::{AplOptions, DispatchCache, MemorySessionStore, register_apl};
@@ -273,8 +273,8 @@ async fn manager_with(
     factory: Box<dyn PluginFactory>,
     hook: &str,
     phase: &str,
-) -> Arc<PluginManager> {
-    let mgr = Arc::new(PluginManager::default());
+) -> Arc<PolicyEngine> {
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_factory(kind, factory);
     register_apl(
         &mgr,
@@ -311,8 +311,8 @@ async fn manager_with_yaml(
     kind: &'static str,
     factory: Box<dyn PluginFactory>,
     yaml: &str,
-) -> Arc<PluginManager> {
-    let mgr = Arc::new(PluginManager::default());
+) -> Arc<PolicyEngine> {
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_factory(kind, factory);
     register_apl(
         &mgr,
@@ -771,7 +771,7 @@ routes:
         - "plugin(thought-redactor)"
 "#;
 
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_factory(
         "result-redactor",
         Box::new(RewriteFactory {
@@ -848,7 +848,7 @@ routes:
         - "plugin(denier)"
 "#;
 
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_factory(
         "redactor",
         Box::new(RewriteFactory {

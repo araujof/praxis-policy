@@ -127,7 +127,7 @@ pub mod cmf_hook_names {
 
 /// Returns all built-in hook types with their canonical string values.
 ///
-/// Called once during `PluginManager` initialization to populate the
+/// Called once during `PolicyEngine` initialization to populate the
 /// hook registry. Hosts add their own hook types after this.
 pub fn builtin_hook_types() -> Vec<HookType> {
     vec![

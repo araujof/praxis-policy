@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Praxis Contributors
 
-// Plugin manager.
+// The policy engine.
 //
-// Owns the plugin lifecycle (initialize, dispatch, shutdown) and
-// the PluginRegistry. Provides two invoke paths:
+// Loads the policy document, owns the extensions it declares and their lifecycle
+// (initialize, dispatch, shutdown), and evaluates a request against the policy.
+// Managing plugins is part of that, not the whole of it.
+//
+// Two invoke paths:
 //
 // - `invoke::<H>()` — typed dispatch for Rust callers. Zero-cost.
 //   The hook type is known at compile time; no registry lookup or
@@ -14,10 +17,10 @@
 //   Hook name resolved from the registry; payload passed as
 //   Box<dyn PluginPayload>.
 //
-// The manager reads plugin configs from the config loader and wraps
-// each plugin in a PluginRef with the authoritative config. Plugins
-// never provide their own config to the manager. Trust flows:
-//   config loader → manager → PluginRef → executor
+// The engine reads plugin configs from the config loader and wraps each plugin in
+// a PluginRef with the authoritative config. A plugin never supplies its own
+// config. Trust flows:
+//   config loader → engine → PluginRef → executor
 
 use std::hash::{Hash, Hasher};
 use std::path::Path;
@@ -43,9 +46,9 @@ use crate::registry::{AnyHookHandler, PluginRef, PluginRegistry};
 /// attacker-controlled entity names without forcing operators to tune.
 pub const DEFAULT_ROUTE_CACHE_MAX_ENTRIES: usize = 10_000;
 
-/// Configuration for the `PluginManager`.
+/// Configuration for the `PolicyEngine`.
 #[derive(Debug, Clone)]
-pub struct ManagerConfig {
+pub struct PolicyEngineConfig {
     /// Executor configuration (timeout, short-circuit behavior).
     pub executor: ExecutorConfig,
 
@@ -56,7 +59,7 @@ pub struct ManagerConfig {
     pub route_cache_max_entries: usize,
 }
 
-impl Default for ManagerConfig {
+impl Default for PolicyEngineConfig {
     fn default() -> Self {
         Self {
             executor: ExecutorConfig::default(),
@@ -65,11 +68,14 @@ impl Default for ManagerConfig {
     }
 }
 
-/// Central plugin lifecycle and dispatch manager.
+/// The policy engine: loads a policy, owns what it declares, and evaluates a
+/// request against it.
 ///
-/// Owns the plugin registry and executor. Provides the public API
-/// that host systems (`ContextForge`, Kagenti, etc.) call to register
-/// plugins and invoke hooks.
+/// This is the type a host holds. It reads the policy document, resolves every
+/// `kind:` it names through the factory registry, owns the resulting plugins and
+/// their lifecycle, and dispatches the hook chain for a request. Managing plugins
+/// is one part of that rather than the whole of it, which is why registration,
+/// config loading, route annotation and dispatch all live on the same handle.
 ///
 /// # Lifecycle
 ///
@@ -91,7 +97,7 @@ impl Default for ManagerConfig {
 ///
 /// # Trust Model
 ///
-/// The manager wraps each plugin in a `PluginRef` with an authoritative
+/// The engine wraps each plugin in a `PluginRef` with an authoritative
 /// config from the config loader. The executor reads all scheduling
 /// decisions from `PluginRef.trusted_config` — never from the plugin.
 /// Cache key for resolved routing entries.
@@ -200,12 +206,12 @@ struct AnnotationKey {
 }
 
 /// Owns registered plugins and dispatches hook invocations to them.
-pub struct PluginManager {
+pub struct PolicyEngine {
     /// Hot-path runtime state. Swapped atomically on registration / config
     /// reload — readers see a consistent view via a single `load_full()`.
     runtime: arc_swap::ArcSwap<RuntimeSnapshot>,
 
-    /// Factory registry — owned by the manager. Used for initial
+    /// Factory registry — owned by the engine. Used for initial
     /// instantiation and for creating override instances when routes
     /// override a plugin's base config.
     ///
@@ -229,7 +235,7 @@ pub struct PluginManager {
     route_cache_full_warned: AtomicBool,
 
     /// Whether `initialize()` has been called. Atomic so lifecycle methods
-    /// can be `&self` and the manager itself can sit behind `Arc`.
+    /// can be `&self` and the engine itself can sit behind `Arc`.
     initialized: AtomicBool,
 
     /// Monotonic config-generation counter. Bumped every time the runtime
@@ -292,7 +298,7 @@ fn warn_on_inactive_settings(cfg: &PolicyConfig) {
 
 /// Instantiate every plugin in `plugin_configs` via the matching factory
 /// and register the resulting handlers into `target_registry`. Shared by
-/// `PluginManager::from_config` (fresh registry) and `load_config` (clone
+/// `PolicyEngine::from_config` (fresh registry) and `load_config` (clone
 /// of the existing registry) so the instantiation loop lives in one place.
 ///
 /// Returns on the first failure (factory missing, factory.create error, or
@@ -348,9 +354,9 @@ fn snapshot_from_config(registry: PluginRegistry, policy_config: PolicyConfig) -
     }
 }
 
-impl PluginManager {
-    /// Create a new `PluginManager` with the given configuration.
-    pub fn new(config: ManagerConfig) -> Self {
+impl PolicyEngine {
+    /// Create a new `PolicyEngine` with the given configuration.
+    pub fn new(config: PolicyEngineConfig) -> Self {
         let cache_hasher = hashbrown::DefaultHashBuilder::default();
         let snapshot = RuntimeSnapshot {
             registry: PluginRegistry::new(),
@@ -426,16 +432,16 @@ impl PluginManager {
 
     /// Register a plugin factory for a given `kind` name.
     ///
-    /// The host calls this to tell the manager how to create plugins
+    /// The host calls this to tell the engine how to create plugins
     /// of a specific kind. Must be called before `load_config()`.
     ///
     /// # Examples
     ///
     /// ```rust,ignore
-    /// let mut manager = PluginManager::default();
-    /// manager.register_factory("builtin", Box::new(BuiltinFactory));
-    /// manager.register_factory("security/rate_limit", Box::new(RateLimiterFactory));
-    /// manager.load_config(Path::new("plugins.yaml"))?;
+    /// let mut engine = PolicyEngine::default();
+    /// engine.register_factory("builtin", Box::new(BuiltinFactory));
+    /// engine.register_factory("security/rate_limit", Box::new(RateLimiterFactory));
+    /// engine.load_config(Path::new("plugins.yaml"))?;
     /// ```
     pub fn register_factory(
         &self,
@@ -458,10 +464,10 @@ impl PluginManager {
     /// # Examples
     ///
     /// ```rust,ignore
-    /// let mut manager = PluginManager::default();
-    /// manager.register_factory("builtin", Box::new(BuiltinFactory));
-    /// manager.load_config_file(Path::new("plugins/config.yaml"))?;
-    /// manager.initialize().await?;
+    /// let mut engine = PolicyEngine::default();
+    /// engine.register_factory("builtin", Box::new(BuiltinFactory));
+    /// engine.load_config_file(Path::new("plugins/config.yaml"))?;
+    /// engine.initialize().await?;
     /// ```
     /// # Errors
     ///
@@ -603,7 +609,7 @@ impl PluginManager {
             v.clone()
         };
 
-        let mgr: Arc<PluginManager> = Arc::clone(self);
+        let mgr: Arc<PolicyEngine> = Arc::clone(self);
         let global_yaml = raw
             .get("global")
             .cloned()
@@ -714,12 +720,12 @@ impl PluginManager {
         Ok(())
     }
 
-    /// Create a `PluginManager` from a parsed config (convenience).
+    /// Create a `PolicyEngine` from a parsed config (convenience).
     ///
     /// Uses the passed factory registry for initial instantiation.
     /// Note: for route-level config overrides to create new instances
     /// at runtime, use `register_factory()` + `load_config()` instead
-    /// so the manager owns the factories.
+    /// so the engine owns the factories.
     /// # Errors
     ///
     /// Returns `PluginError::Config` for the same reasons as
@@ -731,7 +737,7 @@ impl PluginManager {
     ) -> Result<Self, Box<PluginError>> {
         warn_on_inactive_settings(&policy_config);
 
-        let manager = Self::new(ManagerConfig {
+        let engine = Self::new(PolicyEngineConfig {
             executor: ExecutorConfig::default(),
             route_cache_max_entries: policy_config.plugin_settings.route_cache_max_entries,
         });
@@ -740,11 +746,11 @@ impl PluginManager {
         let mut new_registry = PluginRegistry::new();
         instantiate_plugins_into(&mut new_registry, &policy_config.plugins, factories)?;
 
-        manager
+        engine
             .runtime
             .store(Arc::new(snapshot_from_config(new_registry, policy_config)));
 
-        Ok(manager)
+        Ok(engine)
     }
 
     /// Register a plugin handler for its primary hook name.
@@ -765,7 +771,7 @@ impl PluginManager {
     /// # Examples
     ///
     /// ```rust,ignore
-    /// manager.register_handler::<CmfHook, _>(plugin, config)?;
+    /// engine.register_handler::<CmfHook, _>(plugin, config)?;
     /// ```
     /// # Errors
     ///
@@ -800,7 +806,7 @@ impl PluginManager {
     /// # Examples
     ///
     /// ```rust,ignore
-    /// manager.register_handler_for_names::<CmfHook, _>(
+    /// engine.register_handler_for_names::<CmfHook, _>(
     ///     plugin, config,
     ///     &["cmf.tool_pre_invoke", "cmf.llm_input", "cmf.llm_output"],
     /// )?;
@@ -864,7 +870,7 @@ impl PluginManager {
     ///
     /// Returns `PluginError::Execution` when a plugin's `initialize` fails.
     /// Plugins already initialized in this call are shut down first, so the
-    /// manager does not come up half-started.
+    /// engine does not come up half-started.
     pub async fn initialize(&self) -> Result<(), Box<PluginError>> {
         if self.initialized.load(Ordering::Acquire) {
             return Ok(());
@@ -875,7 +881,7 @@ impl PluginManager {
         let snapshot = self.load_runtime();
 
         info!(
-            "Initializing PluginManager with {} plugins",
+            "Initializing PolicyEngine with {} plugins",
             snapshot.registry.plugin_count()
         );
 
@@ -915,7 +921,7 @@ impl PluginManager {
         }
 
         self.initialized.store(true, Ordering::Release);
-        info!("PluginManager initialized successfully");
+        info!("PolicyEngine initialized successfully");
         Ok(())
     }
 
@@ -924,7 +930,7 @@ impl PluginManager {
     /// Calls `plugin.shutdown()` on each registered plugin in reverse
     /// registration order. Errors are logged but do not halt the
     /// shutdown process — all plugins get a chance to clean up.
-    /// Shut the manager down. **Terminal:** after `shutdown()` returns,
+    /// Shut the engine down. **Terminal:** after `shutdown()` returns,
     /// no further `register_*` / `invoke_*` should be called. New
     /// fire-and-forget tasks spawned after `close()` will not be tracked
     /// (the `TaskTracker` is single-shot by design).
@@ -933,7 +939,7 @@ impl PluginManager {
             return;
         }
 
-        info!("Shutting down PluginManager");
+        info!("Shutting down PolicyEngine");
 
         // Drain in-flight fire-and-forget tasks BEFORE tearing down
         // plugins — otherwise audit/telemetry tasks that depend on the
@@ -957,7 +963,7 @@ impl PluginManager {
         }
 
         self.initialized.store(false, Ordering::Release);
-        info!("PluginManager shutdown complete");
+        info!("PolicyEngine shutdown complete");
     }
 
     /// Invoke a hook by name with a type-erased payload.
@@ -1542,7 +1548,7 @@ impl PluginManager {
     ///   `PluginRef` with a fresh circuit breaker.
     ///
     /// Returns an empty `Vec` when:
-    /// - the plugin name isn't registered in the manager,
+    /// - the plugin name isn't registered in the engine,
     /// - the factory for the plugin's `kind` is missing,
     /// - the factory's `create` errors,
     /// - or `initialize()` fails on the new instance.
@@ -1636,7 +1642,7 @@ impl PluginManager {
 
         let kind = merged_config.kind.clone();
         // The registry lock is released before `create` runs. `create` is
-        // host-supplied code and may re-enter the manager; taking the write side
+        // host-supplied code and may re-enter the engine; taking the write side
         // while this thread still held a read guard would deadlock.
         let factory = {
             let factories = self
@@ -1881,7 +1887,7 @@ impl PluginManager {
         self.load_runtime().registry.plugin_names()
     }
 
-    /// Whether the manager has been initialized.
+    /// Whether the engine has been initialized.
     pub fn is_initialized(&self) -> bool {
         self.initialized.load(Ordering::Acquire)
     }
@@ -1896,9 +1902,9 @@ impl PluginManager {
     }
 }
 
-impl Default for PluginManager {
+impl Default for PolicyEngine {
     fn default() -> Self {
-        Self::new(ManagerConfig::default())
+        Self::new(PolicyEngineConfig::default())
     }
 }
 
@@ -2071,7 +2077,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_manager_lifecycle() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         assert!(!mgr.is_initialized());
         assert_eq!(mgr.plugin_count(), 0);
 
@@ -2087,7 +2093,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_invoke_by_name_no_plugins() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         let payload: Box<dyn PluginPayload> = Box::new(TestPayload {
             value: "test".into(),
         });
@@ -2102,7 +2108,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_invoke_by_name_allow() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         let config = make_config("allow-plugin", 10, PluginMode::Sequential);
         let plugin = Arc::new(AllowPlugin {
             cfg: config.clone(),
@@ -2124,7 +2130,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_invoke_by_name_deny() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         let config = make_config("deny-plugin", 10, PluginMode::Sequential);
         let plugin = Arc::new(DenyPlugin {
             cfg: config.clone(),
@@ -2147,7 +2153,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_invoke_typed() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         let config = make_config("allow-plugin", 10, PluginMode::Sequential);
         let plugin = Arc::new(AllowPlugin {
             cfg: config.clone(),
@@ -2171,7 +2177,7 @@ mod tests {
     async fn test_invoke_named() {
         // invoke_named::<H>(hook_name, ...) gives compile-time payload
         // type checking while routing to a specific hook name.
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         let config = make_config("allow-plugin", 10, PluginMode::Sequential);
         let plugin = Arc::new(AllowPlugin {
             cfg: config.clone(),
@@ -2196,7 +2202,7 @@ mod tests {
     #[tokio::test]
     async fn test_invoke_named_no_plugins_for_hook() {
         // invoke_named with a hook name that has no registered plugins
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         let config = make_config("allow-plugin", 10, PluginMode::Sequential);
         let plugin = Arc::new(AllowPlugin {
             cfg: config.clone(),
@@ -2220,7 +2226,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_invoke_named_deny() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         let config = make_config("deny-plugin", 10, PluginMode::Sequential);
         let plugin = Arc::new(DenyPlugin {
             cfg: config.clone(),
@@ -2243,7 +2249,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_has_hooks_for() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         assert!(!mgr.has_hooks_for("test_hook"));
 
         let config = make_config("p1", 10, PluginMode::Sequential);
@@ -2288,7 +2294,7 @@ mod tests {
             }
         }
 
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
 
         // Plugin A: condition requires tool == "wanted_tool" — fires for matching requests.
         let mut tools = std::collections::HashSet::new();
@@ -2392,7 +2398,7 @@ mod tests {
             }
         }
 
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         let cfg = make_config_with_conditions(
             "admin_only",
             vec![crate::plugin::PluginCondition {
@@ -2439,7 +2445,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_unregister() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         let config = make_config("removable", 10, PluginMode::Sequential);
         let plugin = Arc::new(AllowPlugin {
             cfg: config.clone(),
@@ -2452,7 +2458,7 @@ mod tests {
         assert!(!mgr.has_hooks_for("test_hook"));
     }
 
-    /// Wraps the manager in `Arc` and dispatches concurrently from many
+    /// Wraps the engine in `Arc` and dispatches concurrently from many
     /// tasks. Also issues a `register_handler` call mid-flight to prove
     /// that runtime registration is safe alongside invocations — the whole
     /// point of the `ArcSwap`-based snapshot redesign. Before this fix,
@@ -2482,7 +2488,7 @@ mod tests {
             }
         }
 
-        let mgr = Arc::new(PluginManager::default());
+        let mgr = Arc::new(PolicyEngine::default());
 
         // Register an initial plugin and initialize.
         let cfg = make_config("p0", 10, PluginMode::Sequential);
@@ -2534,7 +2540,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_audit_plugin_cannot_block() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         let config = make_config("audit-denier", 10, PluginMode::Audit);
         let plugin = Arc::new(DenyPlugin {
             cfg: config.clone(),
@@ -2557,7 +2563,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_on_error_disable_skips_plugin_on_subsequent_invocations() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
 
         // Register an error handler with on_error: Disable
         let config =
@@ -2607,7 +2613,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_on_error_ignore_continues_without_disabling() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
 
         // Register an error handler with on_error: Ignore
         let config =
@@ -2641,7 +2647,7 @@ mod tests {
     /// programmatically — not just in log output.
     #[tokio::test]
     async fn test_on_error_ignore_records_in_pipeline_errors() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         let config =
             make_config_with_on_error("flaky-plugin", 10, PluginMode::Sequential, OnError::Ignore);
         let plugin = Arc::new(AllowPlugin {
@@ -2675,7 +2681,7 @@ mod tests {
     /// `PipelineResult.errors` (not just trip the circuit breaker).
     #[tokio::test]
     async fn test_on_error_disable_records_in_pipeline_errors() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         let config =
             make_config_with_on_error("flaky-plugin", 10, PluginMode::Sequential, OnError::Disable);
         let plugin = Arc::new(AllowPlugin {
@@ -2700,7 +2706,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_on_error_fail_halts_pipeline() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
 
         // Register an error handler with on_error: Fail (default)
         let config =
@@ -2789,7 +2795,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_transform_modifies_payload() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         let config = make_config("transformer", 10, PluginMode::Transform);
         let plugin = Arc::new(TransformPlugin {
             cfg: config.clone(),
@@ -2825,7 +2831,7 @@ mod tests {
     /// whether to forward a rewritten payload must read that.
     #[tokio::test]
     async fn allow_without_mutation_reports_payload_unmodified() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         let config = make_config("allow-plugin", 10, PluginMode::Sequential);
         let plugin = Arc::new(AllowPlugin {
             cfg: config.clone(),
@@ -2853,7 +2859,7 @@ mod tests {
     /// the plugin's stated `on_error` preference. Disable still works.
     #[tokio::test]
     async fn test_transform_on_error_fail_does_not_halt_pipeline() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         let config =
             make_config_with_on_error("flaky-transform", 10, PluginMode::Transform, OnError::Fail);
         let plugin = Arc::new(AllowPlugin {
@@ -2882,7 +2888,7 @@ mod tests {
     /// breaker tripping. After the fix Audit honors Disable.
     #[tokio::test]
     async fn test_audit_on_error_disable_disables_plugin() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         let config =
             make_config_with_on_error("flaky-audit", 10, PluginMode::Audit, OnError::Disable);
         let plugin = Arc::new(AllowPlugin {
@@ -2940,7 +2946,7 @@ mod tests {
             }
         }
 
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
 
         let c1 = make_config("concurrent-1", 10, PluginMode::Concurrent);
         let p1 = Arc::new(AllowPlugin { cfg: c1.clone() });
@@ -3025,7 +3031,7 @@ mod tests {
             }
         }
 
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
 
         let cfg_deny = make_config("denier", 10, PluginMode::Concurrent);
         let plugin_deny = Arc::new(AllowPlugin {
@@ -3122,14 +3128,14 @@ mod tests {
             }
         }
 
-        let config = ManagerConfig {
+        let config = PolicyEngineConfig {
             executor: crate::executor::ExecutorConfig {
                 timeout_seconds: 30,
                 short_circuit_on_deny: false,
             },
             route_cache_max_entries: DEFAULT_ROUTE_CACHE_MAX_ENTRIES,
         };
-        let mgr = PluginManager::new(config);
+        let mgr = PolicyEngine::new(config);
 
         let cfg_deny = make_config("denier", 10, PluginMode::Concurrent);
         let plugin_deny = Arc::new(AllowPlugin {
@@ -3193,7 +3199,7 @@ mod tests {
     /// to stderr — that's tokio reporting the captured panic. Expected.
     #[tokio::test]
     async fn test_concurrent_panic_with_on_error_fail_halts_pipeline() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
 
         let cfg =
             make_config_with_on_error("panic-plugin", 10, PluginMode::Concurrent, OnError::Fail);
@@ -3245,7 +3251,7 @@ mod tests {
             }
         }
 
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
 
         let panic_cfg =
             make_config_with_on_error("panic-plugin", 10, PluginMode::Concurrent, OnError::Disable);
@@ -3293,14 +3299,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_timeout_fires_on_slow_handler() {
-        let config = ManagerConfig {
+        let config = PolicyEngineConfig {
             executor: crate::executor::ExecutorConfig {
                 timeout_seconds: 1,
                 short_circuit_on_deny: true,
             },
             route_cache_max_entries: DEFAULT_ROUTE_CACHE_MAX_ENTRIES,
         };
-        let mgr = PluginManager::new(config);
+        let mgr = PolicyEngine::new(config);
 
         // Register a handler that sleeps longer than the timeout
         let plugin_config = make_config("slow-plugin", 10, PluginMode::Sequential);
@@ -3361,7 +3367,7 @@ mod tests {
             }
         }
 
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
 
         let config = make_config("fire-forget", 10, PluginMode::FireAndForget);
         let plugin = Arc::new(AllowPlugin {
@@ -3400,7 +3406,7 @@ mod tests {
     /// before returning, so audit / telemetry plugins that flush at the
     /// end of a request lifetime aren't cancelled mid-write. The caller
     /// drops `BackgroundTasks` (the common case for fire-and-forget),
-    /// so the only way the manager knows about the in-flight task is the
+    /// so the only way the engine knows about the in-flight task is the
     /// internal `TaskTracker`.
     #[tokio::test]
     async fn test_shutdown_drains_in_flight_fire_and_forget_tasks() {
@@ -3428,7 +3434,7 @@ mod tests {
             }
         }
 
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         let config = make_config("slow-faf", 10, PluginMode::FireAndForget);
         let plugin = Arc::new(AllowPlugin {
             cfg: config.clone(),
@@ -3507,7 +3513,7 @@ mod tests {
 
         let saw_writer = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
 
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
 
         // Writer runs first (priority 10)
         let c1 = make_config("writer", 10, PluginMode::Sequential);
@@ -3567,7 +3573,7 @@ mod tests {
             }
         }
 
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
 
         let config = make_config("counter", 10, PluginMode::Sequential);
         let plugin = Arc::new(AllowPlugin {
@@ -3658,7 +3664,7 @@ mod tests {
             }
         }
 
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
 
         // Plugin A — priority 10 (runs first)
         let cfg_a = make_config("plugin_a", 10, PluginMode::Sequential);
@@ -3787,7 +3793,7 @@ mod tests {
             }
         }
 
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
 
         let cfg_seq = make_config("seq", 10, PluginMode::Sequential);
         mgr.register_raw::<TestHook>(
@@ -3926,7 +3932,7 @@ mod tests {
         }
 
         // Each row: (entity_type, route field name, route value, request entity_name, should_match)
-        // We build a fresh manager per entity type so routes don't bleed.
+        // We build a fresh engine per entity type so routes don't bleed.
         for (entity_type, route_field, route_value, request_name, should_match) in [
             ("resource", "resource", "my_resource", "my_resource", true),
             (
@@ -3958,7 +3964,7 @@ routes:
             );
             let policy_config = crate::config::parse_config(&yaml).unwrap();
 
-            let mgr = PluginManager::default();
+            let mgr = PolicyEngine::default();
             let counter = StdArc::new(AtomicUsize::new(0));
             // Custom factory that hands out a CountHandler with our shared counter.
             struct ParamFactory(StdArc<AtomicUsize>);
@@ -4061,7 +4067,7 @@ routes:
             }
         }
 
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
 
         // Plugin A: initializes successfully (priority 10, registered first).
         let cfg_a = make_config("a", 10, PluginMode::Sequential);
@@ -4203,7 +4209,7 @@ plugin_settings:
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
 
-        let mgr = PluginManager::from_config(policy_config, &factories).unwrap();
+        let mgr = PolicyEngine::from_config(policy_config, &factories).unwrap();
         mgr.initialize().await.unwrap();
 
         assert_eq!(mgr.plugin_count(), 1);
@@ -4225,7 +4231,7 @@ plugins:
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/deny", Box::new(DenyPluginFactory));
 
-        let mgr = PluginManager::from_config(policy_config, &factories).unwrap();
+        let mgr = PolicyEngine::from_config(policy_config, &factories).unwrap();
         mgr.initialize().await.unwrap();
 
         let payload: Box<dyn PluginPayload> = Box::new(TestPayload {
@@ -4252,7 +4258,7 @@ plugins:
         let policy_config = crate::config::parse_config(yaml).unwrap();
         let factories = PluginFactoryRegistry::new(); // empty — no factories
 
-        let result = PluginManager::from_config(policy_config, &factories);
+        let result = PolicyEngine::from_config(policy_config, &factories);
         match result {
             Err(e) => assert!(e.to_string().contains("no factory registered"), "got: {e}"),
             Ok(_) => panic!("expected error for unknown kind"),
@@ -4280,7 +4286,7 @@ plugins:
         factories.register("test/allow", Box::new(AllowPluginFactory));
         factories.register("test/deny", Box::new(DenyPluginFactory));
 
-        let mgr = PluginManager::from_config(policy_config, &factories).unwrap();
+        let mgr = PolicyEngine::from_config(policy_config, &factories).unwrap();
         mgr.initialize().await.unwrap();
 
         assert_eq!(mgr.plugin_count(), 2);
@@ -4322,7 +4328,7 @@ routes:
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
 
-        let mgr = PluginManager::from_config(policy_config, &factories).unwrap();
+        let mgr = PolicyEngine::from_config(policy_config, &factories).unwrap();
         mgr.initialize().await.unwrap();
 
         assert_eq!(mgr.routing_cache_size(), 0);
@@ -4384,7 +4390,7 @@ routes:
   - tool: get_compensation
     groups: hr-tools
 "#;
-        let mgr = Arc::new(PluginManager::default());
+        let mgr = Arc::new(PolicyEngine::default());
         mgr.register_factory("test/deny", Box::new(DenyPluginFactory));
         mgr.load_config_yaml(yaml).expect("config must load");
 
@@ -4427,7 +4433,7 @@ routes:
             }
             fn visit_policy_bundle(
                 &self,
-                _mgr: &Arc<PluginManager>,
+                _mgr: &Arc<PolicyEngine>,
                 tag: &str,
                 _yaml: &serde_yaml::Value,
             ) -> Result<(), VisitorError> {
@@ -4448,7 +4454,7 @@ routes:
   - tool: get_compensation
     groups: hr-tools
 "#;
-        let mgr = Arc::new(PluginManager::default());
+        let mgr = Arc::new(PolicyEngine::default());
         let recorder = Arc::new(RecordingVisitor::default());
         mgr.register_visitor(recorder.clone());
         mgr.load_config_yaml(yaml).expect("config must load");
@@ -4482,7 +4488,7 @@ routes:
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
 
-        let mgr = PluginManager::from_config(policy_config, &factories).unwrap();
+        let mgr = PolicyEngine::from_config(policy_config, &factories).unwrap();
         mgr.initialize().await.unwrap();
 
         // context_table = None (first invocation)
@@ -4535,7 +4541,7 @@ routes:
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
 
-        let mgr = PluginManager::from_config(policy_config, &factories).unwrap();
+        let mgr = PolicyEngine::from_config(policy_config, &factories).unwrap();
         mgr.initialize().await.unwrap();
 
         // context_table = None (first invocation)
@@ -4576,7 +4582,7 @@ routes:
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
 
-        let mgr = PluginManager::from_config(policy_config, &factories).unwrap();
+        let mgr = PolicyEngine::from_config(policy_config, &factories).unwrap();
         mgr.initialize().await.unwrap();
 
         let payload: Box<dyn PluginPayload> = Box::new(TestPayload { value: "t".into() });
@@ -4605,11 +4611,11 @@ routes:
         // into_inner, the cache stays usable.
         //
         // Note: this test intentionally panics inside catch_unwind, which
-        // prints "thread 'manager::tests::...' panicked at..." to test
+        // prints "thread 'engine::tests::...' panicked at..." to test
         // output even though the panic is caught. That's expected.
         use std::panic::AssertUnwindSafe;
 
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
 
         let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
             let _guard = mgr.route_cache.write().unwrap();
@@ -4652,7 +4658,7 @@ routes:
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
 
-        let mgr = PluginManager::from_config(policy_config, &factories).unwrap();
+        let mgr = PolicyEngine::from_config(policy_config, &factories).unwrap();
         mgr.initialize().await.unwrap();
 
         let invoke_for = |entity: &'static str| -> (Box<dyn PluginPayload>, Extensions) {
@@ -4725,7 +4731,7 @@ routes:
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
 
-        let mgr = PluginManager::from_config(policy_config, &factories).unwrap();
+        let mgr = PolicyEngine::from_config(policy_config, &factories).unwrap();
         mgr.initialize().await.unwrap();
 
         let payload: Box<dyn PluginPayload> = Box::new(TestPayload { value: "t".into() });
@@ -4772,7 +4778,7 @@ routes:
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
 
-        let mgr = PluginManager::from_config(policy_config, &factories).unwrap();
+        let mgr = PolicyEngine::from_config(policy_config, &factories).unwrap();
         mgr.initialize().await.unwrap();
 
         // context_table = None (first invocation)
@@ -4829,8 +4835,8 @@ routes:
 "#;
         let policy_config = crate::config::parse_config(yaml).unwrap();
 
-        // Use register_factory + load_config so manager owns factories
-        let mgr = PluginManager::default();
+        // Use register_factory + load_config so engine owns factories
+        let mgr = PolicyEngine::default();
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
         mgr.load_config(policy_config).unwrap();
         mgr.initialize().await.unwrap();
@@ -4935,7 +4941,7 @@ routes:
 "#;
         let policy_config = crate::config::parse_config(yaml).unwrap();
 
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         mgr.register_factory("test/init_tracking", Box::new(InitTrackingFactory));
         mgr.load_config(policy_config).unwrap();
         mgr.initialize().await.unwrap();
@@ -5006,7 +5012,7 @@ routes:
 "#;
         let policy_config = crate::config::parse_config(yaml).unwrap();
 
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         mgr.register_factory("test/error_on_invoke", Box::new(ErrorOnInvokeFactory));
         mgr.load_config(policy_config).unwrap();
         mgr.initialize().await.unwrap();
@@ -5051,7 +5057,7 @@ plugin_settings:
 "#;
         let policy_config = crate::config::parse_config(yaml).unwrap();
 
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
         mgr.load_config(policy_config).unwrap();
         mgr.initialize().await.unwrap();
@@ -5132,7 +5138,7 @@ routes:
       - rate_limiter
 "#;
         let policy_config = crate::config::parse_config(yaml).unwrap();
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
         mgr.register_factory("test/deny", Box::new(DenyPluginFactory));
         mgr.load_config(policy_config).unwrap();
@@ -5184,7 +5190,7 @@ plugins:
     priority: 20
 "#;
         let policy_config = crate::config::parse_config(yaml).unwrap();
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
         mgr.register_factory("test/deny", Box::new(DenyPluginFactory));
         mgr.load_config(policy_config).unwrap();
@@ -5230,7 +5236,7 @@ routes:
       - denier
 "#;
         let policy_config = crate::config::parse_config(yaml).unwrap();
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
         mgr.register_factory("test/deny", Box::new(DenyPluginFactory));
         mgr.load_config(policy_config).unwrap();
@@ -5290,7 +5296,7 @@ routes:
       - fallback_plugin
 "#;
         let policy_config = crate::config::parse_config(yaml).unwrap();
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
         mgr.register_factory("test/deny", Box::new(DenyPluginFactory));
         mgr.load_config(policy_config).unwrap();
@@ -5349,7 +5355,7 @@ routes:
   - tool: get_compensation
 "#;
         let policy_config = crate::config::parse_config(yaml).unwrap();
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
         mgr.register_factory("test/deny", Box::new(DenyPluginFactory));
         mgr.load_config(policy_config).unwrap();
@@ -5414,7 +5420,7 @@ routes:
   - tool: send_email
 "#;
         let policy_config = crate::config::parse_config(yaml).unwrap();
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
         mgr.register_factory("test/deny", Box::new(DenyPluginFactory));
         mgr.load_config(policy_config).unwrap();
@@ -5497,7 +5503,7 @@ routes:
 
     #[tokio::test]
     async fn test_executor_accepts_valid_label_addition() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         let mut config = make_config("label-adder", 10, PluginMode::Sequential);
         config.capabilities = ["append_labels".to_owned(), "read_labels".to_owned()].into();
         let plugin = Arc::new(AllowPlugin {
@@ -5531,7 +5537,7 @@ routes:
 
     #[tokio::test]
     async fn test_executor_rejects_immutable_tampering() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         let config = make_config("tamperer", 10, PluginMode::Sequential);
         let plugin = Arc::new(AllowPlugin {
             cfg: config.clone(),
@@ -5597,7 +5603,7 @@ routes:
 
         let saw_security = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
 
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         // No security capabilities declared
         let config = make_config("no-sec-caps", 10, PluginMode::Sequential);
         let plugin = Arc::new(AllowPlugin {
@@ -5670,7 +5676,7 @@ routes:
     /// to completion before its result is observed.
     #[tokio::test]
     async fn test_async_handler_registers_and_invokes() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         let counter = Arc::new(std::sync::atomic::AtomicU64::new(0));
         let cfg = make_config("async-counter", 10, PluginMode::Sequential);
         let plugin = Arc::new(AsyncCounterPlugin {
@@ -5706,7 +5712,7 @@ routes:
     /// order.
     #[tokio::test]
     async fn test_mixed_sync_and_async_handlers_in_same_hook() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         let counter = Arc::new(std::sync::atomic::AtomicU64::new(0));
 
         let sync_cfg = make_config("sync-allow", 10, PluginMode::Sequential);
@@ -5750,7 +5756,7 @@ routes:
     /// alone does not identify it.
     #[test]
     fn loading_a_missing_config_file_reports_the_path() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         let err = mgr
             .load_config_file(std::path::Path::new("/nonexistent/ppe-test/policy.yaml"))
             .expect_err("a missing file must not load");
@@ -5764,7 +5770,7 @@ routes:
     /// The load still succeeds, which is what these assert alongside.
     #[test]
     fn settings_the_runtime_ignores_still_load() {
-        let mgr = Arc::new(PluginManager::default());
+        let mgr = Arc::new(PolicyEngine::default());
         let yaml = r#"
 plugin_dirs: ["/opt/plugins"]
 plugin_settings:
@@ -5793,7 +5799,7 @@ plugin_settings:
             }
             fn visit_policy_bundle(
                 &self,
-                _mgr: &Arc<PluginManager>,
+                _mgr: &Arc<PolicyEngine>,
                 tag: &str,
                 _yaml: &serde_yaml::Value,
             ) -> Result<(), VisitorError> {
@@ -5817,7 +5823,7 @@ global:
         pre_invocation:
           - "require(authenticated)"
 "#;
-        let mgr = Arc::new(PluginManager::default());
+        let mgr = Arc::new(PolicyEngine::default());
         let recorder = Arc::new(BundleRecorder::default());
         mgr.register_visitor(recorder.clone());
         mgr.load_config_yaml(yaml).expect("config must load");
@@ -5847,7 +5853,7 @@ global:
             }
             fn visit_plugins(
                 &self,
-                _mgr: &Arc<PluginManager>,
+                _mgr: &Arc<PolicyEngine>,
                 _plugins: &[PluginConfig],
             ) -> Result<(), VisitorError> {
                 if self.0 == "plugins" {
@@ -5857,7 +5863,7 @@ global:
             }
             fn visit_global(
                 &self,
-                _mgr: &Arc<PluginManager>,
+                _mgr: &Arc<PolicyEngine>,
                 _yaml: &serde_yaml::Value,
             ) -> Result<(), VisitorError> {
                 if self.0 == "global" {
@@ -5867,7 +5873,7 @@ global:
             }
             fn visit_default(
                 &self,
-                _mgr: &Arc<PluginManager>,
+                _mgr: &Arc<PolicyEngine>,
                 _entity_type: &str,
                 _yaml: &serde_yaml::Value,
             ) -> Result<(), VisitorError> {
@@ -5878,7 +5884,7 @@ global:
             }
             fn visit_policy_bundle(
                 &self,
-                _mgr: &Arc<PluginManager>,
+                _mgr: &Arc<PolicyEngine>,
                 _tag: &str,
                 _yaml: &serde_yaml::Value,
             ) -> Result<(), VisitorError> {
@@ -5910,7 +5916,7 @@ global:
             ("default", "visit_default"),
             ("bundle", "visit_policy_bundle"),
         ] {
-            let mgr = Arc::new(PluginManager::default());
+            let mgr = Arc::new(PolicyEngine::default());
             mgr.register_visitor(Arc::new(Refuser(section)));
             let err = mgr
                 .load_config_yaml(yaml)
@@ -5936,7 +5942,7 @@ global:
     /// tearing down routes cannot know which ones were annotated.
     #[test]
     fn removing_an_absent_route_annotation_is_a_no_op() {
-        let mgr = PluginManager::default();
+        let mgr = PolicyEngine::default();
         mgr.remove_route_annotation("tool", "never-annotated", None, "cmf.tool_pre_invoke");
         mgr.remove_route_annotation(
             "tool",
@@ -5950,10 +5956,10 @@ global:
     /// nothing checked it reports the configured names rather than an empty list.
     #[test]
     fn plugin_names_lists_what_was_registered() {
-        let mgr = Arc::new(PluginManager::default());
+        let mgr = Arc::new(PolicyEngine::default());
         assert!(
             mgr.plugin_names().is_empty(),
-            "an empty manager registers nothing"
+            "an empty engine registers nothing"
         );
 
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));

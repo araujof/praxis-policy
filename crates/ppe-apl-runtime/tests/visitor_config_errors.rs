@@ -24,13 +24,13 @@
 use std::sync::Arc;
 
 use praxis_policy_apl_runtime::{AplOptions, register_apl};
-use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::engine::PolicyEngine;
 
 /// Load with the APL visitor installed and no factories registered, and return
 /// the error text. Registering none is the point for most cases here: it is what
 /// an operator hits when they name a `kind` the host never wired up.
 fn load_err(yaml: &str) -> String {
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     register_apl(&mgr, AplOptions::in_process());
     match mgr.load_config_yaml(yaml) {
         Ok(()) => panic!("this config must not load"),
@@ -39,7 +39,7 @@ fn load_err(yaml: &str) -> String {
 }
 
 fn loads(yaml: &str) {
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     register_apl(&mgr, AplOptions::in_process());
     mgr.load_config_yaml(yaml).expect("this config must load");
 }

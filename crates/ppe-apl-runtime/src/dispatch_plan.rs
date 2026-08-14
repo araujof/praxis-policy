@@ -16,7 +16,7 @@
 //
 // Building once per `(route_key, snapshot_generation)` and caching turns
 // dispatch into: cache lookup → pick handler by invocation context →
-// call `manager.invoke_entries::<CmfHook>(&[entry], ...)`.
+// call `engine.invoke_entries::<CmfHook>(&[entry], ...)`.
 //
 // # Override materialization
 //
@@ -43,8 +43,8 @@ use std::sync::{Arc, RwLock};
 
 use praxis_policy_core::delegation::HOOK_TOKEN_DELEGATE;
 use praxis_policy_core::elicitation::HOOK_ELICIT;
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::hooks::{HookPhase, lookup_hook_metadata};
-use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::OnError;
 use praxis_policy_core::registry::HookEntry;
 
@@ -141,7 +141,7 @@ impl RouteDispatchPlan {
     pub async fn build(
         route: &CompiledRoute,
         registry: &PluginRegistry,
-        manager: &PluginManager,
+        engine: &PolicyEngine,
     ) -> Self {
         let mut plan = Self::default();
         for name in collect_plugin_names(route) {
@@ -179,7 +179,7 @@ impl RouteDispatchPlan {
             // `PluginRef` with merged trusted config. When config
             // differs, it invokes the factory + initializes a brand-new
             // instance with its own circuit breaker.
-            let entries = manager
+            let entries = engine
                 .build_override_entries(
                     &name,
                     config_override,
@@ -225,9 +225,7 @@ impl RouteDispatchPlan {
         // entries — the on_error lives in the IR step itself and is
         // honored by the evaluator).
         for name in collect_delegate_plugin_names(route) {
-            let entries = manager
-                .build_override_entries(&name, None, None, None)
-                .await;
+            let entries = engine.build_override_entries(&name, None, None, None).await;
             // Pick the first token.delegate entry. Per delegation-hooks
             // spec, plugins typically register one handler under the
             // single `token.delegate` hook name; multiple handlers
@@ -252,9 +250,7 @@ impl RouteDispatchPlan {
         // Same `name → entry` resolution as delegation — elicitation
         // routes by plugin name, not `(kind, channel)`.
         for name in collect_elicit_plugin_names(route) {
-            let entries = manager
-                .build_override_entries(&name, None, None, None)
-                .await;
+            let entries = engine.build_override_entries(&name, None, None, None).await;
             let elicit_entry = entries
                 .into_iter()
                 .find(|(hook_name, _)| hook_name == HOOK_ELICIT);
@@ -286,8 +282,8 @@ impl RouteDispatchPlan {
     /// that wire the invoker without a `CompiledRoute` in scope (e.g.
     /// adapters that invoke a single plugin imperatively). Returns
     /// `None` if praxis-policy-core has no entries for the plugin.
-    pub fn resolve_plugin(manager: &PluginManager, plugin_name: &str) -> Option<RoutePluginEntry> {
-        let base_entries = manager.find_plugin_entries(plugin_name);
+    pub fn resolve_plugin(engine: &PolicyEngine, plugin_name: &str) -> Option<RoutePluginEntry> {
+        let base_entries = engine.find_plugin_entries(plugin_name);
         if base_entries.is_empty() {
             return None;
         }
@@ -504,18 +500,18 @@ impl DispatchCache {
     /// build call.
     ///
     /// Async because `RouteDispatchPlan::build` may invoke
-    /// `PluginManager::build_override_entries`, which calls plugin
+    /// `PolicyEngine::build_override_entries`, which calls plugin
     /// factories and `initialize()` for routes that declare `config:`
     /// overrides. Routes with no overrides take a synchronous path
-    /// inside the manager (no `.await` does any real work), so the
+    /// inside the engine (no `.await` does any real work), so the
     /// async cost is zero for the common case.
     pub async fn get_or_build(
         &self,
         route: &CompiledRoute,
         registry: &PluginRegistry,
-        manager: &PluginManager,
+        engine: &PolicyEngine,
     ) -> Arc<RouteDispatchPlan> {
-        let current_gen = manager.config_generation();
+        let current_gen = engine.config_generation();
         {
             let r = self
                 .inner
@@ -527,7 +523,7 @@ impl DispatchCache {
                 return Arc::clone(plan);
             }
         }
-        let plan = Arc::new(RouteDispatchPlan::build(route, registry, manager).await);
+        let plan = Arc::new(RouteDispatchPlan::build(route, registry, engine).await);
         let mut w = self
             .inner
             .write()

@@ -70,7 +70,7 @@ crate::define_hook! {
     /// ```
     ///
     /// **Registration:**
-    /// `manager.register_handler_for_names::<TokenDelegateHook, _>(plugin, config, &["token.delegate"])`.
+    /// `engine.register_handler_for_names::<TokenDelegateHook, _>(plugin, config, &["token.delegate"])`.
     /// `register_handler::<TokenDelegateHook, _>` alone registers
     /// under the marker's `NAME` ("token") which is the hook family,
     /// not the specific hook name — `register_handler_for_names`

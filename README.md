@@ -57,7 +57,7 @@ characterization tests holding them in place.
 
 A host does not have to use a bundled plugin. Implement `PluginFactory` against
 `praxis_policy_core::prelude` and register it with
-`PluginManager::register_factory` under the `kind:` your policy names. An
+`PolicyEngine::register_factory` under the `kind:` your policy names. An
 unrecognised `kind` fails at load, so a missing registration surfaces at startup
 rather than as a plugin that silently never runs.
 

@@ -126,10 +126,10 @@ pub trait HookTypeDef: Send + Sync + 'static {
 /// }
 ///
 /// // Registration is the same for both:
-/// manager.register_handler::<MyHook, _>(plugin, config)?;
+/// engine.register_handler::<MyHook, _>(plugin, config)?;
 /// ```
 ///
-/// [`PluginManager::register_handler`]: crate::manager::PluginManager::register_handler
+/// [`PolicyEngine::register_handler`]: crate::engine::PolicyEngine::register_handler
 /// [`AnyHookHandler`]: crate::registry::AnyHookHandler
 /// [`TypedHandlerAdapter`]: crate::hooks::adapter::TypedHandlerAdapter
 pub trait HookHandler<H: HookTypeDef>: Plugin + Send + Sync {

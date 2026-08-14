@@ -31,9 +31,9 @@
 //!
 //! ```no_run
 //! use std::sync::Arc;
-//! use praxis_policy::PluginManager;
+//! use praxis_policy::PolicyEngine;
 //!
-//! let mgr = Arc::new(PluginManager::default());
+//! let mgr = Arc::new(PolicyEngine::default());
 //! // ... register host factories, then `praxis_policy_apl_runtime::register_apl(&mgr, opts)`.
 //! ```
 //!
@@ -41,9 +41,9 @@
 //!
 //! ```ignore
 //! use std::sync::Arc;
-//! use praxis_policy::PluginManager;
+//! use praxis_policy::PolicyEngine;
 //!
-//! let mgr = Arc::new(PluginManager::default());
+//! let mgr = Arc::new(PolicyEngine::default());
 //! // Register every enabled builtin factory and install the APL config
 //! // visitor (in-process defaults) in one call:
 //! praxis_policy::install_builtins(&mgr);
@@ -61,7 +61,7 @@
 //! # Plugins the host supplies
 //!
 //! A plugin does not have to be bundled. Implement [`PluginFactory`] and hand it
-//! to [`PluginManager::register_factory`] under the `kind:` your YAML names;
+//! to [`PolicyEngine::register_factory`] under the `kind:` your YAML names;
 //! [`prelude`] is the surface to write it against. An unrecognised `kind` is a
 //! load-time error, so a missing registration fails at startup rather than
 //! silently skipping the plugin.
@@ -80,10 +80,10 @@ pub use praxis_policy_apl_core::step::PdpFactory;
 pub use praxis_policy_apl_runtime::{
     AplOptions, DispatchCache, MemorySessionStore, SessionStore, SessionStoreFactory, register_apl,
 };
-pub use praxis_policy_core::manager::PluginManager;
+pub use praxis_policy_core::engine::PolicyEngine;
 
 /// The two types a host needs to accept a plugin it did not compile in:
-/// [`PluginManager::register_factory`] takes a `Box<dyn PluginFactory>`, and
+/// [`PolicyEngine::register_factory`] takes a `Box<dyn PluginFactory>`, and
 /// [`PluginInstance`] is what that factory returns.
 ///
 /// Surfaced here so a host embedding the engine can name them without reaching
@@ -138,17 +138,17 @@ macro_rules! register_builtins {
     ( $( feature $feat:literal => $krate:ident :: $factory:ident ),* $(,)? ) => {
         /// Register every enabled by-kind plugin factory on `mgr`: identity
         /// (`jwt`), delegators (`oauth`), and elicitation approvers
-        /// (`elicitation-ciba`). Call before loading a config so the manager can
+        /// (`elicitation-ciba`). Call before loading a config so the engine can
         /// instantiate plugins whose YAML `kind:` matches.
         ///
-        /// A host adds its own with [`PluginManager::register_factory`], after
+        /// A host adds its own with [`PolicyEngine::register_factory`], after
         /// this call so a host registration wins on a shared `kind`.
         ///
         /// PDP and session-store factories are wired through [`AplOptions`]
         /// instead; see [`builtin_pdp_factories`] and
         /// [`builtin_session_store_factories`], or use [`install_builtins`].
         #[allow(unused_variables)]
-        pub fn register_builtin_plugins(mgr: &std::sync::Arc<PluginManager>) {
+        pub fn register_builtin_plugins(mgr: &std::sync::Arc<PolicyEngine>) {
             $(
                 #[cfg(feature = $feat)]
                 mgr.register_factory($krate::KIND, Box::new($krate::$factory));
@@ -204,7 +204,7 @@ pub fn builtin_session_store_factories() -> Vec<std::sync::Arc<dyn SessionStoreF
 /// [`AplOptions`] directly when you need to customize capabilities or the
 /// default store.
 #[cfg(feature = "_builtin")]
-pub fn install_builtins(mgr: &std::sync::Arc<PluginManager>) {
+pub fn install_builtins(mgr: &std::sync::Arc<PolicyEngine>) {
     register_builtin_plugins(mgr);
 
     let mut opts = AplOptions::in_process();
@@ -221,7 +221,7 @@ mod tests {
 
     #[test]
     fn install_builtins_runs_without_panic() {
-        let mgr = Arc::new(PluginManager::default());
+        let mgr = Arc::new(PolicyEngine::default());
         install_builtins(&mgr);
     }
 
@@ -247,14 +247,14 @@ mod tests {
         );
     }
 
-    /// Load a one-plugin config against a manager with the builtins installed,
+    /// Load a one-plugin config against a engine with the builtins installed,
     /// and return the error text (empty string on success).
     ///
     /// Goes through `load_config_yaml` rather than inspecting the registry
     /// because that is the path an operator hits: the question is whether their
     /// YAML `kind:` resolves, not what the map contains.
     fn load_error_for_kind(kind: &str) -> String {
-        let mgr = Arc::new(PluginManager::default());
+        let mgr = Arc::new(PolicyEngine::default());
         install_builtins(&mgr);
         let yaml =
             format!("plugins:\n  - name: probe\n    kind: {kind}\n    hooks: [identity.resolve]\n");

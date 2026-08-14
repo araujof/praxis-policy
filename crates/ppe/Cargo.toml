@@ -4,7 +4,7 @@
 # praxis-policy — host facade.
 #
 # One dependency instead of a dozen: re-exports the host runtime
-# (PluginManager, AplOptions, register_apl) and owns the registration of the
+# (PolicyEngine, AplOptions, register_apl) and owns the registration of the
 # bundled plugins, PDPs and session stores. Each is behind a feature, so the bare
 # dependency is the engine alone, no plugins compiled.
 #

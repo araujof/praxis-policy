@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Praxis Contributors
 
 // End-to-end: an APL route with `restrict` effects, driven through the
-// real PluginManager + APL visitor, must fold the emitted constraints
+// real PolicyEngine + APL visitor, must fold the emitted constraints
 // and surface them on the typed `candidate_constraint` extension slot
 // that the host router reads off `PipelineResult.modified_extensions`.
 // A `custom`-label contradiction must fail closed.
@@ -24,10 +24,10 @@ use std::sync::Arc;
 
 use praxis_policy_core::cmf::enums::Role;
 use praxis_policy_core::cmf::{CmfHook, Message, MessagePayload};
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::extensions::{
     CandidateConstraintExtension, Extensions, MetaExtension, OnEmpty,
 };
-use praxis_policy_core::manager::PluginManager;
 
 use praxis_policy_apl_runtime::{AplOptions, DispatchCache, MemorySessionStore, register_apl};
 
@@ -44,10 +44,10 @@ fn meta_for_tool(name: &str) -> MetaExtension {
     meta
 }
 
-/// Build a manager wired with the APL visitor from `yaml`. `restrict`
+/// Build a engine wired with the APL visitor from `yaml`. `restrict`
 /// needs no plugins of its own, so no factories are registered.
-async fn build_manager(yaml: &str) -> Arc<PluginManager> {
-    let mgr = Arc::new(PluginManager::default());
+async fn build_manager(yaml: &str) -> Arc<PolicyEngine> {
+    let mgr = Arc::new(PolicyEngine::default());
     register_apl(
         &mgr,
         AplOptions {

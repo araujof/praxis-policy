@@ -2,11 +2,11 @@
 // Copyright (c) 2026 Praxis Contributors
 
 // `register_apl` — sugar function that bundles "construct
-// `AplConfigVisitor` + register it with the manager" into one call.
+// `AplConfigVisitor` + register it with the engine" into one call.
 //
 // Hosts that just want APL governance with sensible defaults call this
 // instead of building the visitor by hand. The lower-level
-// `PluginManager::register_visitor` API stays available for custom
+// `PolicyEngine::register_visitor` API stays available for custom
 // orchestrators (future Rego, Cedar-direct, hand-rolled audit visitors)
 // that don't fit the APL setup.
 //
@@ -31,7 +31,7 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::visitor::ConfigVisitor;
 
 use praxis_policy_apl_core::step::{PdpFactory, PdpResolver};
@@ -108,11 +108,11 @@ impl AplOptions {
 }
 
 /// Build an [`AplConfigVisitor`] from the supplied options and register
-/// it on the manager. Returns the `Arc<AplConfigVisitor>` so the caller
+/// it on the engine. Returns the `Arc<AplConfigVisitor>` so the caller
 /// can stash it for later inspection (or call `register_pdp` on it
 /// after the fact for late-bound resolvers) — but in the typical case
 /// the return value is dropped and the visitor lives inside the
-/// manager's visitor list.
+/// engine's visitor list.
 ///
 /// After this call, the next `mgr.load_config_yaml(yaml)` invocation
 /// will walk the visitor: praxis-policy-core's [`visit_plugins`][vp] populates
@@ -121,20 +121,20 @@ impl AplOptions {
 /// registered `pdp_factories`; the hierarchy walk stacks `global.apl`
 /// / `defaults.<entity>.apl` / `policies.<tag>.apl` / route-level
 /// `apl:` into compiled routes; one `AplRouteHandler` is installed
-/// per route per phase via [`PluginManager::annotate_route`][ar].
+/// per route per phase via [`PolicyEngine::annotate_route`][ar].
 ///
 /// [vp]: praxis_policy_core::visitor::ConfigVisitor::visit_plugins
-/// [ar]: praxis_policy_core::manager::PluginManager::annotate_route
+/// [ar]: praxis_policy_core::engine::PolicyEngine::annotate_route
 ///
 /// # Example
 ///
 /// ```ignore
 /// use std::sync::Arc;
-/// use praxis_policy_core::manager::PluginManager;
+/// use praxis_policy_core::engine::PolicyEngine;
 /// use praxis_policy_apl_runtime::{register_apl, AplOptions};
 /// use praxis_policy_pdp_cedar_direct::CedarDirectPdpFactory;
 ///
-/// let mgr = Arc::new(PluginManager::default());
+/// let mgr = Arc::new(PolicyEngine::default());
 /// mgr.register_factory("scope-gate", Box::new(ScopeGateFactory));
 ///
 /// praxis_policy_apl_runtime::register_apl(&mgr, AplOptions {
@@ -148,7 +148,7 @@ impl AplOptions {
 /// mgr.load_config_yaml(&yaml_string)?;
 /// mgr.initialize().await?;
 /// ```
-pub fn register_apl(mgr: &Arc<PluginManager>, opts: AplOptions) -> Arc<AplConfigVisitor> {
+pub fn register_apl(mgr: &Arc<PolicyEngine>, opts: AplOptions) -> Arc<AplConfigVisitor> {
     let AplOptions {
         dispatch_cache,
         session_store,
@@ -161,7 +161,7 @@ pub fn register_apl(mgr: &Arc<PluginManager>, opts: AplOptions) -> Arc<AplConfig
     // Build the visitor and apply consuming builders first (these take
     // `self` by value), then mutating registrations (`&mut self` for
     // factories), and finally wrap in `Arc` so we can hand the shared
-    // handle to the manager. Code-supplied PDPs go through
+    // handle to the engine. Code-supplied PDPs go through
     // `register_pdp(&self, ...)` which uses interior mutability, so
     // they're registered after the `Arc` wrap.
     let mut visitor = AplConfigVisitor::new(dispatch_cache, session_store, Arc::downgrade(mgr));

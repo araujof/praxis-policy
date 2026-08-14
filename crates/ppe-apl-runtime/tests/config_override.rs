@@ -8,7 +8,7 @@
 // Under the hood:
 //
 //   1. `AplConfigVisitor` parses the override into `CompiledRoute.plugin_overrides`.
-//   2. `RouteDispatchPlan::build` calls `manager.build_override_entries(name, config, caps, on_error)`.
+//   2. `RouteDispatchPlan::build` calls `engine.build_override_entries(name, config, caps, on_error)`.
 //   3. praxis-policy-core's `build_override_entries` invokes the plugin factory
 //      with the merged `PluginConfig`, calls `initialize()` on the
 //      result, and wraps every returned handler in a fresh `PluginRef`
@@ -37,13 +37,13 @@ use async_trait::async_trait;
 use praxis_policy_core::cmf::enums::Role;
 use praxis_policy_core::cmf::{CmfHook, Message, MessagePayload};
 use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::error::{PluginError as CoreError, PluginViolation};
 use praxis_policy_core::extensions::MetaExtension;
 use praxis_policy_core::factory::{PluginFactory, PluginInstance};
 use praxis_policy_core::hooks::adapter::TypedHandlerAdapter;
 use praxis_policy_core::hooks::payload::Extensions;
 use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
-use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{Plugin, PluginConfig};
 
 use praxis_policy_apl_runtime::{AplOptions, DispatchCache, MemorySessionStore, register_apl};
@@ -151,9 +151,9 @@ fn meta_for_tool(name: &str) -> MetaExtension {
     meta
 }
 
-async fn build_manager(yaml: &str) -> (Arc<PluginManager>, Arc<std::sync::atomic::AtomicUsize>) {
+async fn build_manager(yaml: &str) -> (Arc<PolicyEngine>, Arc<std::sync::atomic::AtomicUsize>) {
     let instance_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_factory(
         "allowlist-gate",
         Box::new(AllowlistGateFactory {
@@ -449,7 +449,7 @@ async fn on_error_override_plumbs_through_to_trusted_config() {
     use praxis_policy_apl_runtime::{DispatchCache, RouteDispatchPlan};
     use praxis_policy_core::plugin::OnError;
 
-    // Single-plugin praxis-policy-core config — load it via the manager so the
+    // Single-plugin praxis-policy-core config — load it via the engine so the
     // plugin is registered. No APL visitor / routes wiring needed —
     // we'll build the routes manually below to focus on what the
     // dispatch plan does with overrides.

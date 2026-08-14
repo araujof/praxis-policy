@@ -56,7 +56,7 @@ crate::define_hook! {
     /// handler N's `modified_payload` into handler N+1's input, so
     /// the chain's natural behavior is "each handler sees the prior
     /// handler's contributions in the running payload." No bespoke
-    /// `resolve_identity` method on `PluginManager` — the standard
+    /// `resolve_identity` method on `PolicyEngine` — the standard
     /// `invoke_named::<IdentityHook>(...)` does the right thing.
     ///
     /// **Handler signature:**
@@ -82,7 +82,7 @@ crate::define_hook! {
     /// preserving every untouched field reach for
     /// [`IdentityPayload::merge`][merge].
     ///
-    /// **Registration:** `manager.register_handler::<IdentityHook, _>(plugin, config)`
+    /// **Registration:** `engine.register_handler::<IdentityHook, _>(plugin, config)`
     /// against the hook name `"identity.resolve"`. Multiple handlers
     /// may register; the framework runs them in priority order and
     /// the Sequential-phase chain accumulates their contributions

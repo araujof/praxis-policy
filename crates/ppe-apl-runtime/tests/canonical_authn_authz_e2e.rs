@@ -39,6 +39,7 @@ use async_trait::async_trait;
 use praxis_policy_core::cmf::enums::Role;
 use praxis_policy_core::cmf::{CmfHook, Message, MessagePayload};
 use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::error::PluginError as CoreError;
 use praxis_policy_core::extensions::MetaExtension;
 use praxis_policy_core::factory::{PluginFactory, PluginInstance};
@@ -48,7 +49,6 @@ use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
 use praxis_policy_core::identity::{
     HOOK_IDENTITY_RESOLVE, IdentityHook, IdentityPayload, TokenSource,
 };
-use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{Plugin, PluginConfig};
 use praxis_policy_core::registry::AnyHookHandler;
 
@@ -186,8 +186,8 @@ routes:
         - "plugin(audit-log)"
 "#;
 
-async fn build_manager(ledger: Arc<Mutex<Vec<String>>>) -> Arc<PluginManager> {
-    let mgr = Arc::new(PluginManager::default());
+async fn build_manager(ledger: Arc<Mutex<Vec<String>>>) -> Arc<PolicyEngine> {
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_factory(
         "identity-recorder",
         Box::new(RecordingIdentityFactory { ledger }),

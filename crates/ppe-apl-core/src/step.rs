@@ -96,7 +96,7 @@ pub(crate) enum Step {
 ///     attenuation, layered over the plugin's configured defaults),
 ///   * extensions-derived context (subject, prior delegation chain),
 ///
-/// then calls `manager.invoke_entries::<TokenDelegateHook>(...)`. On
+/// then calls `engine.invoke_entries::<TokenDelegateHook>(...)`. On
 /// success the resulting `delegated_token` is written into
 /// `Extensions.raw_credentials.delegated_tokens.*` and the granted
 /// scopes / audience surface as `delegation.granted.*` attributes
@@ -155,7 +155,7 @@ pub struct DelegateStep {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ElicitKind {
-    /// Yes/no decision from a designated approver (manager approval).
+    /// Yes/no decision from a designated approver (engine approval).
     /// The approver MAY differ from the request subject; the response is
     /// bound to the request's args via `scope`.
     Approval,
@@ -378,7 +378,7 @@ pub trait PdpResolver: Send + Sync {
 /// The error type is `Box<dyn Error + Send + Sync>` to keep this trait
 /// in praxis-policy-apl-core (which has no engine deps). praxis-policy-apl-runtime's visitor wraps
 /// the boxed error into `VisitorError` → `PluginError::Config` at the
-/// manager boundary.
+/// engine boundary.
 pub trait PdpFactory: Send + Sync {
     /// Identifies which `kind:` in a config block this factory handles.
     /// Convention: kebab-case matching the published PDP product name
@@ -467,7 +467,7 @@ impl<'a> PluginInvocation<'a> {
     }
 }
 
-/// Plugin invocation dispatch. praxis-policy-apl-runtime wraps the PPE `PluginManager`
+/// Plugin invocation dispatch. praxis-policy-apl-runtime wraps the PPE `PolicyEngine`
 /// behind this trait so the praxis-policy-apl-core evaluator stays free of praxis-policy-core
 /// dependencies.
 #[async_trait]
@@ -484,7 +484,7 @@ pub trait PluginInvoker: Send + Sync {
 
 /// Delegation dispatch — invokes a `TokenDelegateHook` plugin to mint
 /// a downstream credential. praxis-policy-apl-runtime implements this against
-/// `praxis_policy_core::PluginManager::invoke_entries::<TokenDelegateHook>`.
+/// `praxis_policy_core::PolicyEngine::invoke_entries::<TokenDelegateHook>`.
 ///
 /// The invoker holds the request-scoped `Extensions` internally
 /// (same pattern as `CmfPluginInvoker`), so the trait method doesn't
@@ -660,7 +660,7 @@ pub struct ElicitationDispatch {
     /// `{requester, args, scope, original_request_id}` record.
     pub id: String,
     /// Resolved approver identity (the `from` attr resolved at dispatch,
-    /// e.g. the manager's `sub`). `None` when the channel resolves the
+    /// e.g. the engine's `sub`). `None` when the channel resolves the
     /// responder only at validation time. Surfaced as
     /// `elicitation.approver`.
     pub approver: Option<String>,

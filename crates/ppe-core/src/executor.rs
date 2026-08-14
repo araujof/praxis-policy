@@ -1066,7 +1066,7 @@ impl Executor {
                 .collect();
             let filtered = Arc::new(filter_extensions(extensions, &capabilities));
 
-            // Spawn through TaskTracker so `PluginManager::shutdown()`
+            // Spawn through TaskTracker so `PolicyEngine::shutdown()`
             // can drain in-flight fire-and-forget tasks before tearing
             // down. The returned JoinHandle is the same shape as
             // tokio::spawn's, so callers using BackgroundTasks still

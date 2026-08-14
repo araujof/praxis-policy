@@ -8,7 +8,7 @@
 // `DelegationPayload`, calls
 // `mgr.invoke_named::<TokenDelegateHook>(...)`, and reads the
 // minted credential out of the returned `PipelineResult`. No
-// bespoke method on `PluginManager` — `invoke_named` works
+// bespoke method on `PolicyEngine` — `invoke_named` works
 // uniformly because Sequential-phase threading already does the
 // right thing for the unified `DelegationPayload`.
 //
@@ -45,6 +45,7 @@ use praxis_policy_core::delegation::{
     AttenuationConfig, AuthEnforcedBy, DelegationPayload, HOOK_TOKEN_DELEGATE, TargetType,
     TokenDelegateHook,
 };
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::error::PluginError;
 use praxis_policy_core::extensions::raw_credentials::{
     DelegationKey, DelegationMode, RawDelegatedToken,
@@ -52,7 +53,6 @@ use praxis_policy_core::extensions::raw_credentials::{
 use praxis_policy_core::extensions::{SecurityExtension, SubjectExtension};
 use praxis_policy_core::hooks::payload::Extensions;
 use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
-use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{OnError, Plugin, PluginConfig, PluginMode};
 
 // =====================================================================
@@ -283,7 +283,7 @@ fn extract_delegation(result: &praxis_policy_core::executor::PipelineResult) -> 
 /// the populated payload via `from_pipeline_result`.
 #[tokio::test]
 async fn single_handler_mints_token() {
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     let cfg = config("stub-exchanger", 10);
     let plugin = Arc::new(StubExchanger { cfg: cfg.clone() });
     mgr.register_handler_for_names::<TokenDelegateHook, _>(plugin, cfg, &[HOOK_TOKEN_DELEGATE])
@@ -333,7 +333,7 @@ async fn single_handler_mints_token() {
 /// fallback's output replaces the lack of a token from the primary.
 #[tokio::test]
 async fn declining_then_fallback_chain_mints_token() {
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
 
     let declining_cfg = config("declining-handler", 10);
     let declining = Arc::new(DecliningHandler {
@@ -391,7 +391,7 @@ async fn declining_then_fallback_chain_mints_token() {
 /// halts; violation surfaces in `PipelineResult.violation`.
 #[tokio::test]
 async fn rejecting_handler_halts_pipeline() {
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     let cfg = config("rejecting-handler", 10);
     let plugin = Arc::new(RejectingHandler { cfg: cfg.clone() });
     mgr.register_handler_for_names::<TokenDelegateHook, _>(plugin, cfg, &[HOOK_TOKEN_DELEGATE])
@@ -422,7 +422,7 @@ async fn rejecting_handler_halts_pipeline() {
 /// `DelegationKey` that incorporates the subject id.
 #[tokio::test]
 async fn apply_to_extensions_writes_delegated_token_keyed_by_subject() {
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     let cfg = config("stub-exchanger", 10);
     let plugin = Arc::new(StubExchanger { cfg: cfg.clone() });
     mgr.register_handler_for_names::<TokenDelegateHook, _>(plugin, cfg, &[HOOK_TOKEN_DELEGATE])
@@ -573,7 +573,7 @@ async fn cap_gating_post_apply_through_cmf_dispatch() {
     }
 
     // ----- Wire everything up -----
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
 
     // TokenDelegate handler.
     let td_cfg = config("stub-exchanger", 10);

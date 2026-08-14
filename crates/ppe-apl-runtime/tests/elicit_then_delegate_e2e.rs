@@ -40,12 +40,12 @@ use praxis_policy_core::elicitation::{
     ElicitationHook, ElicitationOp, ElicitationOutcomeKind, ElicitationPayload,
     ElicitationStatusKind, HOOK_ELICIT,
 };
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::extensions::raw_credentials::{
     RawCredentialsExtension, RawDelegatedToken, RawInboundToken, TokenKind, TokenRole,
 };
 use praxis_policy_core::hooks::payload::Extensions;
 use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
-use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{OnError, Plugin, PluginConfig, PluginMode};
 
 use praxis_policy_apl_core::{
@@ -227,7 +227,7 @@ routes:
 async fn run_route(outcome: ElicitationOutcomeKind) -> (Decision, usize) {
     let ledger: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
 
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_handler::<ElicitationHook, _>(
         Arc::new(FakeApprover {
             cfg: approver_cfg(),

@@ -4,7 +4,7 @@
 // `DelegationPluginInvoker` — `praxis-policy-apl-core::DelegationInvoker` impl
 // bound to the `TokenDelegateHook` family. Drives dispatch off a
 // pre-resolved [`RouteDispatchPlan::delegation_entries`] and forwards
-// to `PluginManager::invoke_entries::<TokenDelegateHook>(...)`.
+// to `PolicyEngine::invoke_entries::<TokenDelegateHook>(...)`.
 //
 // # When this runs
 //
@@ -45,9 +45,9 @@ use praxis_policy_core::delegation::{
     DelegationPayload, DelegationSubject, TokenDelegateHook,
     payload::{AuthEnforcedBy, TargetType},
 };
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::extensions::raw_credentials::TokenRole;
 use praxis_policy_core::hooks::payload::Extensions;
-use praxis_policy_core::manager::PluginManager;
 
 use praxis_policy_apl_core::evaluator::Decision;
 use praxis_policy_apl_core::step::{
@@ -63,7 +63,7 @@ use crate::dispatch_plan::RouteDispatchPlan;
 /// `delegate(...)` step (minted token, updated delegation chain)
 /// land in the same `Extensions` the CMF invoker is reading.
 pub struct DelegationPluginInvoker {
-    manager: Arc<PluginManager>,
+    engine: Arc<PolicyEngine>,
     /// Same `Arc<Mutex<Extensions>>` as the CMF invoker for this
     /// request — sharing this handle is what makes minted tokens
     /// visible to downstream CMF plugins.
@@ -79,12 +79,12 @@ impl DelegationPluginInvoker {
     /// extensions Arc from `CmfPluginInvoker::extensions_arc()` so
     /// the two invokers see the same mutable Extensions.
     pub fn new(
-        manager: Arc<PluginManager>,
+        engine: Arc<PolicyEngine>,
         extensions: Arc<Mutex<Extensions>>,
         plan: Arc<RouteDispatchPlan>,
     ) -> Self {
         Self {
-            manager,
+            engine,
             extensions,
             plan,
         }
@@ -220,7 +220,7 @@ impl DelegationInvoker for DelegationPluginInvoker {
         // instance config; what we're passing on this call is the
         // typed payload (target / audience / permissions / etc.).
         let (result, _bg) = self
-            .manager
+            .engine
             .invoke_entries::<TokenDelegateHook>(
                 std::slice::from_ref(&entry),
                 payload,

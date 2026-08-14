@@ -54,7 +54,7 @@ mod message_projection;
 pub mod parallel_safety;
 /// Routes a decision point call to the resolver for its dialect.
 pub mod pdp_router;
-/// Wires the runtime into a plugin manager.
+/// Wires the runtime into a policy engine.
 pub mod register;
 /// Runs a compiled route for one hook invocation.
 pub mod route_handler;

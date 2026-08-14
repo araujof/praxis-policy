@@ -5,11 +5,11 @@
 //
 // Provides a factory pattern for creating plugin instances from
 // config. The host registers factories by `kind` name before
-// loading config. When the manager processes a config file, it
+// loading config. When the engine processes a config file, it
 // looks up the factory for each plugin's `kind` and calls create().
 //
-// This decouples plugin instantiation from the manager — the
-// manager doesn't know how to create a "builtin" vs "wasm"
+// This decouples plugin instantiation from the engine — the
+// engine doesn't know how to create a "builtin" vs "wasm"
 // The factory does.
 
 use std::collections::HashMap;
@@ -22,7 +22,7 @@ use crate::registry::AnyHookHandler;
 /// Factory for creating plugin instances from config.
 ///
 /// The host registers factories by `kind` name before loading
-/// config. When the manager processes a config file, it looks up
+/// config. When the engine processes a config file, it looks up
 /// the factory for each plugin's `kind` and calls `create()`.
 ///
 /// The factory returns both the plugin and its handler because it
@@ -76,7 +76,7 @@ pub struct PluginInstance {
 
 /// Registry of plugin factories keyed by `kind` name.
 ///
-/// The host populates this before calling `PluginManager::from_config()`.
+/// The host populates this before calling `PolicyEngine::from_config()`.
 /// Each factory knows how to create plugins of a specific kind.
 ///
 /// # Examples
@@ -86,7 +86,7 @@ pub struct PluginInstance {
 /// factories.register("builtin/rate_limit", Box::new(RateLimiterFactory));
 /// factories.register("builtin/identity", Box::new(IdentityFactory));
 ///
-/// let manager = PluginManager::from_config(path, &factories)?;
+/// let engine = PolicyEngine::from_config(path, &factories)?;
 /// ```
 pub struct PluginFactoryRegistry {
     factories: HashMap<String, Arc<dyn PluginFactory>>,
@@ -122,10 +122,10 @@ impl PluginFactoryRegistry {
 
     /// Look up a factory by `kind` name, returning an owned handle.
     ///
-    /// Owned rather than borrowed on purpose: the manager holds this registry
+    /// Owned rather than borrowed on purpose: the engine holds this registry
     /// behind an `RwLock`, and a borrow would keep the read guard alive across
     /// the `create` call. `create` runs host-supplied factory code that may
-    /// re-enter the manager, and taking the write side while a read guard is
+    /// re-enter the engine, and taking the write side while a read guard is
     /// still held on the same thread deadlocks. Cloning the `Arc` lets the
     /// caller drop the guard first.
     pub fn get(&self, kind: &str) -> Option<Arc<dyn PluginFactory>> {
@@ -220,9 +220,9 @@ mod tests {
         assert_eq!(kinds, vec!["a/b", "c/d"]);
     }
 
-    /// `get` hands back an owned handle rather than a borrow, so the manager can
+    /// `get` hands back an owned handle rather than a borrow, so the engine can
     /// drop its read guard before calling host-supplied `create` code. Holding
-    /// the guard across that call deadlocks if the factory re-enters the manager,
+    /// the guard across that call deadlocks if the factory re-enters the engine,
     /// so this pins the ownership contract.
     #[test]
     fn get_returns_an_owned_handle_that_outlives_the_registry() {

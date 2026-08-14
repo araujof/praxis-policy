@@ -4,7 +4,7 @@
 # praxis-policy-apl-runtime — the bridge between APL's evaluator (`praxis-policy-apl-core`) and PPE's
 # runtime (`praxis-policy-core`). Provides per-hook-type implementations of
 # `praxis-policy-apl-core::PluginInvoker` that translate APL plugin dispatch into typed
-# `praxis-policy-core::PluginManager::invoke_named::<H>` calls.
+# `praxis-policy-core::PolicyEngine::invoke_named::<H>` calls.
 #
 # Design constraints inherited from `praxis-policy-apl-core`:
 #   - `praxis-policy-apl-core` has zero PPE deps; cross-crate boundary lives here.

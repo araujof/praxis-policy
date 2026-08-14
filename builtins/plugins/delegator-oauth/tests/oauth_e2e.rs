@@ -36,9 +36,9 @@ use praxis_policy_core::delegation::{
     AttenuationConfig, AuthEnforcedBy, DelegationPayload, DelegationSubject, HOOK_TOKEN_DELEGATE,
     TargetType, TokenDelegateHook,
 };
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::extensions::raw_credentials::{DelegationMode, TokenRole};
 use praxis_policy_core::hooks::payload::Extensions;
-use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{OnError, PluginConfig, PluginMode};
 
 use praxis_policy_plugin_delegator_oauth::OAuthDelegator;
@@ -95,10 +95,10 @@ fn build_payload(target: &str, audience: &str, scopes: &[&str]) -> DelegationPay
         })
 }
 
-async fn build_manager(token_endpoint: &str) -> Arc<PluginManager> {
+async fn build_manager(token_endpoint: &str) -> Arc<PolicyEngine> {
     let cfg = plugin_config(token_endpoint);
     let delegator = OAuthDelegator::new(cfg.clone()).expect("delegator constructs");
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_handler_for_names::<TokenDelegateHook, _>(
         Arc::new(delegator),
         cfg,
@@ -110,7 +110,7 @@ async fn build_manager(token_endpoint: &str) -> Arc<PluginManager> {
 }
 
 async fn invoke(
-    mgr: &Arc<PluginManager>,
+    mgr: &Arc<PolicyEngine>,
     payload: DelegationPayload,
 ) -> praxis_policy_core::executor::PipelineResult {
     let (result, _bg) = mgr

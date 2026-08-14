@@ -9,18 +9,18 @@
 //
 // # Why a phase-bound handler
 //
-// The PPE manager's annotation table is keyed on
+// The PPE engine's annotation table is keyed on
 // `(entity_type, entity_name, scope, hook_name)`. The visitor registers
-// one handler per route per phase; the manager picks the right one based
+// one handler per route per phase; the engine picks the right one based
 // on the dispatching hook name. Inside `invoke`, no hook-name plumbing is
 // needed — the handler already knows which phase it's running.
 //
-// # Lifetime / weak manager handle
+// # Lifetime / weak engine handle
 //
-// The handler holds `Weak<PluginManager>` because the manager owns the
+// The handler holds `Weak<PolicyEngine>` because the engine owns the
 // snapshot that owns the annotation that owns the handler — a strong
 // reference would create a cycle. Each `invoke` upgrades to `Arc` for
-// the duration of the call. If the upgrade fails (manager has been
+// the duration of the call. If the upgrade fails (engine has been
 // dropped) the call returns a configuration error.
 
 use std::sync::{Arc, Weak};
@@ -30,11 +30,11 @@ use serde_json::Value;
 
 use praxis_policy_core::cmf::MessagePayload;
 use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::error::{PluginError, PluginViolation};
 use praxis_policy_core::executor::ErasedResultFields;
 use praxis_policy_core::extensions::Extensions;
 use praxis_policy_core::hooks::PluginPayload;
-use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{Plugin, PluginConfig};
 use praxis_policy_core::registry::AnyHookHandler;
 
@@ -110,10 +110,10 @@ pub struct AplRouteHandler {
     plugin_registry: Arc<PluginRegistry>,
     dispatch_cache: Arc<DispatchCache>,
     session_store: Arc<dyn SessionStore>,
-    /// Weak handle to the manager so we can resolve plugin entries +
+    /// Weak handle to the engine so we can resolve plugin entries +
     /// dispatch into them by-name. `Weak` avoids the
-    /// manager↔snapshot↔annotation↔handler cycle.
-    manager: Weak<PluginManager>,
+    /// engine↔snapshot↔annotation↔handler cycle.
+    engine: Weak<PolicyEngine>,
     /// PDP resolver. APL routes that don't use `pdp(...)` steps never
     /// touch this. Default is an empty [`PdpRouter`] — any `pdp(...)`
     /// step against an unregistered dialect returns
@@ -137,7 +137,7 @@ impl AplRouteHandler {
         plugin_registry: Arc<PluginRegistry>,
         dispatch_cache: Arc<DispatchCache>,
         session_store: Arc<dyn SessionStore>,
-        manager: Weak<PluginManager>,
+        engine: Weak<PolicyEngine>,
     ) -> Self {
         Self {
             config,
@@ -146,7 +146,7 @@ impl AplRouteHandler {
             plugin_registry,
             dispatch_cache,
             session_store,
-            manager,
+            engine,
             pdp: Arc::new(PdpRouter::new()),
             attribute_tree: Arc::new(praxis_policy_apl_core::AttributeTree::empty()),
         }
@@ -218,21 +218,21 @@ impl AnyHookHandler for AplRouteHandler {
                 })
             })?;
 
-        let manager = self.manager.upgrade().ok_or_else(|| {
+        let engine = self.engine.upgrade().ok_or_else(|| {
             Box::new(PluginError::Config {
                 message: format!(
-                    "AplRouteHandler '{}': PluginManager dropped before invoke",
+                    "AplRouteHandler '{}': PolicyEngine dropped before invoke",
                     self.route.route_key
                 ),
             })
         })?;
 
         // Build (or reuse) the dispatch plan for this route. Cache keyed
-        // by `(route_key, manager.config_generation())` — if the manager
+        // by `(route_key, engine.config_generation())` — if the engine
         // has reloaded since the last invoke, the next lookup rebuilds.
         let plan = self
             .dispatch_cache
-            .get_or_build(&self.route, &self.plugin_registry, &manager)
+            .get_or_build(&self.route, &self.plugin_registry, &engine)
             .await;
 
         // CmfPluginInvoker carries the request-scoped payload + extensions
@@ -251,7 +251,7 @@ impl AnyHookHandler for AplRouteHandler {
         // session carried no taint. Sessionless traffic never reaches
         // the store, so this only denies session-bearing requests.
         let invoker = match CmfPluginInvoker::for_request(
-            Arc::clone(&manager),
+            Arc::clone(&engine),
             extensions.clone(),
             msg_payload.clone(),
             plan,
@@ -362,7 +362,7 @@ impl AnyHookHandler for AplRouteHandler {
         // `delegate(...)`, the invoker returns `NotFound` and the
         // evaluator translates it via the step's `on_error`.
         let delegations = Arc::new(DelegationPluginInvoker::new(
-            Arc::clone(&manager),
+            Arc::clone(&engine),
             invoker.extensions_arc(),
             invoker.plan_arc(),
         ));
@@ -378,7 +378,7 @@ impl AnyHookHandler for AplRouteHandler {
         // an empty `elicitation_entries` map; an accidental `Effect::Elicit`
         // then returns `NotFound`, handled by the step's `on_error`.
         let elicitations = Arc::new(ElicitationPluginInvoker::new(
-            Arc::clone(&manager),
+            Arc::clone(&engine),
             invoker.extensions_arc(),
             invoker.plan_arc(),
         ));

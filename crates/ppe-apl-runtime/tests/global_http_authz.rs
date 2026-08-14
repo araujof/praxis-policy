@@ -26,14 +26,14 @@ use std::sync::Arc;
 use praxis_policy_core::cmf::constants::{ENTITY_HTTP, ENTITY_NAME_GLOBAL, HOOK_CMF_HTTP_REQUEST};
 use praxis_policy_core::cmf::enums::Role;
 use praxis_policy_core::cmf::{CmfHook, Message, MessagePayload};
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::extensions::{Extensions, HttpExtension, MetaExtension};
-use praxis_policy_core::manager::PluginManager;
 
 use praxis_policy_apl_cmf::constants::{DETAIL_HTTP_BODY, DETAIL_HTTP_HEADERS, DETAIL_HTTP_STATUS};
 use praxis_policy_apl_runtime::{AplOptions, register_apl};
 
-async fn manager_with(yaml: &str) -> Arc<PluginManager> {
-    let mgr = Arc::new(PluginManager::default());
+async fn manager_with(yaml: &str) -> Arc<PolicyEngine> {
+    let mgr = Arc::new(PolicyEngine::default());
     register_apl(&mgr, AplOptions::in_process());
     mgr.load_config_yaml(yaml).expect("load_config_yaml");
     mgr.initialize().await.expect("initialize");

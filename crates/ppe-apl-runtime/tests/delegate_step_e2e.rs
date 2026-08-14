@@ -36,13 +36,13 @@ use chrono::{Duration, Utc};
 
 use praxis_policy_core::context::PluginContext;
 use praxis_policy_core::delegation::{DelegationPayload, HOOK_TOKEN_DELEGATE, TokenDelegateHook};
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::error::PluginViolation;
 use praxis_policy_core::extensions::raw_credentials::{
     RawCredentialsExtension, RawDelegatedToken, RawInboundToken, TokenKind, TokenRole,
 };
 use praxis_policy_core::hooks::payload::Extensions;
 use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
-use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{OnError, Plugin, PluginConfig, PluginMode};
 
 use praxis_policy_apl_core::{
@@ -253,18 +253,18 @@ fn ext_with_subject_and_label(token: &str, subject_id: &str, label: &str) -> Ext
     }
 }
 
-/// Wire up a `PluginManager` with one or more `TokenDelegate` plugins,
+/// Wire up a `PolicyEngine` with one or more `TokenDelegate` plugins,
 /// run the route YAML through praxis-policy-apl-core's compile, and return the
 /// pieces a test needs to invoke a route.
 async fn build_setup(
     yaml: &str,
     plugins: Vec<(String, Arc<RecordingDelegate>, PluginConfig)>,
 ) -> (
-    Arc<PluginManager>,
+    Arc<PolicyEngine>,
     praxis_policy_apl_core::CompiledConfig,
     Arc<DispatchCache>,
 ) {
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     for (_, plugin, cfg) in plugins {
         mgr.register_handler::<TokenDelegateHook, _>(plugin, cfg)
             .expect("register delegate plugin");

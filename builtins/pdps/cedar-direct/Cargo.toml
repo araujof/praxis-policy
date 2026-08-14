@@ -46,7 +46,7 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 # End-to-end integration tests wire the cedar-direct factory through the
-# praxis-policy-apl-runtime visitor and exercise it against a real `PluginManager`. These
+# praxis-policy-apl-runtime visitor and exercise it against a real `PolicyEngine`. These
 # dev-dep edges only exist for tests — the crate itself stays
 # apl-core-only at compile time so it can be used standalone (e.g. in a
 # custom orchestrator that doesn't go through praxis-policy-apl-runtime at all).

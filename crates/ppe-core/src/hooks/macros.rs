@@ -43,7 +43,7 @@
 /// }
 ///
 /// // Register the same handler for multiple names:
-/// // manager.register_handler_for_names::<CmfHook, _>(plugin, config, &[
+/// // engine.register_handler_for_names::<CmfHook, _>(plugin, config, &[
 /// //     "cmf.tool_pre_invoke", "cmf.llm_input", ...
 /// // ]);
 /// ```

@@ -18,12 +18,12 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct MetaExtension {
     /// Entity type: "tool", "resource", "prompt", "llm".
-    /// Used by the manager for route resolution.
+    /// Used by the engine for route resolution.
     #[serde(default)]
     pub entity_type: Option<String>,
 
     /// Entity name: "`get_compensation`", "<hr://employees>/*", etc.
-    /// Used by the manager for route resolution.
+    /// Used by the engine for route resolution.
     #[serde(default)]
     pub entity_name: Option<String>,
 

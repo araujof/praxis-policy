@@ -837,7 +837,7 @@ async fn dispatch_elicitation(
     // bundle in the bag.
     //
     // Resolve `from` against the bag (e.g. `claim.manager` → the
-    // manager's identity). A `from` written as a literal identity (e.g.
+    // engine's identity). A `from` written as a literal identity (e.g.
     // `alice@corp.com`) that isn't a bag key falls through to the literal.
     // But a `from` that *looks like* an unresolved attribute reference
     // (e.g. `claim.manager` when the claim is absent) must NOT be sent to

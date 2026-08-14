@@ -14,7 +14,7 @@ name = "praxis-policy-plugin-pii-scanner"
 # deployments want Presidio, a cloud DLP API, or their own detectors.
 #
 # Still a workspace member, so it is built, linted and tested here. A host
-# registers it with `PluginManager::register_factory`; write your own against
+# registers it with `PolicyEngine::register_factory`; write your own against
 # `praxis_policy_core::prelude`.
 publish = false
 version.workspace      = true

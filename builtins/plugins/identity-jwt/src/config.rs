@@ -241,7 +241,7 @@ impl DecodingKeySource {
     /// every signature-use key by its `kid`).
     ///
     /// Called from `JwtIdentityResolver::initialize()` so the host's
-    /// `PluginManager` can drive multiple resolvers' JWKS fetches
+    /// `PolicyEngine` can drive multiple resolvers' JWKS fetches
     /// concurrently via `futures::join_all`.
     ///
     /// The fetch is bounded by `JWKS_FETCH_TIMEOUT` to prevent a

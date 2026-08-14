@@ -3,14 +3,14 @@
 
 // Plugin and hook registries.
 //
-// PluginRef wraps a plugin implementation with the manager's
+// PluginRef wraps a plugin implementation with the engine's
 // authoritative config. The config comes from the config loader,
 // NOT from the plugin — the plugin never provides its own config
-// to the manager. This prevents a plugin from tampering with its
+// to the engine. This prevents a plugin from tampering with its
 // own priority, mode, or capabilities.
 //
 // Trust flows one direction:
-//   config loader → manager → PluginRef → executor
+//   config loader → engine → PluginRef → executor
 // The plugin is just a recipient, not a source.
 //
 // The registry supports two registration paths:
@@ -38,17 +38,17 @@ use crate::plugin::{Plugin, PluginConfig, PluginMode};
 
 /// Manager-owned wrapper that pairs a plugin with its authoritative config.
 ///
-/// The `trusted_config` comes from the config loader / manager — never
+/// The `trusted_config` comes from the config loader / engine — never
 /// from the plugin itself. The executor reads all scheduling decisions
 /// (mode, priority, hooks, capabilities, `on_error`) from this config.
 ///
 /// The plugin receives a copy of its config at construction time so it
-/// can read its own settings during hook execution. But the manager/executor
+/// can read its own settings during hook execution. But the engine/executor
 /// never reads config back from the plugin.
 ///
 /// Trust flow:
 /// ```text
-/// config loader → manager → PluginRef.trusted_config → executor
+/// config loader → engine → PluginRef.trusted_config → executor
 ///                        ↘ plugin (receives a copy, cannot influence scheduling)
 /// ```
 #[derive(Clone)]
@@ -76,9 +76,9 @@ pub struct PluginRef {
 impl PluginRef {
     /// Create a new `PluginRef` with an independently-sourced config.
     ///
-    /// The `trusted_config` must come from the config loader or manager,
+    /// The `trusted_config` must come from the config loader or engine,
     /// NOT from `plugin.config()`. The plugin may hold its own copy
-    /// for reading during `execute()`, but the manager never consults it.
+    /// for reading during `execute()`, but the engine never consults it.
     pub fn new(plugin: Arc<dyn Plugin>, trusted_config: PluginConfig) -> Self {
         Self {
             plugin,
@@ -218,7 +218,7 @@ pub struct HookEntry {
 ///
 /// `Clone` is cheap-ish: the `HashMaps` duplicate, but their values are all
 /// `Arc`-counted (`Arc<PluginRef>`, `Arc<dyn AnyHookHandler>`), so the
-/// inner data is shared. Used by `PluginManager`'s `ArcSwap` snapshot
+/// inner data is shared. Used by `PolicyEngine`'s `ArcSwap` snapshot
 /// pattern, where every mutating method clones the registry, mutates the
 /// clone, and atomically swaps in a new snapshot.
 #[derive(Clone)]

@@ -8,11 +8,11 @@
 // any plugin knowledge. Plugin calls (`Effect::Plugin { name }`) need
 // a second pass because their concurrency-safety depends on each
 // plugin's registered `PluginMode` — information that lives in the
-// PluginManager, not the IR.
+// PolicyEngine, not the IR.
 //
 // Lives in praxis-policy-apl-runtime because:
 //   * praxis-policy-apl-core can't see plugin modes (plugin-agnostic by design)
-//   * The PluginManager is constructed in the host integration, not in
+//   * The PolicyEngine is constructed in the host integration, not in
 //     praxis-policy-apl-core's compiler
 //   * The visitor that turns YAML routes into `CompiledRoute`s is the
 //     natural place to run all post-IR-level validations together
@@ -38,25 +38,25 @@
 // surprise.
 
 use praxis_policy_apl_core::rules::{CompiledRoute, Effect};
-use praxis_policy_core::manager::PluginManager;
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::plugin::PluginMode;
 
 /// Read-only "what mode is plugin X registered with" lookup, used by
-/// the validator. A trait (rather than a `&PluginManager`) so:
+/// the validator. A trait (rather than a `&PolicyEngine`) so:
 ///
 ///   * Tests can pass a small HashMap-backed mock without constructing
-///     a real `PluginManager` (which requires plugin registration and
+///     a real `PolicyEngine` (which requires plugin registration and
 ///     a bunch of praxis-policy-core internal types).
 ///   * Future consumers that store plugin modes in a different shape
 ///     (e.g. a separate config catalogue) plug in without forcing them
-///     to back the lookup with a full `PluginManager`.
+///     to back the lookup with a full `PolicyEngine`.
 pub trait PluginModeLookup {
     /// Returns the mode for `name`, or `None` if no plugin by that
     /// name is registered.
     fn mode_for(&self, name: &str) -> Option<PluginMode>;
 }
 
-impl PluginModeLookup for PluginManager {
+impl PluginModeLookup for PolicyEngine {
     fn mode_for(&self, name: &str) -> Option<PluginMode> {
         self.get_plugin(name).map(|p| p.mode())
     }

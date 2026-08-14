@@ -7,7 +7,7 @@
 //
 // # How it fits
 //
-// The host calls `PluginManager::load_config_yaml(yaml)`. praxis-policy-core
+// The host calls `PolicyEngine::load_config_yaml(yaml)`. praxis-policy-core
 // parses the YAML twice (once into a typed `PolicyConfig`, once into a
 // raw `serde_yaml::Value`), runs its own plugin instantiation, then
 // walks each registered visitor in registration order:
@@ -47,7 +47,7 @@
 use std::sync::Arc;
 
 use crate::config::RouteEntry;
-use crate::manager::PluginManager;
+use crate::engine::PolicyEngine;
 use crate::plugin::PluginConfig;
 
 /// Error type returned by a config visitor. Boxed `dyn Error` so each
@@ -56,8 +56,8 @@ use crate::plugin::PluginConfig;
 pub type VisitorError = Box<dyn std::error::Error + Send + Sync>;
 
 /// Extension point for external orchestrators to participate in unified
-/// config loading. Register via [`PluginManager::register_visitor`];
-/// invoked during [`PluginManager::load_config_yaml`].
+/// config loading. Register via [`PolicyEngine::register_visitor`];
+/// invoked during [`PolicyEngine::load_config_yaml`].
 ///
 /// All methods have default no-op implementations — a visitor only
 /// overrides the sections it cares about.
@@ -80,7 +80,7 @@ pub trait ConfigVisitor: Send + Sync {
     /// error aborts the config load, and earlier sections are not rolled back.
     fn visit_plugins(
         &self,
-        _mgr: &Arc<PluginManager>,
+        _mgr: &Arc<PolicyEngine>,
         _plugins: &[PluginConfig],
     ) -> Result<(), VisitorError> {
         Ok(())
@@ -94,7 +94,7 @@ pub trait ConfigVisitor: Send + Sync {
     /// error aborts the config load, and earlier sections are not rolled back.
     fn visit_global(
         &self,
-        _mgr: &Arc<PluginManager>,
+        _mgr: &Arc<PolicyEngine>,
         _yaml: &serde_yaml::Value,
     ) -> Result<(), VisitorError> {
         Ok(())
@@ -109,7 +109,7 @@ pub trait ConfigVisitor: Send + Sync {
     /// error aborts the config load, and earlier sections are not rolled back.
     fn visit_default(
         &self,
-        _mgr: &Arc<PluginManager>,
+        _mgr: &Arc<PolicyEngine>,
         _entity_type: &str,
         _yaml: &serde_yaml::Value,
     ) -> Result<(), VisitorError> {
@@ -125,7 +125,7 @@ pub trait ConfigVisitor: Send + Sync {
     /// error aborts the config load, and earlier sections are not rolled back.
     fn visit_policy_bundle(
         &self,
-        _mgr: &Arc<PluginManager>,
+        _mgr: &Arc<PolicyEngine>,
         _tag: &str,
         _yaml: &serde_yaml::Value,
     ) -> Result<(), VisitorError> {
@@ -143,7 +143,7 @@ pub trait ConfigVisitor: Send + Sync {
     /// error aborts the config load, and earlier sections are not rolled back.
     fn visit_route(
         &self,
-        _mgr: &Arc<PluginManager>,
+        _mgr: &Arc<PolicyEngine>,
         _yaml: &serde_yaml::Value,
         _parsed: &RouteEntry,
     ) -> Result<(), VisitorError> {
@@ -192,7 +192,7 @@ global:
 routes:
   - tool: get_compensation
 "#;
-        let mgr = Arc::new(PluginManager::default());
+        let mgr = Arc::new(PolicyEngine::default());
         mgr.register_visitor(Arc::new(SilentVisitor));
         mgr.load_config_yaml(yaml)
             .expect("a visitor that overrides nothing must not fail the load");

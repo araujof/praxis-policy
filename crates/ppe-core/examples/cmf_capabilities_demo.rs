@@ -29,13 +29,13 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use praxis_policy_core::cmf::{CmfHook, ContentPart, Message, MessagePayload, Role, ToolCall};
 use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::error::{PluginError, PluginViolation};
 use praxis_policy_core::extensions::{HttpExtension, RequestExtension, SecurityExtension};
 use praxis_policy_core::factory::{PluginFactory, PluginInstance};
 use praxis_policy_core::hooks::adapter::TypedHandlerAdapter;
 use praxis_policy_core::hooks::payload::{Extensions, MetaExtension};
 use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
-use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{Plugin, PluginConfig};
 
 // ---------------------------------------------------------------------------
@@ -341,7 +341,7 @@ async fn main() {
         .unwrap_or_else(|e| panic!("Failed to read {config_path}: {e}"));
     let policy_config = praxis_policy_core::config::parse_config(&yaml).unwrap();
 
-    let mgr = PluginManager::default();
+    let mgr = PolicyEngine::default();
     mgr.register_factory("builtin/identity-checker", Box::new(IdentityCheckerFactory));
     mgr.register_factory("builtin/header-injector", Box::new(HeaderInjectorFactory));
     mgr.register_factory("builtin/audit-logger", Box::new(AuditLoggerFactory));

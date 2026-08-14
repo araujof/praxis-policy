@@ -4,7 +4,7 @@
 // PPE Core library root.
 //
 // Pure Rust plugin runtime with no FFI, WASM, or PyO3 dependencies.
-// Provides the PluginManager, 5-phase executor, hook registry,
+// Provides the PolicyEngine, 5-phase executor, hook registry,
 // unified config parser, and all core types.
 //
 // # Modules
@@ -12,7 +12,7 @@
 // - [`plugin`] — Plugin trait, PluginRef, PluginMetadata, PluginConfig
 // - [`hooks`]  — HookType (open string registry), payload/result traits
 // - [`executor`] — 5-phase execution engine (sequential → transform → audit → concurrent → fire_and_forget)
-// - [`manager`] — PluginManager lifecycle and hook dispatch
+// - [`engine`] — PolicyEngine lifecycle and hook dispatch
 // - [`registry`] — PluginInstanceRegistry and HookRegistry
 // - [`config`] — Unified YAML configuration parsing
 // - [`factory`] — Plugin factory registry for config-driven instantiation
@@ -26,7 +26,7 @@
 //                     approval, confirmation, step-up, …)
 // - [`error`] — Error types, violations, and result types
 
-//! The plugin runtime: manager, executor, hook registry, and config parser.
+//! The plugin runtime: engine, executor, hook registry, and config parser.
 //!
 //! Pure Rust with no FFI, WASM, or Python bindings. Plugins register against
 //! named hooks and the executor dispatches them in five phases, reading every
@@ -42,6 +42,8 @@ pub mod context;
 pub mod delegation;
 /// The elicitation hook, for out-of-band human approval.
 pub mod elicitation;
+/// Plugin lifecycle and hook dispatch.
+pub mod engine;
 /// Plugin errors and policy violations.
 pub mod error;
 /// Five-phase plugin dispatch.
@@ -54,8 +56,6 @@ pub mod factory;
 pub mod hooks;
 /// The identity resolution hook and its payload.
 pub mod identity;
-/// Plugin lifecycle and hook dispatch.
-pub mod manager;
 /// The `Plugin` trait and its trusted configuration.
 pub mod plugin;
 /// Curated re-exports for plugin authors.

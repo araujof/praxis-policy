@@ -4,7 +4,7 @@
 // `CmfPluginInvoker` — `praxis-policy-apl-core::PluginInvoker` impl bound to the CMF
 // hook family. Drives dispatch off a pre-resolved [`RouteDispatchPlan`]
 // (from [`DispatchCache`]) and forwards entries to
-// `PluginManager::invoke_entries::<CmfHook>(...)`, which runs the full
+// `PolicyEngine::invoke_entries::<CmfHook>(...)`, which runs the full
 // executor pipeline (sequential / transform / audit / concurrent /
 // fire-and-forget; on_error / timeouts / mode / write tokens all
 // honored). Compile-time payload type safety is provided by the
@@ -61,9 +61,9 @@ use async_trait::async_trait;
 use tokio::sync::Mutex;
 
 use praxis_policy_core::cmf::{CmfHook, MessagePayload};
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::hooks::HookPhase;
 use praxis_policy_core::hooks::payload::Extensions;
-use praxis_policy_core::manager::PluginManager;
 
 use praxis_policy_apl_core::attributes::AttributeBag;
 use praxis_policy_apl_core::evaluator::Decision;
@@ -82,7 +82,7 @@ use crate::session_store::{SessionStore, SessionStoreError};
 /// `[REDACTED]` output is visible to the next plugin in the same
 /// route; one plugin's added label seeds the next plugin's filter view).
 pub struct CmfPluginInvoker {
-    manager: Arc<PluginManager>,
+    engine: Arc<PolicyEngine>,
     /// Per-request extensions under interior mutability. Locked across
     /// awaits — `tokio::sync::Mutex` is required because the executor's
     /// `invoke_entries` is async.
@@ -134,7 +134,7 @@ impl CmfPluginInvoker {
     /// read. Construction fails rather than continuing, because a plugin that ran
     /// without the session's existing taint would be deciding on a partial view.
     pub async fn for_request(
-        manager: Arc<PluginManager>,
+        engine: Arc<PolicyEngine>,
         mut extensions: Extensions,
         payload: MessagePayload,
         plan: Arc<RouteDispatchPlan>,
@@ -164,7 +164,7 @@ impl CmfPluginInvoker {
         let initial_labels = snapshot_labels(&extensions);
 
         Ok(Self {
-            manager,
+            engine,
             extensions: Arc::new(Mutex::new(extensions)),
             payload: Arc::new(Mutex::new(payload)),
             payload_modified: AtomicBool::new(false),
@@ -371,7 +371,7 @@ impl PluginInvoker for CmfPluginInvoker {
         };
 
         let (result, _bg) = self
-            .manager
+            .engine
             .invoke_entries::<CmfHook>(
                 std::slice::from_ref(entry),
                 current_payload,

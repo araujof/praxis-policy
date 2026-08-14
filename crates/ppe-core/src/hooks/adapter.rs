@@ -5,8 +5,8 @@
 // type-erased AnyHookHandler.
 //
 // This is framework plumbing that plugin authors never see. When a
-// plugin is registered via `manager.register_handler::<H, P>()`, the
-// manager creates a TypedHandlerAdapter internally. The adapter
+// plugin is registered via `engine.register_handler::<H, P>()`, the
+// engine creates a TypedHandlerAdapter internally. The adapter
 // translates between Box<dyn PluginPayload> (what the executor passes)
 // and the concrete payload type (what the handler expects), and awaits
 // the typed handler's future before re-erasing the result.
@@ -30,7 +30,7 @@ use crate::registry::AnyHookHandler;
 /// Adapts a typed `HookHandler<H>` into the type-erased `AnyHookHandler`
 /// interface used by the executor.
 ///
-/// Created automatically by `PluginManager::register_handler()`. Plugin
+/// Created automatically by `PolicyEngine::register_handler()`. Plugin
 /// authors never instantiate this directly.
 ///
 /// `HookHandler<H>` is async (native AFIT), so the adapter awaits the

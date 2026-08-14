@@ -45,7 +45,7 @@
 //!     }
 //! }
 //!
-//! /// What the host registers, via `PluginManager::register_factory`.
+//! /// What the host registers, via `PolicyEngine::register_factory`.
 //! struct WordBlockerFactory;
 //!
 //! impl PluginFactory for WordBlockerFactory {

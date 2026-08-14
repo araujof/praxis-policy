@@ -9,7 +9,7 @@
 //      the issuer config in `pending_jwks`; `trusted_issuers` is
 //      empty (no inline keys).
 //   2. Call `plugin.initialize().await` — this is the async hook the
-//      host's `PluginManager::initialize()` drives. It triggers the
+//      host's `PolicyEngine::initialize()` drives. It triggers the
 //      JWKS HTTP fetch.
 //   3. Mint a JWT with the corresponding private key, hand it to the
 //      resolver, assert the subject is populated. Proves the
@@ -32,11 +32,11 @@
 )]
 use std::sync::Arc;
 
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::hooks::payload::Extensions;
 use praxis_policy_core::identity::{
     HOOK_IDENTITY_RESOLVE, IdentityHook, IdentityPayload, TokenSource,
 };
-use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{OnError, PluginConfig, PluginMode};
 
 use praxis_policy_plugin_identity_jwt::{DecodingKeySource, JwtIdentityResolver};
@@ -151,10 +151,10 @@ async fn initialize_fetches_jwks_and_validates_token() {
     let cfg = resolver_config(&jwks_url);
     let resolver = Arc::new(JwtIdentityResolver::new(cfg.clone()).expect("constructs"));
 
-    // 3. Wire into a PluginManager and call initialize. The
-    //    manager's initialize() drives plugin.initialize(), which
+    // 3. Wire into a PolicyEngine and call initialize. The
+    //    engine's initialize() drives plugin.initialize(), which
     //    triggers the async JWKS fetch.
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_handler_for_names::<IdentityHook, _>(
         Arc::clone(&resolver),
         cfg,
@@ -206,7 +206,7 @@ async fn initialize_fetches_jwks_and_validates_token() {
 /// and `trusted_issuers` is empty — a token signed by the JWKS key
 /// gets `auth.untrusted_issuer` rather than silently passing. This
 /// is the deliberate fail-loud mode: hosts must call
-/// `PluginManager::initialize()`.
+/// `PolicyEngine::initialize()`.
 #[tokio::test(flavor = "multi_thread")]
 async fn skipping_initialize_rejects_with_untrusted_issuer() {
     let mut rng = rand::thread_rng();
@@ -232,7 +232,7 @@ async fn skipping_initialize_rejects_with_untrusted_issuer() {
     let cfg = resolver_config(&jwks_url);
     let resolver = Arc::new(JwtIdentityResolver::new(cfg.clone()).expect("constructs"));
 
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_handler_for_names::<IdentityHook, _>(
         Arc::clone(&resolver),
         cfg,
@@ -344,7 +344,7 @@ async fn kid_selects_correct_key_when_jwks_has_multiple() {
 
     let cfg = resolver_config(&jwks_url);
     let resolver = Arc::new(JwtIdentityResolver::new(cfg.clone()).expect("constructs"));
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_handler_for_names::<IdentityHook, _>(
         Arc::clone(&resolver),
         cfg,
@@ -409,7 +409,7 @@ async fn unknown_kid_yields_unknown_kid_violation() {
 
     let cfg = resolver_config(&jwks_url);
     let resolver = Arc::new(JwtIdentityResolver::new(cfg.clone()).expect("constructs"));
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_handler_for_names::<IdentityHook, _>(
         Arc::clone(&resolver),
         cfg,
@@ -543,7 +543,7 @@ async fn jwks_unreachable_at_initialize_soft_fails() {
     let jwks_url = "http://127.0.0.1:1/jwks".to_owned();
     let cfg = resolver_config(&jwks_url);
     let resolver = Arc::new(JwtIdentityResolver::new(cfg.clone()).expect("constructs"));
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_handler_for_names::<IdentityHook, _>(
         Arc::clone(&resolver),
         cfg,
@@ -688,7 +688,7 @@ async fn jwks_refresh_picks_up_rotated_key() {
     };
 
     let resolver = Arc::new(JwtIdentityResolver::new(cfg.clone()).expect("constructs"));
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_handler_for_names::<IdentityHook, _>(
         Arc::clone(&resolver),
         cfg,

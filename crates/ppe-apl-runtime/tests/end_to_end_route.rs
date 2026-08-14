@@ -35,12 +35,12 @@ use async_trait::async_trait;
 use praxis_policy_core::cmf::enums::Role;
 use praxis_policy_core::cmf::{CmfHook, Message, MessagePayload};
 use praxis_policy_core::context::PluginContext;
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::error::{PluginError as CoreError, PluginViolation};
 use praxis_policy_core::factory::{PluginFactory, PluginInstance};
 use praxis_policy_core::hooks::adapter::TypedHandlerAdapter;
 use praxis_policy_core::hooks::payload::Extensions;
 use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
-use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{Plugin, PluginConfig};
 
 use praxis_policy_apl_core::pipeline::TaintScope;
@@ -195,8 +195,8 @@ impl PluginFactory for DenyPluginFactory {
 // Helpers
 // ---------------------------------------------------------------------
 
-async fn manager_with(kind: &str, factory: Box<dyn PluginFactory>) -> Arc<PluginManager> {
-    let mgr = PluginManager::default();
+async fn manager_with(kind: &str, factory: Box<dyn PluginFactory>) -> Arc<PolicyEngine> {
+    let mgr = PolicyEngine::default();
     mgr.register_factory(kind, factory);
     let yaml = format!("plugins:\n  - name: {kind}\n    kind: {kind}\n");
     let cfg = praxis_policy_core::config::parse_config(&yaml).expect("parse_config");
@@ -389,11 +389,11 @@ impl PluginFactory for TaintingPluginFactory {
     }
 }
 
-/// Build a manager whose registered plugin has `append_labels` capability,
+/// Build a engine whose registered plugin has `append_labels` capability,
 /// without which the executor would refuse the modified labels on the way
 /// out (label monotonicity is enforced under the write-token system).
-async fn tainting_manager() -> Arc<PluginManager> {
-    let mgr = PluginManager::default();
+async fn tainting_manager() -> Arc<PolicyEngine> {
+    let mgr = PolicyEngine::default();
     mgr.register_factory("tagger", Box::new(TaintingPluginFactory));
     let yaml = "plugins:\n  - name: tagger\n    kind: tagger\n    capabilities: [append_labels, read_labels]\n";
     let cfg = praxis_policy_core::config::parse_config(yaml).expect("parse_config");
@@ -697,8 +697,8 @@ fn set_tool_meta(ext: &mut Extensions, tool: &str) {
     ext.meta = Some(Arc::new(meta));
 }
 
-async fn tagger_manager_with_store(store: Arc<dyn SessionStore>) -> Arc<PluginManager> {
-    let mgr = Arc::new(PluginManager::default());
+async fn tagger_manager_with_store(store: Arc<dyn SessionStore>) -> Arc<PolicyEngine> {
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_factory("tagger", Box::new(TaintingPluginFactory));
     register_apl(
         &mgr,
@@ -796,8 +796,8 @@ routes:
 async fn tagger_manager_with_store_and_yaml(
     store: Arc<dyn SessionStore>,
     yaml: &str,
-) -> Arc<PluginManager> {
-    let mgr = Arc::new(PluginManager::default());
+) -> Arc<PolicyEngine> {
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_factory("tagger", Box::new(TaintingPluginFactory));
     register_apl(
         &mgr,
@@ -903,7 +903,7 @@ routes:
         fail_load: false,
         fail_append: true,
     });
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_factory("tagger", Box::new(TaintingPluginFactory));
     mgr.register_factory("scope-gate", Box::new(DenyPluginFactory));
     register_apl(
@@ -1035,7 +1035,7 @@ routes:
 "#;
 
     let recording = Arc::new(RecordingSessionStore::default());
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_factory("tagger", Box::new(TaintingPluginFactory));
     register_apl(
         &mgr,
@@ -1083,7 +1083,7 @@ global:
     session_store:
       kind: nonexistent-backend
 "#;
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     register_apl(
         &mgr,
         AplOptions {

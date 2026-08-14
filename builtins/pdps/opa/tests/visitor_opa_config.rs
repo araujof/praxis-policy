@@ -30,11 +30,11 @@ use std::sync::Arc;
 
 use praxis_policy_core::cmf::enums::Role;
 use praxis_policy_core::cmf::{CmfHook, Message, MessagePayload};
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::extensions::{
     MetaExtension, SecurityExtension, SubjectExtension, SubjectType,
 };
 use praxis_policy_core::hooks::payload::Extensions;
-use praxis_policy_core::manager::PluginManager;
 
 use praxis_policy_apl_runtime::{AplOptions, DispatchCache, MemorySessionStore, register_apl};
 use praxis_policy_pdp_opa::OpaPdpFactory;
@@ -83,18 +83,18 @@ fn security_with_roles(id: &str, roles: &[&str]) -> SecurityExtension {
     }
 }
 
-async fn build_manager() -> Arc<PluginManager> {
+async fn build_manager() -> Arc<PolicyEngine> {
     build_manager_with_yaml(YAML)
         .await
         .expect("load_config_yaml")
 }
 
-/// Build a manager from arbitrary YAML; returns the load error so negative
+/// Build a engine from arbitrary YAML; returns the load error so negative
 /// tests can inspect it.
 async fn build_manager_with_yaml(
     yaml: &str,
-) -> Result<Arc<PluginManager>, Box<dyn std::error::Error + Send + Sync>> {
-    let mgr = Arc::new(PluginManager::default());
+) -> Result<Arc<PolicyEngine>, Box<dyn std::error::Error + Send + Sync>> {
+    let mgr = Arc::new(PolicyEngine::default());
     register_apl(
         &mgr,
         AplOptions {

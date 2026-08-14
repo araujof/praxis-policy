@@ -115,7 +115,7 @@ pub const ENTITY_HTTP: &str = "http";
 pub const ENTITY_NAME_GLOBAL: &str = "*";
 
 // CMF hook names — the canonical names plugins register under and hosts
-// pass to `PluginManager::invoke_named::<CmfHook>(...)`. Two per entity
+// pass to `PolicyEngine::invoke_named::<CmfHook>(...)`. Two per entity
 // type — pre-invocation (called from APL's policy / args phase) and
 // post-invocation (called from APL's post_policy / result phase).
 //

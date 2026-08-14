@@ -30,12 +30,12 @@
 use std::sync::Arc;
 use std::sync::OnceLock;
 
+use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::extensions::raw_credentials::{TokenKind, TokenRole};
 use praxis_policy_core::hooks::payload::Extensions;
 use praxis_policy_core::identity::{
     HOOK_IDENTITY_RESOLVE, IdentityHook, IdentityPayload, TokenSource,
 };
-use praxis_policy_core::manager::PluginManager;
 use praxis_policy_core::plugin::{OnError, PluginConfig, PluginMode};
 
 use praxis_policy_plugin_identity_jwt::JwtIdentityResolver;
@@ -133,16 +133,16 @@ fn resolver_plugin_config_for(role: &str, header: &str) -> PluginConfig {
     cfg
 }
 
-/// Build the `PluginManager` + register the resolver + initialize.
+/// Build the `PolicyEngine` + register the resolver + initialize.
 /// All four scenarios share this skeleton.
-async fn build_manager() -> Arc<PluginManager> {
+async fn build_manager() -> Arc<PolicyEngine> {
     build_manager_with(resolver_plugin_config()).await
 }
 
-async fn build_manager_with(cfg: PluginConfig) -> Arc<PluginManager> {
+async fn build_manager_with(cfg: PluginConfig) -> Arc<PolicyEngine> {
     let resolver = JwtIdentityResolver::new(cfg.clone()).expect("resolver should construct");
 
-    let mgr = Arc::new(PluginManager::default());
+    let mgr = Arc::new(PolicyEngine::default());
     mgr.register_handler_for_names::<IdentityHook, _>(
         Arc::new(resolver),
         cfg,

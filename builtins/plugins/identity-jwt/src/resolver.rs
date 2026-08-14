@@ -84,7 +84,7 @@ const DEFAULT_LEEWAY_SECONDS: u64 = 60;
 /// The split keeps construction synchronous (matches the existing
 /// `PluginFactory::create` trait surface across the workspace) while
 /// putting the network I/O on the natural async hook the host
-/// already drives via `PluginManager::initialize().await`.
+/// already drives via `PolicyEngine::initialize().await`.
 #[derive(Debug)]
 pub struct JwtIdentityResolver {
     cfg: PluginConfig,
@@ -163,7 +163,7 @@ impl JwtIdentityResolver {
         //   * Inline / on-disk decoding keys (Pem, PemFile, Jwk,
         //     Secret) → eagerly built into TrustedIssuers here.
         //   * JwksUrl decoding keys → deferred to initialize() so
-        //     the host's PluginManager can drive the HTTP fetches
+        //     the host's PolicyEngine can drive the HTTP fetches
         //     concurrently across all resolvers.
         let mut trusted_issuers: Vec<TrustedIssuer> = Vec::new();
         let mut pending_jwks: Vec<TrustedIssuerConfig> = Vec::new();
@@ -289,7 +289,7 @@ impl Plugin for JwtIdentityResolver {
     /// → one `join_all`, not N sequential round-trips — so the
     /// time-to-ready scales with the slowest `IdP`, not the sum.
     ///
-    /// The `PluginManager` drives this once per plugin lifetime
+    /// The `PolicyEngine` drives this once per plugin lifetime
     /// (before any hooks fire). Idempotent: if `pending_jwks` is
     /// empty (no `JwksUrl` sources) this is a free no-op.
     async fn initialize(&self) -> Result<(), Box<PluginError>> {

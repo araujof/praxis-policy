@@ -2,12 +2,12 @@
 # Copyright (c) 2026 Praxis Contributors
 
 # PPE Core — pure Rust plugin runtime with no FFI dependencies.
-# Contains the PluginManager, 5-phase executor, hook registry,
+# Contains the PolicyEngine, 5-phase executor, hook registry,
 # config parser, and all core types.
 
 [package]
 name = "praxis-policy-core"
-description = "PPE plugin runtime core — PluginManager, executor, hooks, and config."
+description = "PPE plugin runtime core — PolicyEngine, executor, hooks, and config."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -66,7 +66,7 @@ crate::define_hook! {
     /// ```
     ///
     /// **Registration:**
-    /// `manager.register_handler_for_names::<ElicitationHook, _>(plugin, config, &["elicit"])`.
+    /// `engine.register_handler_for_names::<ElicitationHook, _>(plugin, config, &["elicit"])`.
     ///
     /// [PluginResult]: crate::hooks::trait_def::PluginResult
     ElicitationHook, "elicit" => {
