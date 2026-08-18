@@ -167,10 +167,6 @@ impl CelResolver {
     /// });
     /// ```
     ///
-    /// Function names that collide with the CEL standard library
-    /// (`size`, `has`, `matches`, etc.) silently shadow the built-in
-    /// — be deliberate.
-    ///
     /// # Ownership of the function set
     ///
     /// The custom-function set is a **host concern**, registered once
@@ -590,7 +586,7 @@ mod tests {
     async fn custom_function_registration_round_trips() {
         let r = CelResolver::new()
             .with_functions(|ctx| {
-                ctx.add_function("double", |n: i64| -> i64 { n * 2 });
+                ctx.add_function("twice", |n: i64| -> i64 { n * 2 });
             })
             .with_functions(|ctx| {
                 ctx.add_function("shout", |s: Arc<String>| -> String { s.to_uppercase() });
@@ -599,7 +595,7 @@ mod tests {
 
         // First registered function works.
         let out = r
-            .evaluate(&cel_call("double(21) == 42"), &bag)
+            .evaluate(&cel_call("twice(21) == 42"), &bag)
             .await
             .unwrap();
         assert_eq!(
