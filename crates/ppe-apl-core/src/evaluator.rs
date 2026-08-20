@@ -2972,9 +2972,7 @@ mod tests {
         }
     }
 
-    use crate::step::{
-        PdpCall, PdpDecision, PdpDialect, PdpError, PluginError, PluginOutcome,
-    };
+    use crate::step::{PdpCall, PdpDecision, PdpDialect, PdpError, PluginError, PluginOutcome};
     use async_trait::async_trait;
 
     /// PDP resolver that returns the decision baked into it. Doesn't

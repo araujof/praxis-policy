@@ -206,10 +206,7 @@ impl Extensions {
     /// Arc pointers, or when the original is `None` but modified is
     /// `Some` (the plugin fabricated a slot it shouldn't have).
     pub fn validate_immutable(&self, modified: &OwnedExtensions) -> bool {
-        fn ptr_eq_opt<T>(
-            a: Option<&Arc<T>>,
-            b: Option<&Arc<T>>,
-        ) -> bool {
+        fn ptr_eq_opt<T>(a: Option<&Arc<T>>, b: Option<&Arc<T>>) -> bool {
             match (a, b) {
                 (Some(a), Some(b)) => Arc::ptr_eq(a, b),
                 (None, None) => true,

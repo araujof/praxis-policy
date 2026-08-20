@@ -92,9 +92,7 @@ impl<T> BranchOutcome<T> {
     pub fn completed(&self) -> Option<&T> {
         match self {
             BranchOutcome::Completed(val) => Some(val),
-            BranchOutcome::TimedOut
-            | BranchOutcome::Aborted
-            | BranchOutcome::Panicked(_) => None,
+            BranchOutcome::TimedOut | BranchOutcome::Aborted | BranchOutcome::Panicked(_) => None,
         }
     }
 
@@ -102,9 +100,7 @@ impl<T> BranchOutcome<T> {
     pub fn into_completed(self) -> Option<T> {
         match self {
             BranchOutcome::Completed(val) => Some(val),
-            BranchOutcome::TimedOut
-            | BranchOutcome::Aborted
-            | BranchOutcome::Panicked(_) => None,
+            BranchOutcome::TimedOut | BranchOutcome::Aborted | BranchOutcome::Panicked(_) => None,
         }
     }
 }
