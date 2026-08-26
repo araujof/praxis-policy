@@ -294,6 +294,25 @@ pub struct PolicyEngine {
     http_transport: std::sync::OnceLock<Arc<dyn crate::http::HttpTransport>>,
 }
 
+/// Fold top-level `groups:` into `global.policies` and validate, the two
+/// steps `config::parse_config` applies to YAML. Every config-load entry
+/// point runs this, including the ones that take a `PolicyConfig` a host
+/// built in Rust: without it such a host got no duplicate-plugin-name
+/// check, no route-shape check, no hook-name check, and no group
+/// resolution, so its routes quietly lost the plugins and
+/// `authentication:` a group was meant to supply.
+///
+/// Idempotent. `merge_groups_into_policies` returns early once `groups:`
+/// is empty and validation only reads, so a path that already normalized
+/// before calling in can repeat the work safely. A repeat is a full
+/// `validate_config` walk rather than a single lookup, which is why this
+/// stays on the config-load paths and out of anything per-request.
+fn normalize_and_validate(mut config: PolicyConfig) -> Result<PolicyConfig, Box<PluginError>> {
+    crate::config::merge_groups_into_policies(&mut config);
+    crate::config::validate_config(&config)?;
+    Ok(config)
+}
+
 /// Emit warnings for YAML settings that the runtime doesn't currently
 /// honor. Called once per `load_config` / `from_config` so operators
 /// who set these knobs aren't silently ignored.
@@ -628,12 +647,16 @@ impl PolicyEngine {
     /// hook names from the config.
     /// # Errors
     ///
-    /// Returns `PluginError::Config` when a plugin's `kind` has no registered
-    /// factory, when a factory rejects the plugin's config, or when a
-    /// registration conflicts with one already present. The existing snapshot is
-    /// left in place, so a failed load does not disturb in-flight requests.
+    /// Returns `PluginError::Config` when the config fails validation, when a
+    /// plugin's `kind` has no registered factory, when a factory rejects the
+    /// plugin's config, or when a registration conflicts with one already
+    /// present. The existing snapshot is left in place, so a failed load does
+    /// not disturb in-flight requests.
     pub fn load_config(&self, policy_config: PolicyConfig) -> Result<(), Box<PluginError>> {
+        // Warn before validating: an operator whose config both sets an inactive
+        // knob and fails validation should see both, not just the refusal.
         warn_on_inactive_settings(&policy_config);
+        let policy_config = normalize_and_validate(policy_config)?;
 
         // Resolve under the factories read lock, then drop it and
         // instantiate holding nothing, per `create_plugin_instances`. A
@@ -746,8 +769,11 @@ impl PolicyEngine {
         // group's plugins + `authentication:`), never rejects the renamed
         // `identity:` key, and never validates references.
         crate::config::reject_renamed_identity_key(&raw)?;
-        crate::config::merge_groups_into_policies(&mut policy_config);
-        crate::config::validate_config(&policy_config)?;
+        // Visitors below read the normalized routes and plugin declarations, so
+        // this runs here rather than being left to `load_config`. Both steps
+        // are idempotent, so `load_config` repeating them is redundant work on
+        // a cold path rather than a behavior difference.
+        policy_config = normalize_and_validate(policy_config)?;
 
         // Snapshot the parsed routes + plugin declarations before
         // load_config moves the config — visitors get the typed
@@ -892,13 +918,17 @@ impl PolicyEngine {
     /// # Errors
     ///
     /// Returns `PluginError::Config` for the same reasons as
-    /// [`Self::load_config`]: an unknown plugin `kind`, a factory that rejects
-    /// its config, or a conflicting registration.
+    /// [`Self::load_config`]: a config that fails validation, an unknown plugin
+    /// `kind`, a factory that rejects its config, or a conflicting
+    /// registration.
     pub fn from_config(
         policy_config: PolicyConfig,
         factories: &PluginFactoryRegistry,
     ) -> Result<Self, Box<PluginError>> {
+        // Warn before validating: an operator whose config both sets an inactive
+        // knob and fails validation should see both, not just the refusal.
         warn_on_inactive_settings(&policy_config);
+        let policy_config = normalize_and_validate(policy_config)?;
 
         let engine = Self::new(PolicyEngineConfig {
             executor: ExecutorConfig::default(),
@@ -2173,6 +2203,7 @@ mod tests {
     use super::*;
     use crate::context::PluginContext;
     use crate::error::PluginViolation;
+    use crate::hooks::metadata::{HookMetadata, register_hook_metadata};
     use crate::plugin::{OnError, PluginMode};
     use async_trait::async_trait;
 
@@ -2282,6 +2313,36 @@ mod tests {
 
     // -- Helpers --
 
+    /// The fixtures declare `test_hook`, which this crate does not
+    /// dispatch, so its metadata has to be registered the way a host
+    /// registers its own.
+    ///
+    /// No test calls this directly. Every helper that builds or parses a
+    /// fixture config calls it, so a test is registered by producing its
+    /// config. The registry is process-wide, so a test relying on a
+    /// separate call passed beside the tests that made one and failed
+    /// when run alone.
+    fn register_fixture_hooks() {
+        register_hook_metadata(TestHook::NAME, HookMetadata::permissive());
+    }
+
+    /// Parse fixture YAML into a validated config.
+    ///
+    /// Registration has to precede the parse, not just the load:
+    /// validation reads the registry, so an unregistered `test_hook` is
+    /// refused here.
+    fn parse_fixture_config(yaml: &str) -> Result<PolicyConfig, Box<PluginError>> {
+        register_fixture_hooks();
+        crate::config::parse_config(yaml)
+    }
+
+    /// Load fixture YAML into `engine`, registering first for the same
+    /// reason [`parse_fixture_config`] does.
+    fn load_fixture_yaml(engine: &Arc<PolicyEngine>, yaml: &str) -> Result<(), Box<PluginError>> {
+        register_fixture_hooks();
+        engine.load_config_yaml(yaml)
+    }
+
     fn make_config(name: &str, priority: i32, mode: PluginMode) -> PluginConfig {
         make_config_with_on_error(name, priority, mode, OnError::Fail)
     }
@@ -2292,6 +2353,9 @@ mod tests {
         mode: PluginMode,
         on_error: OnError,
     ) -> PluginConfig {
+        // The config below names `test_hook`, so its metadata has to
+        // exist by the time a load validates it.
+        register_fixture_hooks();
         PluginConfig {
             name: name.to_owned(),
             kind: "test".to_owned(),
@@ -2884,7 +2948,7 @@ plugins:
     mode: sequential
     priority: 10
 ";
-        let policy_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = parse_fixture_config(yaml).unwrap();
 
         let (done_tx, done_rx) = std::sync::mpsc::channel();
         let loader = Arc::clone(&engine);
@@ -3052,7 +3116,7 @@ plugins:
     mode: sequential
     priority: 20
 ";
-        let policy_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = parse_fixture_config(yaml).unwrap();
 
         let (done_tx, done_rx) = std::sync::mpsc::channel();
         let loader = Arc::clone(&engine);
@@ -4520,7 +4584,7 @@ routes:
       - target
 "#
             );
-            let policy_config = crate::config::parse_config(&yaml).unwrap();
+            let policy_config = parse_fixture_config(&yaml).unwrap();
 
             let mgr = PolicyEngine::default();
             let counter = StdArc::new(AtomicUsize::new(0));
@@ -4749,6 +4813,140 @@ routes:
         }
     }
 
+    // -- Every load path normalizes and validates --
+
+    /// A config as a host would hand it over in Rust: deserialized but
+    /// not put through `parse_config`, so nothing has normalized or
+    /// validated it yet. Registers the fixture hooks, since the load it
+    /// is handed to validates it.
+    fn unvalidated_config(yaml: &str) -> PolicyConfig {
+        register_fixture_hooks();
+        serde_yaml::from_str(yaml).expect("deserialize")
+    }
+
+    fn allow_factories() -> PluginFactoryRegistry {
+        let mut factories = PluginFactoryRegistry::new();
+        factories.register("test/allow", Box::new(AllowPluginFactory));
+        factories
+    }
+
+    const VALID_YAML: &str = r#"
+plugins:
+  - name: allow_plugin
+    kind: test/allow
+    hooks: [test_hook]
+    mode: sequential
+"#;
+
+    const DUPLICATE_NAME_YAML: &str = r#"
+plugins:
+  - name: twice
+    kind: test/allow
+    hooks: [test_hook]
+  - name: twice
+    kind: test/allow
+    hooks: [test_hook]
+"#;
+
+    /// A route joining a top-level `groups:` bundle. Resolving the group
+    /// is what gives the route the group's plugins; skipping the merge
+    /// leaves the route with an unknown-group reference.
+    const GROUP_YAML: &str = r#"
+plugin_settings:
+  routing_enabled: true
+plugins:
+  - name: allow_plugin
+    kind: test/allow
+    hooks: [test_hook]
+groups:
+  privileged:
+    plugins: [allow_plugin]
+routes:
+  - tool: secret_tool
+    groups: [privileged]
+    plugins: [allow_plugin]
+"#;
+
+    #[test]
+    fn a_valid_config_loads_through_every_path() {
+        parse_fixture_config(VALID_YAML).expect("parse_config");
+
+        // A fresh engine per path: re-loading the same plugin name onto
+        // one engine is a registration conflict, unrelated to validation.
+        let via_yaml = Arc::new(PolicyEngine::default());
+        via_yaml.register_factory("test/allow", Box::new(AllowPluginFactory));
+        load_fixture_yaml(&via_yaml, VALID_YAML).expect("load_config_yaml");
+
+        let via_typed = Arc::new(PolicyEngine::default());
+        via_typed.register_factory("test/allow", Box::new(AllowPluginFactory));
+        via_typed
+            .load_config(unvalidated_config(VALID_YAML))
+            .expect("load_config");
+
+        PolicyEngine::from_config(unvalidated_config(VALID_YAML), &allow_factories())
+            .expect("from_config");
+    }
+
+    #[test]
+    fn a_duplicate_plugin_name_is_rejected_on_every_path() {
+        let mgr = Arc::new(PolicyEngine::default());
+        mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
+
+        // Every path refuses before any plugin is instantiated, so one
+        // engine serves all of them.
+        for err in [
+            parse_fixture_config(DUPLICATE_NAME_YAML)
+                .map(|_| ())
+                .unwrap_err(),
+            load_fixture_yaml(&mgr, DUPLICATE_NAME_YAML).unwrap_err(),
+            mgr.load_config(unvalidated_config(DUPLICATE_NAME_YAML))
+                .unwrap_err(),
+            PolicyEngine::from_config(unvalidated_config(DUPLICATE_NAME_YAML), &allow_factories())
+                .map(|_| ())
+                .unwrap_err(),
+        ] {
+            assert!(
+                err.to_string().contains("duplicate plugin name"),
+                "unexpected error: {err}",
+            );
+        }
+    }
+
+    #[test]
+    fn a_group_block_resolves_through_the_programmatic_paths() {
+        let mgr = Arc::new(PolicyEngine::default());
+        mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
+
+        // Before the merge, `groups:` is a separate map and the route
+        // joins a group `global.policies` does not hold, so validation
+        // catches it. Both paths now merge first and accept it.
+        mgr.load_config(unvalidated_config(GROUP_YAML))
+            .expect("load_config resolves groups");
+        assert!(
+            mgr.load_runtime()
+                .policy_config
+                .as_ref()
+                .expect("config")
+                .global
+                .policies
+                .contains_key("privileged"),
+        );
+
+        let from_config =
+            PolicyEngine::from_config(unvalidated_config(GROUP_YAML), &allow_factories())
+                .expect("from_config resolves groups");
+        assert!(
+            from_config
+                .load_runtime()
+                .policy_config
+                .as_ref()
+                .expect("config")
+                .global
+                .policies
+                .contains_key("privileged"),
+        );
+    }
+
     #[tokio::test]
     async fn test_from_config_creates_manager() {
         let yaml = r#"
@@ -4762,7 +4960,7 @@ plugins:
 plugin_settings:
   plugin_timeout: 60
 "#;
-        let policy_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = parse_fixture_config(yaml).unwrap();
 
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
@@ -4784,7 +4982,7 @@ plugins:
     mode: sequential
     priority: 10
 "#;
-        let policy_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = parse_fixture_config(yaml).unwrap();
 
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/deny", Box::new(DenyPluginFactory));
@@ -4813,7 +5011,7 @@ plugins:
     kind: unknown/type
     hooks: [test_hook]
 "#;
-        let policy_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = parse_fixture_config(yaml).unwrap();
         let factories = PluginFactoryRegistry::new(); // empty — no factories
 
         let result = PolicyEngine::from_config(policy_config, &factories);
@@ -4838,7 +5036,7 @@ plugins:
     mode: sequential
     priority: 10
 "#;
-        let policy_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = parse_fixture_config(yaml).unwrap();
 
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
@@ -4882,7 +5080,7 @@ plugins:
 routes:
   - tool: get_compensation
 "#;
-        let policy_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = parse_fixture_config(yaml).unwrap();
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
 
@@ -4950,7 +5148,7 @@ routes:
 "#;
         let mgr = Arc::new(PolicyEngine::default());
         mgr.register_factory("test/deny", Box::new(DenyPluginFactory));
-        mgr.load_config_yaml(yaml).expect("config must load");
+        load_fixture_yaml(&mgr, yaml).expect("config must load");
 
         let ext = Extensions {
             meta: Some(Arc::new(crate::hooks::payload::MetaExtension {
@@ -5015,7 +5213,7 @@ routes:
         let mgr = Arc::new(PolicyEngine::default());
         let recorder = Arc::new(RecordingVisitor::default());
         mgr.register_visitor(recorder.clone());
-        mgr.load_config_yaml(yaml).expect("config must load");
+        load_fixture_yaml(&mgr, yaml).expect("config must load");
 
         let seen = recorder.bundles.lock().unwrap();
         assert!(
@@ -5042,7 +5240,7 @@ routes:
   - tool: get_compensation
   - tool: send_email
 "#;
-        let policy_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = parse_fixture_config(yaml).unwrap();
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
 
@@ -5095,7 +5293,7 @@ plugins:
 routes:
   - tool: get_compensation
 "#;
-        let policy_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = parse_fixture_config(yaml).unwrap();
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
 
@@ -5136,7 +5334,7 @@ plugins:
 routes:
   - tool: get_compensation
 "#;
-        let policy_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = parse_fixture_config(yaml).unwrap();
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
 
@@ -5212,7 +5410,7 @@ routes:
   - tool: b
   - tool: c
 "#;
-        let policy_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = parse_fixture_config(yaml).unwrap();
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
 
@@ -5285,7 +5483,7 @@ plugins:
 routes:
   - tool: get_compensation
 "#;
-        let policy_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = parse_fixture_config(yaml).unwrap();
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
 
@@ -5332,7 +5530,7 @@ plugins:
 routes:
   - tool: get_compensation
 "#;
-        let policy_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = parse_fixture_config(yaml).unwrap();
         let mut factories = PluginFactoryRegistry::new();
         factories.register("test/allow", Box::new(AllowPluginFactory));
 
@@ -5391,7 +5589,7 @@ routes:
           config:
             max_requests: 10
 "#;
-        let policy_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = parse_fixture_config(yaml).unwrap();
 
         // Use register_factory + load_config so engine owns factories
         let mgr = PolicyEngine::default();
@@ -5671,7 +5869,7 @@ routes:
           config:
             max_requests: 10
 "#;
-        let policy_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = parse_fixture_config(yaml).unwrap();
 
         let mgr = PolicyEngine::default();
         mgr.register_factory("test/init_tracking", Box::new(InitTrackingFactory));
@@ -5808,7 +6006,7 @@ routes:
                 log: Arc::clone(&log),
             }),
         );
-        mgr.load_config(crate::config::parse_config(yaml).unwrap())
+        mgr.load_config(parse_fixture_config(yaml).unwrap())
             .unwrap();
         (mgr, log)
     }
@@ -5944,7 +6142,7 @@ routes:
           config:
             something: changed
 "#;
-        let policy_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = parse_fixture_config(yaml).unwrap();
 
         let mgr = PolicyEngine::default();
         mgr.register_factory("test/error_on_invoke", Box::new(ErrorOnInvokeFactory));
@@ -5989,7 +6187,7 @@ plugins:
 plugin_settings:
   plugin_timeout: 45
 "#;
-        let policy_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = parse_fixture_config(yaml).unwrap();
 
         let mgr = PolicyEngine::default();
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
@@ -6071,7 +6269,7 @@ routes:
     plugins:
       - rate_limiter
 "#;
-        let policy_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = parse_fixture_config(yaml).unwrap();
         let mgr = PolicyEngine::default();
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
         mgr.register_factory("test/deny", Box::new(DenyPluginFactory));
@@ -6123,7 +6321,7 @@ plugins:
     mode: sequential
     priority: 20
 "#;
-        let policy_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = parse_fixture_config(yaml).unwrap();
         let mgr = PolicyEngine::default();
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
         mgr.register_factory("test/deny", Box::new(DenyPluginFactory));
@@ -6169,7 +6367,7 @@ routes:
     plugins:
       - denier
 "#;
-        let policy_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = parse_fixture_config(yaml).unwrap();
         let mgr = PolicyEngine::default();
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
         mgr.register_factory("test/deny", Box::new(DenyPluginFactory));
@@ -6229,7 +6427,7 @@ routes:
     plugins:
       - fallback_plugin
 "#;
-        let policy_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = parse_fixture_config(yaml).unwrap();
         let mgr = PolicyEngine::default();
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
         mgr.register_factory("test/deny", Box::new(DenyPluginFactory));
@@ -6288,7 +6486,7 @@ plugins:
 routes:
   - tool: get_compensation
 "#;
-        let policy_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = parse_fixture_config(yaml).unwrap();
         let mgr = PolicyEngine::default();
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
         mgr.register_factory("test/deny", Box::new(DenyPluginFactory));
@@ -6353,7 +6551,7 @@ routes:
       tags: [pii]
   - tool: send_email
 "#;
-        let policy_config = crate::config::parse_config(yaml).unwrap();
+        let policy_config = parse_fixture_config(yaml).unwrap();
         let mgr = PolicyEngine::default();
         mgr.register_factory("test/allow", Box::new(AllowPluginFactory));
         mgr.register_factory("test/deny", Box::new(DenyPluginFactory));
@@ -6711,8 +6909,7 @@ plugin_settings:
   parallel_execution_within_band: true
   fail_on_plugin_error: true
 "#;
-        mgr.load_config_yaml(yaml)
-            .expect("inactive settings warn, they do not fail the load");
+        load_fixture_yaml(&mgr, yaml).expect("inactive settings warn, they do not fail the load");
     }
 
     /// `groups:` at the top level and `global.policies:` are two spellings of
@@ -6760,7 +6957,7 @@ global:
         let mgr = Arc::new(PolicyEngine::default());
         let recorder = Arc::new(BundleRecorder::default());
         mgr.register_visitor(recorder.clone());
-        mgr.load_config_yaml(yaml).expect("config must load");
+        load_fixture_yaml(&mgr, yaml).expect("config must load");
 
         let seen = recorder.seen.lock().unwrap();
         assert!(
@@ -6852,9 +7049,8 @@ global:
         ] {
             let mgr = Arc::new(PolicyEngine::default());
             mgr.register_visitor(Arc::new(Refuser(section)));
-            let err = mgr
-                .load_config_yaml(yaml)
-                .expect_err("a refusing visitor must abort the load");
+            let err =
+                load_fixture_yaml(&mgr, yaml).expect_err("a refusing visitor must abort the load");
             let msg = err.to_string();
             assert!(
                 msg.contains("refuser"),
@@ -6906,7 +7102,7 @@ plugins:
     kind: test/allow
     hooks: [test_hook]
 "#;
-        mgr.load_config_yaml(yaml).expect("config must load");
+        load_fixture_yaml(&mgr, yaml).expect("config must load");
         let mut names = mgr.plugin_names();
         names.sort();
         assert_eq!(names, vec!["first".to_owned(), "second".to_owned()]);
