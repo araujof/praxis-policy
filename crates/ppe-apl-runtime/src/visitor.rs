@@ -27,15 +27,36 @@
 // then construct one `AplRouteHandler` per phase (Pre, Post) and call
 // `annotate_route` for each `(entity_type, entity_name, scope, hook)`.
 //
+// The `(entity_type, entity_name)` pairs come from
+// `praxis_policy_core::config::route_entity_identity`, the one place a
+// route maps to the names it is known by, so the key annotated here is
+// the key a request resolves to.
+//
+// # A policy body replaces the route's plugin chain
+//
+// An annotated route dispatches its compiled body instead of the plugin
+// lineup praxis-policy-core would have resolved, so the `all` group, the
+// entity-type defaults, tag bundles, and the route's own `plugins:` list only
+// run for those requests when a policy step names them. That has always held
+// for entity routes, and an `http:` route carrying a body is the same
+// substitution. `visit_route` names each `http:` route whose own `plugins:`
+// list that silences, so a specific configuration reports it rather than
+// leaving an operator to find this paragraph.
+//
 // # Hook names per entity type
 //
-// Each entity type binds to its own CMF hook pair:
+// Each entity type binds to its own hook pair:
 //
 //   * `tool:`     → `cmf.tool_pre_invoke`     / `cmf.tool_post_invoke`
 //   * `llm:`      → `cmf.llm_input`           / `cmf.llm_output`
 //   * `prompt:`   → `cmf.prompt_pre_invoke`   / `cmf.prompt_post_invoke`
 //   * `resource:` → `cmf.resource_pre_fetch`  / `cmf.resource_post_fetch`
-//   * entity-less HTTP → `cmf.http_request`   / `cmf.http_response`
+//   * `http:`     → `http.request`            / `http.response`
+//
+// The global HTTP catch-all installs under the same pair, under the
+// reserved global name rather than a route's own. An `http:` route
+// resolves only under `plugin_settings.routing_enabled: true`, which
+// defaults to false; the global catch-all installs either way.
 //
 // The mapping lives in [`hook_pair_for_entity`]. Hosts fire
 // `mgr.invoke_named::<CmfHook>("cmf.llm_input", ...)` for LLM
@@ -51,12 +72,13 @@ use std::sync::{Arc, RwLock, Weak};
 
 use praxis_policy_core::cmf::constants::{
     ENTITY_HTTP, ENTITY_LLM, ENTITY_NAME_GLOBAL, ENTITY_PROMPT, ENTITY_RESOURCE, ENTITY_TOOL,
-    HOOK_CMF_HTTP_REQUEST, HOOK_CMF_HTTP_RESPONSE, HOOK_CMF_LLM_INPUT, HOOK_CMF_LLM_OUTPUT,
-    HOOK_CMF_PROMPT_POST_INVOKE, HOOK_CMF_PROMPT_PRE_INVOKE, HOOK_CMF_RESOURCE_POST_FETCH,
-    HOOK_CMF_RESOURCE_PRE_FETCH, HOOK_CMF_TOOL_POST_INVOKE, HOOK_CMF_TOOL_PRE_INVOKE,
+    HOOK_CMF_LLM_INPUT, HOOK_CMF_LLM_OUTPUT, HOOK_CMF_PROMPT_POST_INVOKE,
+    HOOK_CMF_PROMPT_PRE_INVOKE, HOOK_CMF_RESOURCE_POST_FETCH, HOOK_CMF_RESOURCE_PRE_FETCH,
+    HOOK_CMF_TOOL_POST_INVOKE, HOOK_CMF_TOOL_PRE_INVOKE,
 };
-use praxis_policy_core::config::RouteEntry;
+use praxis_policy_core::config::{PluginRouteRef, RouteEntry, route_entity_identity};
 use praxis_policy_core::engine::PolicyEngine;
+use praxis_policy_core::http_hook::{HOOK_HTTP_REQUEST, HOOK_HTTP_RESPONSE};
 use praxis_policy_core::plugin::PluginConfig;
 use praxis_policy_core::visitor::{ConfigVisitor, VisitorError};
 
@@ -68,7 +90,7 @@ use praxis_policy_apl_core::step::{PdpFactory, PdpResolver};
 
 use crate::dispatch_plan::DispatchCache;
 use crate::pdp_router::PdpRouter;
-use crate::route_handler::{AplRouteHandler, Phase};
+use crate::route_handler::{AplRouteHandler, HookFamily, Phase};
 use crate::session_store::{SessionStore, SessionStoreFactory};
 
 /// Legacy alias for the tool-family pre hook. Kept exported for
@@ -79,7 +101,7 @@ pub const HOOK_PRE: &str = HOOK_CMF_TOOL_PRE_INVOKE;
 /// Legacy alias for the tool-family post hook. See `HOOK_PRE`.
 pub const HOOK_POST: &str = HOOK_CMF_TOOL_POST_INVOKE;
 
-/// Resolve the (pre, post) CMF hook pair for an `entity_type`. Drives
+/// Resolve the (pre, post) hook pair for an `entity_type`. Drives
 /// per-entity `annotate_route` calls so an `llm:` route annotates on
 /// `cmf.llm_input` / `cmf.llm_output` rather than the tool-family
 /// hooks. Returns `None` for unknown entity types — the visitor logs
@@ -95,7 +117,7 @@ pub fn hook_pair_for_entity(entity_type: &str) -> Option<(&'static str, &'static
         ENTITY_LLM => Some((HOOK_CMF_LLM_INPUT, HOOK_CMF_LLM_OUTPUT)),
         ENTITY_PROMPT => Some((HOOK_CMF_PROMPT_PRE_INVOKE, HOOK_CMF_PROMPT_POST_INVOKE)),
         ENTITY_RESOURCE => Some((HOOK_CMF_RESOURCE_PRE_FETCH, HOOK_CMF_RESOURCE_POST_FETCH)),
-        ENTITY_HTTP => Some((HOOK_CMF_HTTP_REQUEST, HOOK_CMF_HTTP_RESPONSE)),
+        ENTITY_HTTP => Some((HOOK_HTTP_REQUEST, HOOK_HTTP_RESPONSE)),
         _ => None,
     }
 }
@@ -537,8 +559,8 @@ impl ConfigVisitor for AplConfigVisitor {
         // same mapping the entity routes below read, so the phase a hook
         // installs under is decided in one place. `None` is unreachable for
         // ENTITY_HTTP; skipping rather than crashing matches visit_routes.
-        let installs_pre_handler = http_catchall_should_install(&compiled);
-        let installs_post_handler = http_catchall_response_should_install(&compiled);
+        let installs_pre_handler = declares_pre_phase(&compiled);
+        let installs_post_handler = declares_post_phase(&compiled);
         if !installs_pre_handler && !installs_post_handler && compiled.response.is_some() {
             tracing::warn!(
                 "APL visitor: global.response is set but global.apl declares no steps \
@@ -623,6 +645,9 @@ impl ConfigVisitor for AplConfigVisitor {
         warn_if_global_only_key_at_nonglobal_scope(&source, &apl_block);
         let compiled = compile_policy_block_value(&source, &apl_block)
             .map_err(|e| -> VisitorError { Box::new(e) })?;
+        // A default layer reaches only its own entity type, so a field stage
+        // declared here for `http` is as unreadable as one on the route.
+        reject_field_stages_without_fields(entity_type, &source, &compiled)?;
         self.state
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -665,10 +690,10 @@ impl ConfigVisitor for AplConfigVisitor {
         // without inherited layers contributes nothing — skip.
         reject_legacy_apl_keys("route", yaml)?;
         let route_apl = apl_subblock(yaml);
-        let (entity_type, entity_names) = if let Some(e) = entity_identity(parsed) {
-            e
-        } else {
-            tracing::warn!("APL visitor: route has no tool/resource/prompt/llm match — skipping",);
+        let Some((entity_type, entity_names)) = route_entity_identity(parsed) else {
+            tracing::warn!(
+                "APL visitor: route declares no tool/resource/prompt/llm/http selector, skipping",
+            );
             return Ok(());
         };
         if let Some(block) = &route_apl {
@@ -733,6 +758,11 @@ impl ConfigVisitor for AplConfigVisitor {
                 let source = format!("routes.{route_key}.apl");
                 let route_layer = compile_policy_block_value(&source, block)
                     .map_err(|e| -> VisitorError { Box::new(e) })?;
+                reject_field_stages_without_fields(
+                    entity_type,
+                    &format!("route '{route_key}'"),
+                    &route_layer,
+                )?;
                 effective.apply_layer(route_layer);
             }
 
@@ -780,6 +810,22 @@ impl ConfigVisitor for AplConfigVisitor {
                 mgr.as_ref(),
             );
 
+            // A handler is about to install, so the substitution is certain
+            // from here. Reported once per route: the body and the `plugins:`
+            // list are the same for every name the selector contributes.
+            if idx == 0 {
+                let displaced = displaced_plugin_chain(entity_type, parsed);
+                if !displaced.is_empty() {
+                    tracing::warn!(
+                        route = %route_key,
+                        plugins = %displaced.join(", "),
+                        "APL visitor: this `http:` route's policy body dispatches in place of its \
+                         plugin chain, so the plugins it lists run only where a policy step names \
+                         them",
+                    );
+                }
+            }
+
             // Plugin-mode validation for `parallel:` blocks.
             // `praxis-policy-apl-core::Effect::validate_parallel_purity` already rejected
             // FieldOp / Delegate at parse time; this pass checks that every
@@ -804,19 +850,24 @@ impl ConfigVisitor for AplConfigVisitor {
                 return Err(err_msg.into());
             }
 
+            // Each half installs only when the effective route declares steps
+            // for it, the way the global catch-all already decides.
+            let installs_pre = declares_pre_phase(&effective);
+            let installs_post = declares_post_phase(&effective);
+
             let route_arc = Arc::new(effective);
 
-            // Resolve the entity-specific CMF hook pair. The visitor's
-            // entity_identity() already filtered out unknown types, but
-            // hook_pair_for_entity returning None would just skip the
-            // annotation rather than crash — defense in depth.
+            // Resolve the entity-specific hook pair. `route_entity_identity`
+            // only names entity types this maps, but hook_pair_for_entity
+            // returning None would just skip the annotation rather than crash,
+            // as defense in depth.
             let (hook_pre, hook_post) = if let Some(pair) = hook_pair_for_entity(entity_type) {
                 pair
             } else {
                 tracing::warn!(
                     entity_type,
                     entity_name,
-                    "APL visitor: no CMF hook pair for entity_type — skipping route",
+                    "APL visitor: no hook pair for entity_type — skipping route",
                 );
                 continue;
             };
@@ -829,45 +880,87 @@ impl ConfigVisitor for AplConfigVisitor {
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .clone();
 
-            // Install Pre + Post handlers. Each handler instance is bound to
-            // ONE phase so the executor can pick the right entry-point off
-            // the (entity_type, entity_name, scope, hook_name) key.
-            install_handler(
-                mgr,
-                entity_type,
-                entity_name,
-                scope.clone(),
-                hook_pre,
-                Phase::Pre,
-                Arc::clone(&route_arc),
-                &plugin_registry,
-                &self.dispatch_cache,
-                &session_store,
-                &self.engine,
-                Some(Arc::clone(&pdp_router_arc)),
-                &self.base_capabilities,
-                Arc::clone(&attribute_tree),
-            );
-            install_handler(
-                mgr,
-                entity_type,
-                entity_name,
-                scope.clone(),
-                hook_post,
-                Phase::Post,
-                route_arc,
-                &plugin_registry,
-                &self.dispatch_cache,
-                &session_store,
-                &self.engine,
-                Some(Arc::clone(&pdp_router_arc)),
-                &self.base_capabilities,
-                attribute_tree,
-            );
+            // Install the halves the route declares. Each handler instance is
+            // bound to ONE phase so the executor can pick the right entry-point
+            // off the (entity_type, entity_name, scope, hook_name) key. The two
+            // predicates cover all four phases between them, so a route that
+            // reached here declares at least one and installs at least one
+            // handler.
+            if installs_pre {
+                install_handler(
+                    mgr,
+                    entity_type,
+                    entity_name,
+                    scope.clone(),
+                    hook_pre,
+                    Phase::Pre,
+                    Arc::clone(&route_arc),
+                    &plugin_registry,
+                    &self.dispatch_cache,
+                    &session_store,
+                    &self.engine,
+                    Some(Arc::clone(&pdp_router_arc)),
+                    &self.base_capabilities,
+                    Arc::clone(&attribute_tree),
+                );
+            }
+            if installs_post {
+                install_handler(
+                    mgr,
+                    entity_type,
+                    entity_name,
+                    scope.clone(),
+                    hook_post,
+                    Phase::Post,
+                    route_arc,
+                    &plugin_registry,
+                    &self.dispatch_cache,
+                    &session_store,
+                    &self.engine,
+                    Some(Arc::clone(&pdp_router_arc)),
+                    &self.base_capabilities,
+                    attribute_tree,
+                );
+            }
         }
 
         Ok(())
     }
+}
+
+/// Refuse an `args:` or `result:` block declared at a scope that reaches only
+/// a payload with no fields. Today that is the `http:` selector: an HTTP
+/// exchange reaches a policy through its extensions, and `HttpPayload` has
+/// nothing for a field path to address, so such a stage would read nothing and
+/// rewrite nothing.
+///
+/// `scope` is the label the refusal names, already spelled the way its caller
+/// names the declaration. Called for each scope whose reach is one entity
+/// type: a route's own block and `global.defaults.http`. Not for
+/// `global.apl`, whose stages are
+/// meaningful for the entity routes it also stacks onto, so refusing there
+/// would refuse a configuration that is correct for every other selector.
+fn reject_field_stages_without_fields(
+    entity_type: &str,
+    scope: &str,
+    layer: &CompiledRoute,
+) -> Result<(), VisitorError> {
+    if entity_type != ENTITY_HTTP {
+        return Ok(());
+    }
+    let block = if !layer.args.is_empty() {
+        "args"
+    } else if !layer.result.is_empty() {
+        "result"
+    } else {
+        return Ok(());
+    };
+    Err(format!(
+        "{scope}: an `http:` route cannot declare a `{block}:` block, because a \
+         generic HTTP request carries no message for a field path to address. Read the request \
+         from the `http.*` attributes under `pre_invocation:` (or `post_invocation:`) instead."
+    )
+    .into())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -887,6 +980,21 @@ fn install_handler(
     base_capabilities: &std::collections::HashSet<String>,
     attribute_tree: Arc<AttributeTree>,
 ) {
+    // The family decides which payload the handler accepts, and it is read off
+    // the same entity type that chose the hook name, so the two cannot
+    // disagree. An entity type with no family has no hook pair either, so the
+    // install sites never reach this; skipping and logging matches what they
+    // already do when `hook_pair_for_entity` returns `None`.
+    let Some(family) = HookFamily::for_entity(entity_type) else {
+        tracing::warn!(
+            entity_type,
+            entity_name,
+            hook_name,
+            "APL visitor: no hook family for entity_type — skipping handler install",
+        );
+        return;
+    };
+
     // Capability gating at the synthetic-handler boundary. praxis-policy-core's
     // executor calls `filter_extensions(&ext, &caps)` before every
     // handler invoke — including this one. If the synthetic handler
@@ -928,7 +1036,7 @@ fn install_handler(
             if phase == Phase::Pre { "pre" } else { "post" }
         ),
         kind: "builtin".to_owned(),
-        // The annotated handler covers exactly one CMF hook name.
+        // The annotated handler covers exactly one hook name.
         hooks: vec![hook_name.to_owned()],
         capabilities,
         ..Default::default()
@@ -937,6 +1045,7 @@ fn install_handler(
         plugin_config.clone(),
         route,
         phase,
+        family,
         Arc::clone(plugin_registry),
         Arc::clone(dispatch_cache),
         Arc::clone(session_store),
@@ -946,41 +1055,41 @@ fn install_handler(
     if let Some(pdp) = pdp {
         handler = handler.with_pdp(pdp);
     }
-    mgr.annotate_route(
+    let replaced = mgr.annotate_route(
         entity_type.to_owned(),
         entity_name.to_owned(),
-        scope,
+        scope.clone(),
         hook_name.to_owned(),
         Arc::new(handler),
         plugin_config,
     );
+    if replaced {
+        // A handler already stood at these coordinates and has just been
+        // dropped. Nothing in the table records where it came from, so saying
+        // so is the only way an operator learns one policy body silently lost
+        // to another.
+        tracing::warn!(
+            entity_type,
+            entity_name,
+            scope = scope.as_deref(),
+            hook_name,
+            "APL visitor: replaced an existing policy handler at these route \
+             coordinates; only the later one evaluates",
+        );
+    }
 }
 
-/// Pick the route's entity identities from the first non-None match
-/// field. v0: tool > resource > prompt > llm precedence. A list-form
-/// match (`tool: [a, b]`) yields one annotation per element so each
-/// request gets routed by its specific name.
-fn entity_identity(route: &RouteEntry) -> Option<(&'static str, Vec<String>)> {
-    if let Some(t) = &route.tool {
-        return Some(("tool", names_of(t)));
+/// The `plugins:` an `http:` route lists that its compiled policy body stands
+/// in for. Empty for every other selector and for a route listing none, so a
+/// configuration declaring no `http:` route gains no diagnostic.
+///
+/// Called where a handler is about to install, which is what makes the
+/// substitution certain rather than possible.
+fn displaced_plugin_chain<'a>(entity_type: &str, route: &'a RouteEntry) -> Vec<&'a str> {
+    if entity_type != ENTITY_HTTP {
+        return Vec::new();
     }
-    if let Some(r) = &route.resource {
-        return Some(("resource", names_of(r)));
-    }
-    if let Some(p) = &route.prompt {
-        return Some(("prompt", names_of(p)));
-    }
-    if let Some(l) = &route.llm {
-        return Some(("llm", names_of(l)));
-    }
-    None
-}
-
-fn names_of(sol: &praxis_policy_core::config::StringOrList) -> Vec<String> {
-    match sol {
-        praxis_policy_core::config::StringOrList::Single(p) => vec![p.as_str().to_owned()],
-        praxis_policy_core::config::StringOrList::List(v) => v.clone(),
-    }
+    route.plugins.iter().map(PluginRouteRef::name).collect()
 }
 
 /// Warn when an APL block carries a global-only wiring key
@@ -1042,38 +1151,18 @@ fn warn_unreferenced_plugin_overrides(route: &CompiledRoute) {
 /// [`warn_if_global_only_key_at_nonglobal_scope`].
 const GLOBAL_ONLY_NON_DSL_KEYS: [&str; 3] = ["pdp", "session_store", "attribute_files"];
 
-/// Legacy APL config keys, mapped to their replacements. The flat-key path
-/// in [`apl_subblock`] only copies recognized keys into the synthetic block,
-/// so a config still using an old name would otherwise be *silently dropped*
-/// here — a fail-open for `policy` / `post_policy`. We reject them loudly.
-/// (The `apl:`-wrapped form is caught downstream by praxis-policy-apl-core instead.)
-const RENAMED_APL_KEYS: [(&str, &str); 2] = [
-    (
-        "policy",
-        "authorization.pre_invocation (or flat pre_invocation)",
-    ),
-    (
-        "post_policy",
-        "authorization.post_invocation (or flat post_invocation)",
-    ),
-];
-
 /// Fail loudly when a section carries a renamed legacy APL key directly
-/// (flat form). Guards the fail-open where the flat-key filter in
-/// [`apl_subblock`] would otherwise drop an unrecognized `policy:` block.
+/// (flat form). The flat-key path in [`apl_subblock`] only copies recognized
+/// keys into the synthetic block, so a stale `policy:` would otherwise be
+/// silently dropped here, a fail-open. The names and the message come from
+/// praxis-policy-core, which rejects the same keys on a route before any
+/// visitor runs, so the two cannot disagree.
+/// (The `apl:`-wrapped form is caught downstream by praxis-policy-apl-core instead.)
 fn reject_legacy_apl_keys(scope: &str, yaml: &serde_yaml::Value) -> Result<(), VisitorError> {
-    let Some(map) = yaml.as_mapping() else {
-        return Ok(());
-    };
-    for (old, new) in RENAMED_APL_KEYS {
-        if map.contains_key(serde_yaml::Value::String(old.to_owned())) {
-            return Err(format!(
-                "in `{scope}`: config field `{old}` was renamed to `{new}` — update your config",
-            )
-            .into());
-        }
+    match praxis_policy_core::config::renamed_apl_key_message(scope, yaml) {
+        Some(message) => Err(message.into()),
+        None => Ok(()),
     }
-    Ok(())
 }
 
 /// Strip the global-only wiring sub-keys ([`GLOBAL_ONLY_NON_DSL_KEYS`])
@@ -1180,25 +1269,26 @@ fn apl_subblock(yaml: &serde_yaml::Value) -> Option<serde_yaml::Value> {
     }
 }
 
-/// Whether the entity-less HTTP catch-all handler (Pre-phase only) should
-/// install for a compiled `global` layer. Gate on both Pre-phase steps
-/// (`args` + `policy`, via [`CompiledRoute::declared_phases`]), not
-/// `policy` alone — an operator whose `global.apl` has only an `args:`
-/// admission block (no `policy:`) must still get the catch-all installed,
-/// or entity-less HTTP traffic silently bypasses it entirely (fail-open by
-/// omission).
-fn http_catchall_should_install(compiled: &CompiledRoute) -> bool {
+/// Whether a compiled layer declares Pre-phase steps, which is what decides
+/// whether the Pre-phase handler installs. Read for the entity-less HTTP
+/// catch-all and, in `visit_routes`, for every route's own effective layers,
+/// so one rule decides both. Gate on both
+/// Pre-phase steps (`args` + `policy`, via
+/// [`CompiledRoute::declared_phases`]), not `policy` alone: an operator
+/// whose `global.apl` has only an `args:` admission block (no `policy:`)
+/// must still get the catch-all installed, or entity-less HTTP traffic
+/// silently bypasses it entirely (fail-open by omission).
+fn declares_pre_phase(compiled: &CompiledRoute) -> bool {
     let declared = compiled.declared_phases();
     declared.contains(praxis_policy_apl_core::rules::Phase::Args)
         || declared.contains(praxis_policy_apl_core::rules::Phase::Policy)
 }
 
-/// Whether the entity-less HTTP response handler should install. The
-/// mirror of [`http_catchall_should_install`] on the post side, gating on
-/// `result` + `post_policy`, so a `global.apl` that only authorizes gets
-/// no response handler and a host that never fires `cmf.http_response`
-/// sees no change either way.
-fn http_catchall_response_should_install(compiled: &CompiledRoute) -> bool {
+/// Whether a compiled layer declares Post-phase steps. The mirror of
+/// [`declares_pre_phase`] on the post side, gating on `result` +
+/// `post_policy`, so a layer that only authorizes gets no post handler and
+/// a host that never fires the post hook sees no change either way.
+fn declares_post_phase(compiled: &CompiledRoute) -> bool {
     let declared = compiled.declared_phases();
     declared.contains(praxis_policy_apl_core::rules::Phase::Result)
         || declared.contains(praxis_policy_apl_core::rules::Phase::PostPolicy)
@@ -1269,9 +1359,26 @@ fn response_subblock(yaml: &serde_yaml::Value, route_key: &str) -> Option<DenyRe
     reason = "tests"
 )]
 mod tests {
-    use super::{apl_subblock, http_catchall_should_install, response_subblock};
+    use std::sync::Arc;
+
+    use super::{
+        AplConfigVisitor, ConfigVisitor as _, DispatchCache, ENTITY_HTTP, ENTITY_NAME_GLOBAL,
+        ENTITY_TOOL, HOOK_CMF_TOOL_PRE_INVOKE, HOOK_HTTP_REQUEST, HOOK_HTTP_RESPONSE, PluginConfig,
+        PluginRouteRef, PolicyEngine, RouteEntry, apl_subblock, declares_post_phase,
+        declares_pre_phase, displaced_plugin_chain, response_subblock,
+    };
+    use crate::session_store::MemorySessionStore;
     use praxis_policy_apl_core::pipeline::{FieldRule, Pipeline, Stage, TypeCheck};
     use praxis_policy_apl_core::rules::{CompiledRoute, Effect};
+    use praxis_policy_core::cmf::enums::Role;
+    use praxis_policy_core::cmf::{CmfHook, Message, MessagePayload};
+    use praxis_policy_core::config::{HttpSelector, Pattern, StringOrList};
+    use praxis_policy_core::error::PluginViolation;
+    use praxis_policy_core::extensions::{Extensions, HttpExtension, MetaExtension};
+    use praxis_policy_core::factory::{PluginFactory, PluginInstance};
+    use praxis_policy_core::hooks::adapter::TypedHandlerAdapter;
+    use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
+    use praxis_policy_core::http_hook::{HttpHook, HttpPayload};
 
     fn yaml(s: &str) -> serde_yaml::Value {
         serde_yaml::from_str(s).expect("valid yaml")
@@ -1305,7 +1412,7 @@ mod tests {
         let mut route = CompiledRoute::new("global");
         route.args.push(field_rule("http.method"));
         assert!(
-            http_catchall_should_install(&route),
+            declares_pre_phase(&route),
             "an args-only global block must still install the catch-all handler"
         );
     }
@@ -1314,23 +1421,55 @@ mod tests {
     fn http_catchall_installs_for_policy_only_global_block() {
         let mut route = CompiledRoute::new("global");
         route.policy.push(deny_effect());
-        assert!(http_catchall_should_install(&route));
+        assert!(declares_pre_phase(&route));
     }
 
     #[test]
     fn http_catchall_does_not_install_for_empty_or_post_only_global_block() {
         let empty = CompiledRoute::new("global");
         assert!(
-            !http_catchall_should_install(&empty),
+            !declares_pre_phase(&empty),
             "an empty global block has nothing to evaluate; installing would be a no-op handler"
         );
 
         let mut post_only = CompiledRoute::new("global");
         post_only.post_policy.push(deny_effect());
         assert!(
-            !http_catchall_should_install(&post_only),
+            !declares_pre_phase(&post_only),
             "post_policy never runs on the Pre-phase-only catch-all, so it must not gate installation"
         );
+    }
+
+    /// Every `Phase` must be claimed by exactly one install predicate, or a
+    /// route declaring only that phase installs no handler and evaluates
+    /// nothing. The match below is exhaustive, so a fifth variant fails to
+    /// compile here instead of silently installing nothing.
+    #[test]
+    fn every_phase_is_claimed_by_exactly_one_install_predicate() {
+        use praxis_policy_apl_core::rules::Phase;
+        for phase in [Phase::Args, Phase::Policy, Phase::Result, Phase::PostPolicy] {
+            let mut route = CompiledRoute::new("r");
+            let is_pre = match phase {
+                Phase::Args => {
+                    route.args.push(field_rule("a"));
+                    true
+                },
+                Phase::Policy => {
+                    route.policy.push(deny_effect());
+                    true
+                },
+                Phase::Result => {
+                    route.result.push(field_rule("r"));
+                    false
+                },
+                Phase::PostPolicy => {
+                    route.post_policy.push(deny_effect());
+                    false
+                },
+            };
+            assert_eq!(declares_pre_phase(&route), is_pre, "pre for {phase:?}");
+            assert_eq!(declares_post_phase(&route), !is_pre, "post for {phase:?}");
+        }
     }
 
     #[test]
@@ -1387,6 +1526,48 @@ mod tests {
             response_subblock(&v, "tool:*").is_none(),
             "malformed response: block must be ignored, not panic or propagate an error"
         );
+    }
+
+    /// The report an operator gets for the one case where something they wrote
+    /// stops firing: an `http:` route whose policy body stands in for the
+    /// `plugins:` it also lists.
+    #[test]
+    fn an_http_route_listing_plugins_names_them_as_displaced() {
+        let route = RouteEntry {
+            http: Some(HttpSelector::prefix("/v1/files")),
+            plugins: vec![
+                PluginRouteRef::Name("corp-jwt".to_owned()),
+                PluginRouteRef::Name("audit".to_owned()),
+            ],
+            ..RouteEntry::default()
+        };
+        assert_eq!(
+            displaced_plugin_chain(ENTITY_HTTP, &route),
+            ["corp-jwt", "audit"],
+            "the report names what stops firing, in the order it was written"
+        );
+    }
+
+    /// Nothing an operator wrote is displaced, so there is nothing to say.
+    #[test]
+    fn an_http_route_listing_no_plugins_displaces_nothing() {
+        let route = RouteEntry {
+            http: Some(HttpSelector::exact("/healthz")),
+            ..RouteEntry::default()
+        };
+        assert!(displaced_plugin_chain(ENTITY_HTTP, &route).is_empty());
+    }
+
+    /// The substitution is as old as entity routes, so reporting it for one
+    /// would be new noise on a configuration nobody edited.
+    #[test]
+    fn an_entity_route_listing_plugins_is_not_reported() {
+        let route = RouteEntry {
+            tool: Some(StringOrList::Single(Pattern::new("get_compensation"))),
+            plugins: vec![PluginRouteRef::Name("corp-jwt".to_owned())],
+            ..RouteEntry::default()
+        };
+        assert!(displaced_plugin_chain(ENTITY_TOOL, &route).is_empty());
     }
 
     #[test]
@@ -1537,5 +1718,516 @@ mod tests {
 
         // Must not panic; it warns on `unused` and stays silent on `used`.
         warn_unreferenced_plugin_overrides(&route);
+    }
+
+    /// A route naming no selector has no name to annotate under, so the visitor
+    /// reports it and moves on rather than installing a handler nothing can
+    /// reach. Observed through the engine generation, which only an annotation
+    /// bumps.
+    #[test]
+    fn a_route_with_no_selector_is_skipped_rather_than_annotated() {
+        let engine = Arc::new(PolicyEngine::default());
+        let visitor = AplConfigVisitor::new(
+            Arc::new(DispatchCache::new()),
+            Arc::new(MemorySessionStore::new()),
+            Arc::downgrade(&engine),
+        );
+        let before = engine.config_generation();
+
+        visitor
+            .visit_route(
+                &engine,
+                &yaml("apl:\n  pre_invocation:\n    - \"deny\"\n"),
+                &RouteEntry::default(),
+            )
+            .expect("a selector-less route is skipped, not a load failure");
+
+        assert_eq!(
+            engine.config_generation(),
+            before,
+            "nothing may be annotated for a route with no name"
+        );
+    }
+
+    // -- Dispatch end to end --
+    //
+    // A compiled policy body reaches a request through the annotation the
+    // visitor installed, so these drive a real engine rather than inspecting
+    // the visitor's own state. Every fixture sets
+    // `plugin_settings.routing_enabled: true`, which the `http:` selector
+    // requires and which defaults off.
+
+    /// A plugin that denies whatever reaches it, so a structural chain that
+    /// runs when it should not is visible as a denial with this code.
+    const CHAIN_VIOLATION: &str = "test.structural.chain.fired";
+
+    struct ChainDeny {
+        cfg: PluginConfig,
+    }
+
+    #[async_trait::async_trait]
+    impl praxis_policy_core::plugin::Plugin for ChainDeny {
+        fn config(&self) -> &PluginConfig {
+            &self.cfg
+        }
+    }
+
+    impl HookHandler<HttpHook> for ChainDeny {
+        async fn handle(
+            &self,
+            _payload: &HttpPayload,
+            _extensions: &praxis_policy_core::extensions::Extensions,
+            _ctx: &mut praxis_policy_core::context::PluginContext,
+        ) -> PluginResult<HttpPayload> {
+            PluginResult::deny(PluginViolation::new(
+                CHAIN_VIOLATION,
+                "the route's plugin chain ran",
+            ))
+        }
+    }
+
+    struct ChainDenyFactory;
+
+    impl PluginFactory for ChainDenyFactory {
+        fn create(
+            &self,
+            config: &PluginConfig,
+        ) -> Result<PluginInstance, Box<praxis_policy_core::error::PluginError>> {
+            let plugin = Arc::new(ChainDeny {
+                cfg: config.clone(),
+            });
+            let handler: Arc<dyn praxis_policy_core::registry::AnyHookHandler> =
+                Arc::new(TypedHandlerAdapter::<HttpHook, _>::new(Arc::clone(&plugin)));
+            Ok(PluginInstance {
+                plugin,
+                handlers: vec![(HOOK_HTTP_REQUEST, handler)],
+            })
+        }
+    }
+
+    /// An initialized engine with the APL visitor walked over `yaml`.
+    async fn engine_with(yaml: &str) -> Arc<PolicyEngine> {
+        let mgr = Arc::new(PolicyEngine::default());
+        mgr.register_factory("test/chain-deny", Box::new(ChainDenyFactory));
+        crate::register_apl(&mgr, crate::AplOptions::in_process());
+        mgr.load_config_yaml(yaml).expect("the fixture must load");
+        mgr.initialize().await.expect("initialize");
+        mgr
+    }
+
+    fn payload() -> MessagePayload {
+        MessagePayload {
+            message: Message::text(Role::User, "hi"),
+        }
+    }
+
+    /// A generic HTTP request as a host presents one: the reserved entity
+    /// coordinates plus the request line on its own slot.
+    fn http_request(method: &str, path: Option<&str>) -> Extensions {
+        Extensions {
+            meta: Some(Arc::new(MetaExtension {
+                entity_type: Some(ENTITY_HTTP.to_owned()),
+                entity_name: Some(ENTITY_NAME_GLOBAL.to_owned()),
+                ..Default::default()
+            })),
+            http: Some(Arc::new(HttpExtension {
+                method: Some(method.to_owned()),
+                path: path.map(str::to_owned),
+                ..Default::default()
+            })),
+            ..Default::default()
+        }
+    }
+
+    fn tool_request(name: &str) -> Extensions {
+        Extensions {
+            meta: Some(Arc::new(MetaExtension {
+                entity_type: Some(ENTITY_TOOL.to_owned()),
+                entity_name: Some(name.to_owned()),
+                ..Default::default()
+            })),
+            ..Default::default()
+        }
+    }
+
+    /// Two `http:` routes, one carrying a body and one carrying nothing.
+    const HTTP_ROUTE_BODIES: &str = r#"
+plugin_settings:
+  routing_enabled: true
+routes:
+  - http:
+      path_prefix: /v1/files
+    apl:
+      pre_invocation:
+        - "http.method == 'DELETE': deny"
+  - http: /healthz
+    plugins: []
+"#;
+
+    #[tokio::test]
+    async fn an_http_prefix_route_evaluates_its_policy_body() {
+        let mgr = engine_with(HTTP_ROUTE_BODIES).await;
+
+        let (denied, _bg) = mgr
+            .invoke_named::<HttpHook>(
+                HOOK_HTTP_REQUEST,
+                HttpPayload,
+                http_request("DELETE", Some("/v1/files/q3.pdf")),
+                None,
+            )
+            .await;
+        assert!(
+            !denied.continue_processing,
+            "the route's body must evaluate for a path its prefix matches"
+        );
+
+        let (allowed, _bg) = mgr
+            .invoke_named::<HttpHook>(
+                HOOK_HTTP_REQUEST,
+                HttpPayload,
+                http_request("GET", Some("/v1/files/q3.pdf")),
+                None,
+            )
+            .await;
+        assert!(
+            allowed.continue_processing,
+            "the body allows a GET; violation = {:?}",
+            allowed.violation
+        );
+    }
+
+    #[tokio::test]
+    async fn an_exact_http_route_with_no_body_inherits_nothing() {
+        let mgr = engine_with(HTTP_ROUTE_BODIES).await;
+
+        let (result, _bg) = mgr
+            .invoke_named::<HttpHook>(
+                HOOK_HTTP_REQUEST,
+                HttpPayload,
+                http_request("DELETE", Some("/healthz")),
+                None,
+            )
+            .await;
+        assert!(
+            result.continue_processing,
+            "the exact route resolved and carries nothing, so the sibling \
+             route's body must not reach it; violation = {:?}",
+            result.violation
+        );
+    }
+
+    /// A route carrying both a policy body and a `plugins:` list. The plugin
+    /// denies, so an allowed request proves the body replaced the chain.
+    const HTTP_ROUTE_BODY_AND_CHAIN: &str = r#"
+plugin_settings:
+  routing_enabled: true
+plugins:
+  - name: chain-deny
+    kind: test/chain-deny
+    hooks: [http.request]
+    mode: sequential
+routes:
+  - http:
+      path_prefix: /v1/files
+    plugins: [chain-deny]
+    apl:
+      pre_invocation:
+        - "http.method == 'DELETE': deny"
+"#;
+
+    /// The same route without a body, so the chain the test below asserts is
+    /// absent is one that demonstrably runs when nothing replaces it.
+    #[tokio::test]
+    async fn an_http_route_without_a_body_runs_its_structural_plugin_chain() {
+        const YAML: &str = "
+plugin_settings:
+  routing_enabled: true
+plugins:
+  - name: chain-deny
+    kind: test/chain-deny
+    hooks: [http.request]
+    mode: sequential
+routes:
+  - http:
+      path_prefix: /v1/files
+    plugins: [chain-deny]
+";
+        let mgr = engine_with(YAML).await;
+
+        let (denied, _bg) = mgr
+            .invoke_named::<HttpHook>(
+                HOOK_HTTP_REQUEST,
+                HttpPayload,
+                http_request("GET", Some("/v1/files/q3.pdf")),
+                None,
+            )
+            .await;
+        let violation = denied.violation.expect("the chain denies");
+        assert_eq!(
+            violation.code, CHAIN_VIOLATION,
+            "an http: route with no body resolves its plugins the ordinary way"
+        );
+    }
+
+    #[tokio::test]
+    async fn an_http_route_body_replaces_the_structural_plugin_chain() {
+        let mgr = engine_with(HTTP_ROUTE_BODY_AND_CHAIN).await;
+
+        let (allowed, _bg) = mgr
+            .invoke_named::<HttpHook>(
+                HOOK_HTTP_REQUEST,
+                HttpPayload,
+                http_request("GET", Some("/v1/files/q3.pdf")),
+                None,
+            )
+            .await;
+        assert!(
+            allowed.continue_processing,
+            "the annotated body is the whole lineup, so the route's own \
+             plugins: list must not run; violation = {:?}",
+            allowed.violation
+        );
+
+        let (denied, _bg) = mgr
+            .invoke_named::<HttpHook>(
+                HOOK_HTTP_REQUEST,
+                HttpPayload,
+                http_request("DELETE", Some("/v1/files/q3.pdf")),
+                None,
+            )
+            .await;
+        let violation = denied
+            .violation
+            .expect("the body's denial carries a violation");
+        assert_ne!(
+            violation.code, CHAIN_VIOLATION,
+            "the denial must come from the policy body, not from the chain"
+        );
+    }
+
+    /// A glob route under one of the four MCP selectors. The annotation is
+    /// installed under the pattern as written, and the lookup is exact
+    /// equality, so a request named by a glob never reaches the body.
+    const GLOB_TOOL_ROUTE: &str = r#"
+plugin_settings:
+  routing_enabled: true
+routes:
+  - tool: "hr-*"
+    apl:
+      pre_invocation:
+        - "deny"
+"#;
+
+    #[tokio::test]
+    async fn a_glob_tool_route_still_does_not_evaluate_its_policy_body() {
+        let mgr = engine_with(GLOB_TOOL_ROUTE).await;
+
+        let (allowed, _bg) = mgr
+            .invoke_named::<CmfHook>(
+                HOOK_CMF_TOOL_PRE_INVOKE,
+                payload(),
+                tool_request("hr-lookup"),
+                None,
+            )
+            .await;
+        assert!(
+            allowed.continue_processing,
+            "a name the glob matches does not equal the pattern the handler is \
+             installed under, so the body does not evaluate; violation = {:?}",
+            allowed.violation
+        );
+
+        // The handler exists and its body denies, so the line above is the
+        // lookup and not a missing installation.
+        let (denied, _bg) = mgr
+            .invoke_named::<CmfHook>(
+                HOOK_CMF_TOOL_PRE_INVOKE,
+                payload(),
+                tool_request("hr-*"),
+                None,
+            )
+            .await;
+        assert!(
+            !denied.continue_processing,
+            "the body is installed under the pattern as written"
+        );
+    }
+
+    /// A list selector contributes one name per element.
+    const LIST_TOOL_ROUTE: &str = r#"
+plugin_settings:
+  routing_enabled: true
+routes:
+  - tool: [alpha, beta]
+    apl:
+      pre_invocation:
+        - "deny"
+"#;
+
+    #[tokio::test]
+    async fn a_list_tool_route_dispatches_for_every_element() {
+        let mgr = engine_with(LIST_TOOL_ROUTE).await;
+
+        for name in ["alpha", "beta"] {
+            let (denied, _bg) = mgr
+                .invoke_named::<CmfHook>(
+                    HOOK_CMF_TOOL_PRE_INVOKE,
+                    payload(),
+                    tool_request(name),
+                    None,
+                )
+                .await;
+            assert!(
+                !denied.continue_processing,
+                "{name} is one of the names the list contributes"
+            );
+        }
+
+        let (allowed, _bg) = mgr
+            .invoke_named::<CmfHook>(
+                HOOK_CMF_TOOL_PRE_INVOKE,
+                payload(),
+                tool_request("gamma"),
+                None,
+            )
+            .await;
+        assert!(
+            allowed.continue_processing,
+            "a name the list does not contain reaches no handler; violation = {:?}",
+            allowed.violation
+        );
+    }
+
+    /// One `http:` route declaring both halves.
+    const HTTP_ROUTE_BOTH_HALVES: &str = r#"
+plugin_settings:
+  routing_enabled: true
+routes:
+  - http:
+      path_prefix: /v1/files
+    apl:
+      pre_invocation:
+        - "http.method == 'DELETE': deny"
+      post_invocation:
+        - "http.method == 'TRACE': deny"
+"#;
+
+    #[tokio::test]
+    async fn both_http_halves_resolve_the_same_route() {
+        let mgr = engine_with(HTTP_ROUTE_BOTH_HALVES).await;
+        assert!(
+            mgr.has_hooks_for(HOOK_HTTP_REQUEST) && mgr.has_hooks_for(HOOK_HTTP_RESPONSE),
+            "a route declaring both halves installs both"
+        );
+
+        let (denied_in, _bg) = mgr
+            .invoke_named::<HttpHook>(
+                HOOK_HTTP_REQUEST,
+                HttpPayload,
+                http_request("DELETE", Some("/v1/files/q3.pdf")),
+                None,
+            )
+            .await;
+        assert!(!denied_in.continue_processing, "the request half enforces");
+
+        let (denied_out, _bg) = mgr
+            .invoke_named::<HttpHook>(
+                HOOK_HTTP_RESPONSE,
+                HttpPayload,
+                http_request("TRACE", Some("/v1/files/q3.pdf")),
+                None,
+            )
+            .await;
+        assert!(
+            !denied_out.continue_processing,
+            "the response half resolves the same route given the request line"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_response_invocation_without_the_request_line_behaves_as_before() {
+        let mgr = engine_with(HTTP_ROUTE_BOTH_HALVES).await;
+
+        let (result, _bg) = mgr
+            .invoke_named::<HttpHook>(
+                HOOK_HTTP_RESPONSE,
+                HttpPayload,
+                http_request("TRACE", None),
+                None,
+            )
+            .await;
+        assert!(
+            result.continue_processing,
+            "with no request line nothing resolves and the global policy \
+             governs, which is what a host that never set it gets today; \
+             violation = {:?}",
+            result.violation
+        );
+    }
+
+    /// A global HTTP policy alongside an explicit catch-all route. The two
+    /// occupy different annotation keys, and each rule below belongs to only
+    /// one of them.
+    const GLOBAL_PLUS_CATCHALL_ROUTE: &str = r#"
+plugin_settings:
+  routing_enabled: true
+global:
+  apl:
+    pre_invocation:
+      - "http.method == 'PATCH': deny"
+routes:
+  - http:
+      path_prefix: /
+    apl:
+      pre_invocation:
+        - "http.method == 'DELETE': deny"
+"#;
+
+    #[tokio::test]
+    async fn an_explicit_catchall_route_and_the_global_policy_both_survive() {
+        let mgr = engine_with(GLOBAL_PLUS_CATCHALL_ROUTE).await;
+
+        let (denied, _bg) = mgr
+            .invoke_named::<HttpHook>(
+                HOOK_HTTP_REQUEST,
+                HttpPayload,
+                http_request("DELETE", Some("/anything/at/all")),
+                None,
+            )
+            .await;
+        assert!(
+            !denied.continue_processing,
+            "the route governs every path it resolves"
+        );
+
+        // Nothing resolves without a request line, which is where the
+        // implicit install under the reserved name applies. Its own rule
+        // still fires there, so the route did not replace its handler.
+        let (denied_global, _bg) = mgr
+            .invoke_named::<HttpHook>(
+                HOOK_HTTP_REQUEST,
+                HttpPayload,
+                http_request("PATCH", None),
+                None,
+            )
+            .await;
+        assert!(
+            !denied_global.continue_processing,
+            "the implicit catch-all still governs what resolves nothing"
+        );
+
+        let (allowed, _bg) = mgr
+            .invoke_named::<HttpHook>(
+                HOOK_HTTP_REQUEST,
+                HttpPayload,
+                http_request("DELETE", None),
+                None,
+            )
+            .await;
+        assert!(
+            allowed.continue_processing,
+            "the route's rule is the route's alone; violation = {:?}",
+            allowed.violation
+        );
     }
 }

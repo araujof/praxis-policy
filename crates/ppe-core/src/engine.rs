@@ -28,8 +28,9 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 
 use hashbrown::HashMap;
-use tracing::{error, info, warn};
+use tracing::{error, info, trace, warn};
 
+use crate::cmf::constants::{ENTITY_HTTP, ENTITY_NAME_GLOBAL};
 use crate::config::{self, PolicyConfig};
 use crate::context::PluginContextTable;
 use crate::error::PluginError;
@@ -39,12 +40,77 @@ use crate::hooks::HookType;
 use crate::hooks::adapter::TypedHandlerAdapter;
 use crate::hooks::payload::{Extensions, PluginPayload};
 use crate::hooks::trait_def::{HookHandler, HookTypeDef, PluginResult};
+use crate::http_path;
 use crate::plugin::{Plugin, PluginConfig};
 use crate::registry::{AnyHookHandler, PluginRef, PluginRegistry};
 
 /// Default upper bound on the routing cache. Caps memory growth from
 /// attacker-controlled entity names without forcing operators to tune.
 pub const DEFAULT_ROUTE_CACHE_MAX_ENTRIES: usize = 10_000;
+
+/// Violation code for a request whose path the engine could not read.
+/// Stable, so a host can map it without matching on the reason text.
+pub const VIOLATION_UNREADABLE_REQUEST_PATH: &str = "unreadable_request_path";
+
+/// Why a request could not be resolved against the route table.
+///
+/// Resolving no route is not an error: the request falls back to the global
+/// policy, as it always has. This is only produced when the request line cannot
+/// be read at all and at least one `http:` route is declared. Matching uses the
+/// path as given, so the engine and the host's router read one string; a string
+/// that breaks the rules of a path is one the engine cannot vouch is the string
+/// the router and the backend will act on, and a smuggled request line is
+/// exactly that case.
+///
+/// A hook with no registered entry and no annotation returns before
+/// resolution runs, so an unreadable path still allows there. Nothing would
+/// have enforced on that path in the first place.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum RouteResolutionError {
+    /// The request path broke a rule that makes a path readable.
+    #[error("the request path cannot be read: {0}")]
+    UnreadablePath(#[from] http_path::PathError),
+}
+
+impl RouteResolutionError {
+    /// The denial a host turns into a wire-level status. `400` because the
+    /// request itself is malformed rather than forbidden.
+    fn violation(self) -> crate::error::PluginViolation {
+        match self {
+            Self::UnreadablePath(cause) => crate::error::PluginViolation::new(
+                VIOLATION_UNREADABLE_REQUEST_PATH,
+                cause.to_string(),
+            )
+            .with_proto_error_code(400),
+        }
+    }
+}
+
+/// Whether the configuration declares any `http:` route. An unreadable path
+/// is only worth denying over when a route could have answered for it.
+fn declares_http_route(config: &PolicyConfig) -> bool {
+    config.routes.iter().any(|route| route.http.is_some())
+}
+
+/// The names of the `http:` routes that declare `authentication:`. Those lists
+/// are the ones that cannot apply when a request reaches the identity hook with
+/// no readable path, so this is the answer the warning needs.
+///
+/// Depends only on the configuration, so it is computed once when a config
+/// lands on a snapshot rather than per request. Empty when routing is off,
+/// since no route selects anything then.
+fn http_routes_declaring_authentication(config: &PolicyConfig) -> Arc<[String]> {
+    if !config.routing_enabled() {
+        return Arc::from(Vec::new());
+    }
+    config
+        .routes
+        .iter()
+        .filter(|route| route.http.is_some() && route.identity.is_some())
+        .filter_map(config::route_entity_identity)
+        .flat_map(|(_, names)| names)
+        .collect()
+}
 
 /// Configuration for the `PolicyEngine`.
 #[derive(Debug, Clone)]
@@ -102,9 +168,11 @@ impl Default for PolicyEngineConfig {
 /// decisions from `PluginRef.trusted_config` — never from the plugin.
 /// Cache key for resolved routing entries.
 ///
-/// Includes entity type, name, hook name, and scope so that
+/// Includes entity type, resolved name, hook name, and scope so that
 /// the same tool on different scopes or at different hook points
-/// caches separately.
+/// caches separately. The name is the one resolution produced, which for a
+/// generic HTTP request is the selector that matched rather than the request
+/// path, so cardinality follows the configuration and not the traffic.
 ///
 /// Custom Hash/Eq implementations hash on `&str` slices so that
 /// `raw_entry` lookups with borrowed strings produce the same hash
@@ -112,7 +180,7 @@ impl Default for PolicyEngineConfig {
 #[derive(Debug, Clone)]
 struct RouteCacheKey {
     entity_type: String,
-    entity_name: String,
+    resolved_name: String,
     hook_name: String,
     scope: Option<String>,
 }
@@ -120,7 +188,7 @@ struct RouteCacheKey {
 impl Hash for RouteCacheKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.entity_type.as_str().hash(state);
-        self.entity_name.as_str().hash(state);
+        self.resolved_name.as_str().hash(state);
         self.hook_name.as_str().hash(state);
         self.scope.as_deref().hash(state);
     }
@@ -129,7 +197,7 @@ impl Hash for RouteCacheKey {
 impl PartialEq for RouteCacheKey {
     fn eq(&self, other: &Self) -> bool {
         self.entity_type == other.entity_type
-            && self.entity_name == other.entity_name
+            && self.resolved_name == other.resolved_name
             && self.hook_name == other.hook_name
             && self.scope == other.scope
     }
@@ -179,7 +247,7 @@ struct RuntimeSnapshot {
     /// `scope` (None vs `Some("virtual-server-A")`) lets two virtual
     /// servers / gateways with the same tool name carry distinct
     /// orchestrators. Matching mirrors praxis-policy-core's existing
-    /// `find_matching_route` semantics: a scoped request first tries the
+    /// `resolve_route` semantics: a scoped request first tries the
     /// exact `(et, en, Some(req_scope), hook)` annotation; on miss it falls
     /// back to the unscoped `(et, en, None, hook)` default. An unscoped
     /// request only matches `(et, en, None, hook)`. Net effect: None-scope
@@ -192,6 +260,14 @@ struct RuntimeSnapshot {
     /// what praxis-policy-apl-runtime's `AplRouteHandler` does via `CmfPluginInvoker` for
     /// `plugin(name)` references inside APL rules).
     route_annotations: HashMap<AnnotationKey, crate::registry::HookEntry>,
+
+    /// The `http:` routes that declare `authentication:`, by the name each
+    /// resolves under. Derived from `policy_config` when the snapshot is built,
+    /// so the identity hook reads an answer instead of walking the route table
+    /// on every request that carries no readable path. Empty for every config
+    /// that has nothing to report, which is the ordinary one. A config
+    /// replacement builds a new snapshot, so the answer cannot go stale.
+    http_routes_declaring_authentication: Arc<[String]>,
 }
 
 /// Composite key for route annotations. Includes the hook name so a single
@@ -233,6 +309,13 @@ pub struct PolicyEngine {
     /// given fill cycle, so the warn log fires once per cycle rather than
     /// on every miss under `DoS`. Reset by `clear_routing_cache()`.
     route_cache_full_warned: AtomicBool,
+
+    /// Set to true after the first time an `http:` route's `authentication:`
+    /// list could not apply because the request carried no path. The
+    /// fallback to the global list is long-standing behavior, but it is
+    /// silent, so it warns once rather than on every request. Reset by
+    /// `clear_routing_cache()`.
+    route_authentication_unreachable_warned: AtomicBool,
 
     /// Whether `initialize()` has been called. Atomic so lifecycle methods
     /// can be `&self` and the engine itself can sit behind `Arc`.
@@ -314,12 +397,18 @@ fn normalize_and_validate(mut config: PolicyConfig) -> Result<PolicyConfig, Box<
 }
 
 /// Emit warnings for YAML settings that the runtime doesn't currently
-/// honor. Called once per `load_config` / `from_config` so operators
-/// who set these knobs aren't silently ignored.
+/// honor, and for what a declared set of `http:` routes leaves ungoverned.
+/// Called once per `load_config` / `from_config` so operators who set these
+/// knobs aren't silently ignored.
 ///
 /// `user_patterns` / `content_types` on `PluginCondition` are not warned
 /// — they were wired up alongside this fix and now actually filter.
 fn warn_on_inactive_settings(cfg: &PolicyConfig) {
+    // Reported here rather than from validation, which runs more than once on
+    // the visitor load path, so an operator reads each gap once per load.
+    for gap in crate::config::http_routing_gaps(cfg) {
+        warn!("{gap}");
+    }
     if !cfg.plugin_dirs.is_empty() {
         warn!(
             "config sets `plugin_dirs` (count={}) but the runtime does not \
@@ -444,12 +533,14 @@ fn snapshot_from_config(registry: PluginRegistry, policy_config: PolicyConfig) -
         short_circuit_on_deny: policy_config.plugin_settings.short_circuit_on_deny,
     });
     let route_cache_max_entries = policy_config.plugin_settings.route_cache_max_entries;
+    let http_routes_declaring_authentication = http_routes_declaring_authentication(&policy_config);
     RuntimeSnapshot {
         registry,
         executor,
         policy_config: Some(policy_config),
         route_cache_max_entries,
         route_annotations: HashMap::new(),
+        http_routes_declaring_authentication,
     }
 }
 
@@ -463,6 +554,7 @@ impl PolicyEngine {
             policy_config: None,
             route_cache_max_entries: config.route_cache_max_entries,
             route_annotations: HashMap::new(),
+            http_routes_declaring_authentication: Arc::from(Vec::new()),
         };
         Self {
             runtime: arc_swap::ArcSwap::from_pointee(snapshot),
@@ -470,6 +562,7 @@ impl PolicyEngine {
             route_cache: RwLock::new(HashMap::with_hasher(cache_hasher.clone())),
             cache_hasher,
             route_cache_full_warned: AtomicBool::new(false),
+            route_authentication_unreachable_warned: AtomicBool::new(false),
             initialized: AtomicBool::new(false),
             generation: AtomicU64::new(0),
             runtime_write: Mutex::new(()),
@@ -582,13 +675,16 @@ impl PolicyEngine {
             .policy_config
             .as_ref()
             .is_some_and(|policy_config| {
-                !config::resolve_identity_plugins_for_route(
+                // Resolve the route first: the resolver takes the route already
+                // matched. This runs at config load, where there is no request
+                // line, so an `http:` route is not reachable from here — a
+                // named query leaves the path empty and matches none.
+                let matched = config::resolve_route(
                     policy_config,
-                    entity_type,
-                    entity_name,
-                    request_scope,
-                )
-                .is_empty()
+                    config::RouteQuery::named(entity_type, entity_name).with_scope(request_scope),
+                );
+                !config::resolve_identity_plugins_for_route(policy_config, matched.as_ref())
+                    .is_empty()
             })
     }
 
@@ -769,6 +865,20 @@ impl PolicyEngine {
         // group's plugins + `authentication:`), never rejects the renamed
         // `identity:` key, and never validates references.
         crate::config::reject_renamed_identity_key(&raw)?;
+        // Registered visitors are read before the route-key check so a key an
+        // orchestrator declares is accepted rather than rejected as a typo.
+        let visitors = {
+            let v = self
+                .visitors
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            v.clone()
+        };
+        let visitor_route_keys: Vec<&str> = visitors
+            .iter()
+            .flat_map(|v| v.extra_route_keys().iter().copied())
+            .collect();
+        crate::config::reject_unknown_route_keys(&raw, &visitor_route_keys)?;
         // Visitors below read the normalized routes and plugin declarations, so
         // this runs here rather than being left to `load_config`. Both steps
         // are idempotent, so `load_config` repeating them is redundant work on
@@ -787,16 +897,9 @@ impl PolicyEngine {
 
         // Visitor walk. No-op when no visitors registered — the common
         // case for hosts that don't use the orchestrator extension point.
-        let visitors = {
-            let v = self
-                .visitors
-                .read()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            if v.is_empty() {
-                return Ok(());
-            }
-            v.clone()
-        };
+        if visitors.is_empty() {
+            return Ok(());
+        }
 
         let mgr: Arc<PolicyEngine> = Arc::clone(self);
         let global_yaml = raw
@@ -971,7 +1074,8 @@ impl PolicyEngine {
     /// # Errors
     ///
     /// Returns `PluginError::Config` when a plugin of the same name is already
-    /// registered for this hook.
+    /// registered for this hook, or when the hook's metadata row names a family
+    /// other than the one the handler serves.
     pub fn register_handler<H, P>(
         &self,
         plugin: Arc<P>,
@@ -1009,7 +1113,8 @@ impl PolicyEngine {
     /// # Errors
     ///
     /// Returns `PluginError::Config` when a plugin of the same name is already
-    /// registered under any of the given hook names.
+    /// registered under any of the given hook names, or when one of those names
+    /// expects a family other than the one the handler serves.
     pub fn register_handler_for_names<H, P>(
         &self,
         plugin: Arc<P>,
@@ -1040,7 +1145,8 @@ impl PolicyEngine {
     /// # Errors
     ///
     /// Returns `PluginError::Config` when a plugin of the same name is already
-    /// registered for this hook.
+    /// registered for this hook, or when the hook's metadata row names a family
+    /// other than the one the handler serves.
     pub fn register_raw<H: HookTypeDef>(
         &self,
         plugin: Arc<dyn Plugin>,
@@ -1276,9 +1382,22 @@ impl PolicyEngine {
             );
         }
 
-        let entries = self
+        let entries = match self
             .filter_entries_by_route(&snapshot, all_entries, &extensions, hook_name)
-            .await;
+            .await
+        {
+            Ok(entries) => entries,
+            Err(cause) => {
+                return (
+                    PipelineResult::denied(
+                        cause.violation(),
+                        extensions,
+                        context_table.unwrap_or_default(),
+                    ),
+                    BackgroundTasks::empty(),
+                );
+            },
+        };
 
         if entries.is_empty() {
             return (
@@ -1351,9 +1470,22 @@ impl PolicyEngine {
             );
         }
 
-        let entries = self
+        let entries = match self
             .filter_entries_by_route(&snapshot, all_entries, &extensions, H::NAME)
-            .await;
+            .await
+        {
+            Ok(entries) => entries,
+            Err(cause) => {
+                return (
+                    PipelineResult::denied(
+                        cause.violation(),
+                        extensions,
+                        context_table.unwrap_or_default(),
+                    ),
+                    BackgroundTasks::empty(),
+                );
+            },
+        };
 
         if entries.is_empty() {
             let boxed: Box<dyn PluginPayload> = Box::new(payload);
@@ -1422,6 +1554,10 @@ impl PolicyEngine {
         // (external-orchestrator handlers from APL / future Rego /
         // Cedar-direct) can produce a single-entry dispatch even when
         // no plugin was registered on the hook directly.
+        //
+        // Returning here also means a request whose path cannot be read is
+        // allowed rather than denied on such a hook. Nothing would have
+        // enforced on it either way.
         if all_entries.is_empty() && snapshot.route_annotations.is_empty() {
             let boxed: Box<dyn PluginPayload> = Box::new(payload);
             return (
@@ -1430,9 +1566,22 @@ impl PolicyEngine {
             );
         }
 
-        let entries = self
+        let entries = match self
             .filter_entries_by_route(&snapshot, all_entries, &extensions, hook_name)
-            .await;
+            .await
+        {
+            Ok(entries) => entries,
+            Err(cause) => {
+                return (
+                    PipelineResult::denied(
+                        cause.violation(),
+                        extensions,
+                        context_table.unwrap_or_default(),
+                    ),
+                    BackgroundTasks::empty(),
+                );
+            },
+        };
 
         if entries.is_empty() {
             let boxed: Box<dyn PluginPayload> = Box::new(payload);
@@ -1548,6 +1697,15 @@ impl PolicyEngine {
     /// The underlying `plugins:` chain for this route is *not* removed —
     /// those plugins stay discoverable via [`find_plugin_entries`](Self::find_plugin_entries)
     /// so the orchestrator can dispatch into them by name.
+    ///
+    /// An annotation is the entire lineup for its coordinates: resolution
+    /// returns the handler alone, so the `all` group, the entity-type
+    /// defaults, tag bundles, and the route's own `plugins:` list stop firing
+    /// for those requests unless the handler dispatches into them by name.
+    ///
+    /// Returns whether an annotation was already installed under the same
+    /// `(entity_type, entity_name, scope, hook_name)` and has been replaced. A
+    /// host may replace deliberately, so this reports rather than refuses.
     pub fn annotate_route<H>(
         &self,
         entity_type: impl Into<String>,
@@ -1556,7 +1714,8 @@ impl PolicyEngine {
         hook_name: impl Into<String>,
         handler: Arc<H>,
         config: crate::plugin::PluginConfig,
-    ) where
+    ) -> bool
+    where
         H: crate::plugin::Plugin + crate::registry::AnyHookHandler + 'static,
     {
         let key = AnnotationKey {
@@ -1570,9 +1729,7 @@ impl PolicyEngine {
             plugin_ref,
             handler,
         };
-        self.mutate_runtime(|snap| {
-            snap.route_annotations.insert(key, entry);
-        });
+        self.mutate_runtime(|snap| snap.route_annotations.insert(key, entry).is_some())
     }
 
     /// Remove a route annotation for a specific hook. No-op when no
@@ -1598,23 +1755,108 @@ impl PolicyEngine {
 
     /// Filter hook entries based on route resolution, with caching.
     ///
-    /// When routing is enabled and extensions.meta provides entity
-    /// identification, resolves the route and returns only the entries
-    /// for plugins that match. Results are cached by
-    /// `(entity_type, entity_name, hook_name, scope)` — subsequent
-    /// calls for the same key return an `Arc` to the cached entries
-    /// (refcount bump, no data copy).
+    /// When routing is enabled and the request identifies an entity, resolves
+    /// the route and returns only the entries for plugins that match. Results
+    /// are cached by `(entity_type, resolved_name, hook_name, scope)`, and a
+    /// call for a key already resolved returns an `Arc` to the cached entries
+    /// rather than a copy.
     ///
-    /// When routing is disabled or meta is absent, returns all entries.
+    /// A generic HTTP request is matched from its request line, so the name it
+    /// resolves to is a selector from the configuration rather than anything
+    /// the request carried. The four MCP entity types are matched by the name
+    /// they arrive under, as they always have been.
+    ///
+    /// When routing is disabled or the request identifies no entity, returns
+    /// all entries.
+    ///
+    /// # Errors
+    ///
+    /// [`RouteResolutionError`] when an HTTP request's path cannot be read and
+    /// the configuration declares at least one `http:` route.
     async fn filter_entries_by_route(
         &self,
         snapshot: &RuntimeSnapshot,
         entries: &[crate::registry::HookEntry],
         extensions: &Extensions,
         hook_name: &str,
-    ) -> Arc<Vec<crate::registry::HookEntry>> {
+    ) -> Result<Arc<Vec<crate::registry::HookEntry>>, RouteResolutionError> {
+        // A route only exists when the configuration turns routing on, so the
+        // whole selector feature is behind this.
+        let routing_config = snapshot
+            .policy_config
+            .as_ref()
+            .filter(|config| config.routing_enabled());
+
+        let meta = extensions.meta.as_deref();
+        let entity_type = meta.and_then(|m| m.entity_type.as_deref());
+        let request_scope = meta.and_then(|m| m.scope.as_deref());
+
+        // A generic HTTP request has to be matched before anything is looked
+        // up, because the name that keys the annotation table and the cache is
+        // the selector that matched and a request path is never that name. The
+        // four MCP entity types arrive under the name they are known by, so
+        // they need no derivation and keep resolving after the lookups below.
+        let http_matched = if entity_type == Some(ENTITY_HTTP) {
+            let request_line = extensions.http.as_deref();
+            // Whatever precedes a `?`, which is the router's own input: it
+            // matches on `rewritten_path` when a rewrite filter set one and
+            // strips a query off it, and on a request URI's path otherwise,
+            // which carries no query to begin with. A host that puts one in
+            // the path anyway lands on the same route the router picks.
+            let path = request_line
+                .and_then(|http| http.path.as_deref())
+                .map(|path| path.split('?').next().unwrap_or(path));
+            // Matching runs on the path exactly as it arrived, because that is
+            // the path the host's router matches on. Normalizing first would
+            // let PPE resolve a different route than the one the request is
+            // actually forwarded to.
+            //
+            // The normalizer still runs, and its `Ok` value is deliberately
+            // discarded: it is a fail-closed guard here, not the matcher. Do
+            // not wire its output back into the query below.
+            if let Err(cause) = path.map(http_path::normalize_match_path).transpose() {
+                // An unreadable path denies rather than falling through to the
+                // global policy: a path PPE cannot read is one it cannot claim
+                // to have matched the router on. Without an `http:` route
+                // nothing could have answered for the path anyway, so nothing
+                // is denied.
+                if routing_config.is_some_and(declares_http_route) {
+                    return Err(cause.into());
+                }
+            }
+            self.warn_once_if_route_authentication_is_unreachable(
+                &snapshot.http_routes_declaring_authentication,
+                hook_name,
+                path,
+            );
+            routing_config.zip(path).and_then(|(policy_config, path)| {
+                let method = request_line.and_then(|http| http.method.as_deref());
+                config::resolve_route(
+                    policy_config,
+                    config::RouteQuery::http(path, method).with_scope(request_scope),
+                )
+            })
+        } else {
+            None
+        };
+
+        // The name every lookup below keys on. When HTTP resolution found
+        // nothing the reserved global name governs, and naming the constant
+        // rather than reading `meta.entity_name` is what keeps a host-supplied
+        // path out of the cache key on that path too: the constant's doc asks a
+        // host to set that value but cannot make it.
+        let resolved_name = if entity_type == Some(ENTITY_HTTP) {
+            Some(
+                http_matched
+                    .as_ref()
+                    .map_or(ENTITY_NAME_GLOBAL, |route| route.name.as_str()),
+            )
+        } else {
+            meta.and_then(|m| m.entity_name.as_deref())
+        };
+
         // Route annotation short-circuit: if the request's
-        // (entity_type, entity_name) has an annotation that handles this
+        // (entity_type, resolved_name) has an annotation that handles this
         // hook, return a one-entry list containing the annotated handler.
         // External orchestrators (APL via praxis-policy-apl-runtime; future Rego/Cedar)
         // register annotations to drive plugin dispatch under their own
@@ -1622,32 +1864,31 @@ impl PolicyEngine {
         // `plugins:` entries stay in the registry for the orchestrator
         // to dispatch into by-name via `invoke_entries`.
         if !snapshot.route_annotations.is_empty()
-            && let Some(meta) = &extensions.meta
-            && let (Some(et), Some(en)) = (&meta.entity_type, &meta.entity_name)
+            && let (Some(et), Some(en)) = (entity_type, resolved_name)
         {
             // Scoped lookup first (specific wins); unscoped lookup
             // falls back as a "global default" — matches the
-            // specificity tiebreaker `find_matching_route` uses.
+            // specificity tiebreaker `resolve_route` uses.
             // Lookup is keyed on the hook name as well, so a route
             // can install distinct handlers per phase.
-            let scoped = meta.scope.as_ref().and_then(|s| {
+            let scoped = request_scope.and_then(|s| {
                 snapshot.route_annotations.get(&AnnotationKey {
-                    entity_type: et.clone(),
-                    entity_name: en.clone(),
-                    scope: Some(s.clone()),
+                    entity_type: et.to_owned(),
+                    entity_name: en.to_owned(),
+                    scope: Some(s.to_owned()),
                     hook_name: hook_name.to_owned(),
                 })
             });
             let candidate = scoped.or_else(|| {
                 snapshot.route_annotations.get(&AnnotationKey {
-                    entity_type: et.clone(),
-                    entity_name: en.clone(),
+                    entity_type: et.to_owned(),
+                    entity_name: en.to_owned(),
                     scope: None,
                     hook_name: hook_name.to_owned(),
                 })
             });
             if let Some(entry) = candidate {
-                return Arc::new(vec![entry.clone()]);
+                return Ok(Arc::new(vec![entry.clone()]));
             }
         }
 
@@ -1655,36 +1896,27 @@ impl PolicyEngine {
         // condition filtering. Empty conditions Vec means "fire always",
         // so this is backward-compatible with configs that don't use
         // conditions.
-        let policy_config = match &snapshot.policy_config {
-            Some(c) if c.routing_enabled() => c,
-            _ => {
-                let filtered: Vec<_> = entries
-                    .iter()
-                    .filter(|e| e.plugin_ref.trusted_config().passes_conditions(extensions))
-                    .cloned()
-                    .collect();
-                return Arc::new(filtered);
-            },
+        let Some(policy_config) = routing_config else {
+            let filtered: Vec<_> = entries
+                .iter()
+                .filter(|e| e.plugin_ref.trusted_config().passes_conditions(extensions))
+                .cloned()
+                .collect();
+            return Ok(Arc::new(filtered));
         };
 
-        let meta = match &extensions.meta {
-            Some(m) => m,
-            None => return Arc::new(entries.to_vec()),
+        let (Some(meta), Some(entity_type), Some(resolved_name)) =
+            (meta, entity_type, resolved_name)
+        else {
+            return Ok(Arc::new(entries.to_vec()));
         };
-
-        let (entity_type, entity_name) = match (&meta.entity_type, &meta.entity_name) {
-            (Some(t), Some(n)) => (t.as_str(), n.as_str()),
-            _ => return Arc::new(entries.to_vec()),
-        };
-
-        let request_scope = meta.scope.as_deref();
 
         // Fast path: zero-allocation cache lookup with raw_entry
         let hash = {
             use std::hash::BuildHasher as _;
             let mut hasher = self.cache_hasher.build_hasher();
             entity_type.hash(&mut hasher);
-            entity_name.hash(&mut hasher);
+            resolved_name.hash(&mut hasher);
             hook_name.hash(&mut hasher);
             request_scope.hash(&mut hasher);
             hasher.finish()
@@ -1702,11 +1934,11 @@ impl PolicyEngine {
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             if let Some((_, cached)) = cache.raw_entry().from_hash(hash, |key| {
                 key.entity_type == entity_type
-                    && key.entity_name == entity_name
+                    && key.resolved_name == resolved_name
                     && key.hook_name == hook_name
                     && key.scope.as_deref() == request_scope
             }) {
-                return Arc::clone(cached);
+                return Ok(Arc::clone(cached));
             }
         }
 
@@ -1717,21 +1949,35 @@ impl PolicyEngine {
         // the `plugins:` block, which in APL-driven routes means
         // "per-route overrides" rather than "binding"). For every
         // other hook, the generic plugins-block resolution applies.
-        let resolved = if hook_name == crate::identity::HOOK_IDENTITY_RESOLVE {
-            config::resolve_identity_plugins_for_route(
-                policy_config,
-                entity_type,
-                entity_name,
-                request_scope,
-            )
+        // An HTTP request matched above; every other entity type matches here,
+        // once, and both resolvers read the route the match produced rather
+        // than scanning the route table again.
+        let name_matched = if entity_type == ENTITY_HTTP {
+            None
         } else {
-            config::resolve_plugins_for_entity(
+            config::resolve_route(
                 policy_config,
-                entity_type,
-                entity_name,
-                request_scope,
-                &meta.tags,
+                config::RouteQuery::named(entity_type, resolved_name).with_scope(request_scope),
             )
+        };
+        let matched = http_matched.as_ref().or(name_matched.as_ref());
+
+        // The resolved name is the only place a matched route is visible from
+        // outside this function: for HTTP it is a selector the request never
+        // carried, and `http.path` in the attribute bag is the raw path. It is
+        // configuration rather than request input, so emitting it is safe.
+        trace!(
+            entity_type,
+            resolved_name,
+            scope = request_scope,
+            hook = hook_name,
+            "Resolved route for request",
+        );
+
+        let resolved = if hook_name == crate::identity::HOOK_IDENTITY_RESOLVE {
+            config::resolve_identity_plugins_for_route(policy_config, matched)
+        } else {
+            config::resolve_plugins_for_entity(policy_config, entity_type, matched, &meta.tags)
         };
 
         // Filter entries to resolved plugins, preserving resolution order.
@@ -1764,9 +2010,9 @@ impl PolicyEngine {
         // growth from attacker-controlled entity names.
         let cache_key = RouteCacheKey {
             entity_type: entity_type.to_owned(),
-            entity_name: entity_name.to_owned(),
+            resolved_name: resolved_name.to_owned(),
             hook_name: hook_name.to_owned(),
-            scope: meta.scope.clone(),
+            scope: request_scope.map(str::to_owned),
         };
         // Decide under the lock; log outside it so I/O doesn't block readers.
         // One warn per fill cycle — prevents log spam under DoS.
@@ -1791,7 +2037,47 @@ impl PolicyEngine {
             );
         }
 
-        cached
+        Ok(cached)
+    }
+
+    /// Warn once when an `http:` route's `authentication:` list cannot apply
+    /// because the request carried no readable path at the identity hook.
+    ///
+    /// Falling back to the global list is the behavior a host gets today and
+    /// stays that way, but doing it silently hides which list authenticated a
+    /// request, so the condition is diagnosable from what the engine emits.
+    ///
+    /// Which routes those are is decided when the config lands, so this reads
+    /// the answer off the snapshot. Every check here is O(1), which is what
+    /// keeps the ordinary config, where the answer is empty, off the route
+    /// table entirely.
+    fn warn_once_if_route_authentication_is_unreachable(
+        &self,
+        unreachable: &[String],
+        hook_name: &str,
+        request_path: Option<&str>,
+    ) {
+        if hook_name != crate::identity::HOOK_IDENTITY_RESOLVE
+            || unreachable.is_empty()
+            || request_path.is_some_and(|path| path.starts_with('/'))
+            || self
+                .route_authentication_unreachable_warned
+                .load(Ordering::Acquire)
+        {
+            return;
+        }
+        if !self
+            .route_authentication_unreachable_warned
+            .swap(true, Ordering::AcqRel)
+        {
+            warn!(
+                routes = unreachable.join(", "),
+                "An http: route declares authentication: but the request carries no \
+                 readable path at the identity hook, so the global authentication \
+                 list runs instead. The host must supply the request line on the \
+                 extensions at this hook for a route's list to apply.",
+            );
+        }
     }
 
     /// Build per-hook `HookEntry`s for a plugin with optional route-
@@ -2103,8 +2389,8 @@ impl PolicyEngine {
     }
 
     /// Clear the routing cache. Call when config is reloaded or
-    /// plugins are registered/unregistered. Also resets the
-    /// "cache full" warn-once latch so the next fill cycle can warn again.
+    /// plugins are registered/unregistered. Also resets the warn-once
+    /// latches so the next fill cycle can warn again.
     pub fn clear_routing_cache(&self) {
         {
             let mut cache = self
@@ -2113,9 +2399,11 @@ impl PolicyEngine {
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             cache.clear();
         }
-        // Outside the guard: the latch is an independent atomic and there is no
-        // reason to hold the cache lock while storing it.
+        // Outside the guard: the latches are independent atomics and there is
+        // no reason to hold the cache lock while storing them.
         self.route_cache_full_warned.store(false, Ordering::Release);
+        self.route_authentication_unreachable_warned
+            .store(false, Ordering::Release);
     }
 
     /// Number of entries in the routing cache.
@@ -4526,8 +4814,16 @@ plugins:
     /// Routing must work for `resource`, `prompt`, and `llm` entity types
     /// — not just `tool`. Closes the review's "no test verifying entity
     /// types other than tool in routing" gap.
+    ///
+    /// The `http` rows share the table because they share the dispatch
+    /// question, but they answer it from the request line rather than from a
+    /// name, so each row carries the path the request arrives on. The
+    /// segment-boundary rows mirror the host router's own suite: a prefix that
+    /// matches a path only where a `/` follows it, and a trailing slash on the
+    /// declared prefix that changes nothing.
     #[tokio::test]
     async fn test_routing_works_for_all_entity_types() {
+        register_fixture_hooks();
         use std::sync::Arc as StdArc;
         use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -4553,21 +4849,137 @@ plugins:
             }
         }
 
-        // Each row: (entity_type, route field name, route value, request entity_name, should_match)
+        // Each row: (entity_type, route field name, route value, request
+        // entity_name, request path, should_match). The path is `None` for the
+        // four name selectors, which never read the request line.
         // We build a fresh engine per entity type so routes don't bleed.
-        for (entity_type, route_field, route_value, request_name, should_match) in [
-            ("resource", "resource", "my_resource", "my_resource", true),
+        for (entity_type, route_field, route_value, request_name, request_path, should_match) in [
+            (
+                "resource",
+                "resource",
+                "my_resource",
+                "my_resource",
+                None,
+                true,
+            ),
             (
                 "resource",
                 "resource",
                 "my_resource",
                 "other_resource",
+                None,
                 false,
             ),
-            ("prompt", "prompt", "my_prompt", "my_prompt", true),
-            ("prompt", "prompt", "my_prompt", "other_prompt", false),
-            ("llm", "llm", "gpt-4", "gpt-4", true),
-            ("llm", "llm", "gpt-4", "claude", false),
+            ("prompt", "prompt", "my_prompt", "my_prompt", None, true),
+            ("prompt", "prompt", "my_prompt", "other_prompt", None, false),
+            ("llm", "llm", "gpt-4", "gpt-4", None, true),
+            ("llm", "llm", "gpt-4", "claude", None, false),
+            // An exact `http:` path matches by equality, like the name
+            // selectors, and the request arrives under the reserved name.
+            (
+                ENTITY_HTTP,
+                ENTITY_HTTP,
+                "/healthz",
+                ENTITY_NAME_GLOBAL,
+                Some("/healthz"),
+                true,
+            ),
+            (
+                ENTITY_HTTP,
+                ENTITY_HTTP,
+                "/healthz",
+                ENTITY_NAME_GLOBAL,
+                Some("/healthzz"),
+                false,
+            ),
+            // A prefix matches the prefix itself, a trailing slash on the
+            // path, and any deeper segment.
+            (
+                ENTITY_HTTP,
+                ENTITY_HTTP,
+                "{ path_prefix: /api }",
+                ENTITY_NAME_GLOBAL,
+                Some("/api"),
+                true,
+            ),
+            (
+                ENTITY_HTTP,
+                ENTITY_HTTP,
+                "{ path_prefix: /api }",
+                ENTITY_NAME_GLOBAL,
+                Some("/api/"),
+                true,
+            ),
+            (
+                ENTITY_HTTP,
+                ENTITY_HTTP,
+                "{ path_prefix: /api }",
+                ENTITY_NAME_GLOBAL,
+                Some("/api/v1"),
+                true,
+            ),
+            // And stops at the segment boundary, which is the whole point of
+            // matching paths the way the router does rather than by glob.
+            (
+                ENTITY_HTTP,
+                ENTITY_HTTP,
+                "{ path_prefix: /api }",
+                ENTITY_NAME_GLOBAL,
+                Some("/apikeys"),
+                false,
+            ),
+            // A trailing slash on the declared prefix is insignificant.
+            (
+                ENTITY_HTTP,
+                ENTITY_HTTP,
+                "{ path_prefix: /api/ }",
+                ENTITY_NAME_GLOBAL,
+                Some("/api"),
+                true,
+            ),
+            (
+                ENTITY_HTTP,
+                ENTITY_HTTP,
+                "{ path_prefix: /api/ }",
+                ENTITY_NAME_GLOBAL,
+                Some("/api/v1"),
+                true,
+            ),
+            (
+                ENTITY_HTTP,
+                ENTITY_HTTP,
+                "{ path_prefix: /api/ }",
+                ENTITY_NAME_GLOBAL,
+                Some("/apikeys"),
+                false,
+            ),
+            // The root prefix is the catch-all.
+            (
+                ENTITY_HTTP,
+                ENTITY_HTTP,
+                "{ path_prefix: / }",
+                ENTITY_NAME_GLOBAL,
+                Some("/anything/at/all"),
+                true,
+            ),
+            // A declared method narrows the match; every request below is a
+            // GET, so the POST-only route does not match.
+            (
+                ENTITY_HTTP,
+                ENTITY_HTTP,
+                "{ path_prefix: /api, method: GET }",
+                ENTITY_NAME_GLOBAL,
+                Some("/api/v1"),
+                true,
+            ),
+            (
+                ENTITY_HTTP,
+                ENTITY_HTTP,
+                "{ path_prefix: /api, method: POST }",
+                ENTITY_NAME_GLOBAL,
+                Some("/api/v1"),
+                false,
+            ),
         ] {
             let yaml = format!(
                 r#"
@@ -4622,6 +5034,15 @@ routes:
                     entity_name: Some(request_name.into()),
                     ..Default::default()
                 })),
+                // An HTTP request is matched from its request line, so the row
+                // supplies one. Every HTTP row is a GET.
+                http: request_path.map(|path| {
+                    std::sync::Arc::new(crate::extensions::HttpExtension {
+                        method: Some("GET".into()),
+                        path: Some(path.into()),
+                        ..Default::default()
+                    })
+                }),
                 ..Default::default()
             };
             let _ = mgr.invoke_by_name("test_hook", p, ext, None).await;
@@ -4630,7 +5051,7 @@ routes:
             assert_eq!(
                 counter.load(Ordering::SeqCst),
                 expected,
-                "entity_type={entity_type} route_field={route_field} route_value={route_value} request_name={request_name} expected fire={should_match}",
+                "entity_type={entity_type} route_field={route_field} route_value={route_value} request_name={request_name} request_path={request_path:?} expected fire={should_match}",
             );
         }
     }
@@ -4949,6 +5370,7 @@ routes:
 
     #[tokio::test]
     async fn test_from_config_creates_manager() {
+        register_fixture_hooks();
         let yaml = r#"
 plugins:
   - name: allow_plugin
@@ -4974,6 +5396,7 @@ plugin_settings:
 
     #[tokio::test]
     async fn test_from_config_invokes_correctly() {
+        register_fixture_hooks();
         let yaml = r#"
 plugins:
   - name: denier
@@ -5005,6 +5428,7 @@ plugins:
 
     #[tokio::test]
     async fn test_from_config_unknown_kind_rejected() {
+        register_fixture_hooks();
         let yaml = r#"
 plugins:
   - name: mystery
@@ -5023,6 +5447,7 @@ plugins:
 
     #[tokio::test]
     async fn test_from_config_multiple_plugins() {
+        register_fixture_hooks();
         let yaml = r#"
 plugins:
   - name: gate
@@ -5064,6 +5489,7 @@ plugins:
 
     #[tokio::test]
     async fn test_routing_cache_populated_on_first_invoke() {
+        register_fixture_hooks();
         let yaml = r#"
 plugin_settings:
   routing_enabled: true
@@ -5131,6 +5557,7 @@ routes:
     /// and the call is (wrongly) allowed.
     #[tokio::test]
     async fn load_config_yaml_folds_top_level_group_into_route_resolution() {
+        register_fixture_hooks();
         let yaml = r#"
 plugin_settings:
   routing_enabled: true
@@ -5224,6 +5651,7 @@ routes:
 
     #[tokio::test]
     async fn test_routing_cache_different_entities_separate() {
+        register_fixture_hooks();
         let yaml = r#"
 plugin_settings:
   routing_enabled: true
@@ -5278,6 +5706,7 @@ routes:
 
     #[tokio::test]
     async fn test_routing_cache_cleared() {
+        register_fixture_hooks();
         let yaml = r#"
 plugin_settings:
   routing_enabled: true
@@ -5319,6 +5748,7 @@ routes:
 
     #[tokio::test]
     async fn test_unregister_invalidates_routing_cache() {
+        register_fixture_hooks();
         let yaml = r#"
 plugin_settings:
   routing_enabled: true
@@ -5391,6 +5821,7 @@ routes:
 
     #[tokio::test]
     async fn test_routing_cache_rejects_inserts_at_capacity() {
+        register_fixture_hooks();
         // Cap of 2 — verifies bound holds AND uncached requests still resolve correctly.
         let yaml = r#"
 plugin_settings:
@@ -5468,6 +5899,7 @@ routes:
 
     #[tokio::test]
     async fn test_register_handler_invalidates_routing_cache() {
+        register_fixture_hooks();
         let yaml = r#"
 plugin_settings:
   routing_enabled: true
@@ -5515,6 +5947,7 @@ routes:
 
     #[tokio::test]
     async fn test_routing_cache_scope_creates_separate_entries() {
+        register_fixture_hooks();
         let yaml = r#"
 plugin_settings:
   routing_enabled: true
@@ -5571,6 +6004,7 @@ routes:
 
     #[tokio::test]
     async fn test_route_override_creates_new_instance() {
+        register_fixture_hooks();
         let yaml = r#"
 plugin_settings:
   routing_enabled: true
@@ -5797,6 +6231,7 @@ routes:
     /// increments a counter inside its `initialize()`.
     #[tokio::test]
     async fn test_route_override_initializes_new_instance() {
+        register_fixture_hooks();
         use std::sync::atomic::{AtomicUsize, Ordering};
 
         static INIT_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -6033,6 +6468,7 @@ routes:
 
     #[tokio::test]
     async fn a_route_override_instance_receives_host_services() {
+        register_fixture_hooks();
         // The failure this pins: an override instance built by
         // `create_override_instance` got the no-op default `initialize()`,
         // so a plugin that fetches during init — `identity-jwt` with a
@@ -6067,6 +6503,7 @@ routes:
 
     #[tokio::test]
     async fn build_override_entries_hands_the_new_instance_host_services() {
+        register_fixture_hooks();
         // The host-facing entry point to the same path. It has no caller
         // inside this crate, so nothing else would catch a regression.
         let (mgr, log) = host_probe_engine(HOST_PROBE_YAML);
@@ -6083,6 +6520,7 @@ routes:
 
     #[tokio::test]
     async fn an_override_that_drops_perform_http_withholds_the_transport() {
+        register_fixture_hooks();
         // Capabilities come from the merged config, so narrowing them on a
         // route narrows what that route's instance may reach. `Ok(false)`
         // rather than `Err(())`: the host wired a transport, and the fix is
@@ -6108,6 +6546,7 @@ routes:
     /// per-route blast radius is the point of having overrides.
     #[tokio::test]
     async fn test_route_override_circuit_breaker_isolated_from_base() {
+        register_fixture_hooks();
         struct ErrorOnInvokeFactory;
         impl crate::factory::PluginFactory for ErrorOnInvokeFactory {
             fn create(
@@ -6176,6 +6615,7 @@ routes:
 
     #[tokio::test]
     async fn test_register_factory_then_load_config() {
+        register_fixture_hooks();
         let yaml = r#"
 plugins:
   - name: my_plugin
@@ -6232,6 +6672,7 @@ plugin_settings:
 
     #[tokio::test]
     async fn test_routing_full_flow_different_tools_different_plugins() {
+        register_fixture_hooks();
         // Setup: identity fires for all, apl_policy fires for pii tools,
         // rate_limiter fires only for get_compensation route
         let yaml = r#"
@@ -6307,6 +6748,7 @@ routes:
 
     #[tokio::test]
     async fn test_routing_disabled_fires_all_plugins() {
+        register_fixture_hooks();
         // Same plugins but routing disabled — all fire regardless of entity
         let yaml = r#"
 plugins:
@@ -6345,6 +6787,7 @@ plugins:
 
     #[tokio::test]
     async fn test_routing_no_meta_fires_all_plugins() {
+        register_fixture_hooks();
         // Routing enabled but no meta on extensions → fallback to all
         let yaml = r#"
 plugin_settings:
@@ -6396,6 +6839,7 @@ routes:
 
     #[tokio::test]
     async fn test_routing_wildcard_catches_unmatched() {
+        register_fixture_hooks();
         let yaml = r#"
 plugin_settings:
   routing_enabled: true
@@ -6463,6 +6907,7 @@ routes:
 
     #[tokio::test]
     async fn test_routing_host_tags_activate_policy_groups() {
+        register_fixture_hooks();
         let yaml = r#"
 plugin_settings:
   routing_enabled: true
@@ -6525,6 +6970,7 @@ routes:
 
     #[tokio::test]
     async fn test_routing_works_with_typed_invoke() {
+        register_fixture_hooks();
         let yaml = r#"
 plugin_settings:
   routing_enabled: true
@@ -7086,6 +7532,7 @@ global:
     /// nothing checked it reports the configured names rather than an empty list.
     #[test]
     fn plugin_names_lists_what_was_registered() {
+        register_fixture_hooks();
         let mgr = Arc::new(PolicyEngine::default());
         assert!(
             mgr.plugin_names().is_empty(),
@@ -7116,7 +7563,7 @@ plugins:
     fn the_route_cache_key_distinguishes_every_field() {
         let base = RouteCacheKey {
             entity_type: "tool".into(),
-            entity_name: "get_x".into(),
+            resolved_name: "get_x".into(),
             hook_name: "cmf.tool_pre_invoke".into(),
             scope: None,
         };
@@ -7128,7 +7575,7 @@ plugins:
                 ..base.clone()
             },
             RouteCacheKey {
-                entity_name: "other".into(),
+                resolved_name: "other".into(),
                 ..base.clone()
             },
             RouteCacheKey {
@@ -7147,5 +7594,995 @@ plugins:
                  routes would share a cache entry"
             );
         }
+    }
+
+    // -- HTTP route resolution --
+
+    /// What one invocation saw. The path and the entity name prove the
+    /// attribute bag reaches policy exactly as the host set it, whatever the
+    /// request resolved to.
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct Seen {
+        plugin: String,
+        path: Option<String>,
+        entity_name: Option<String>,
+    }
+
+    type Ledger = Arc<std::sync::Mutex<Vec<Seen>>>;
+
+    fn recorded(ledger: &Ledger) -> Vec<Seen> {
+        ledger
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+    }
+
+    fn plugins_that_fired(ledger: &Ledger) -> Vec<String> {
+        recorded(ledger).into_iter().map(|s| s.plugin).collect()
+    }
+
+    struct RecordingHandler {
+        cfg: PluginConfig,
+        ledger: Ledger,
+        /// The hook family this fixture reports. Registration refuses a
+        /// handler whose family is not the one the hook's row names, so a
+        /// fixture standing in on a built-in hook has to report that hook's
+        /// family rather than the fixture one.
+        family: &'static str,
+    }
+
+    impl RecordingHandler {
+        fn new(cfg: PluginConfig, ledger: &Ledger) -> Self {
+            Self {
+                cfg,
+                ledger: Arc::clone(ledger),
+                family: TestHook::NAME,
+            }
+        }
+
+        fn serving(mut self, family: &'static str) -> Self {
+            self.family = family;
+            self
+        }
+    }
+
+    #[async_trait]
+    impl Plugin for RecordingHandler {
+        fn config(&self) -> &PluginConfig {
+            &self.cfg
+        }
+    }
+
+    #[async_trait]
+    impl AnyHookHandler for RecordingHandler {
+        async fn invoke(
+            &self,
+            _payload: &dyn PluginPayload,
+            extensions: &Extensions,
+            _ctx: &mut PluginContext,
+        ) -> Result<Box<dyn std::any::Any + Send + Sync>, Box<PluginError>> {
+            self.ledger
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .push(Seen {
+                    plugin: self.cfg.name.clone(),
+                    path: extensions.http.as_ref().and_then(|http| http.path.clone()),
+                    entity_name: extensions
+                        .meta
+                        .as_ref()
+                        .and_then(|meta| meta.entity_name.clone()),
+                });
+            let result: PluginResult<TestPayload> = PluginResult::allow();
+            Ok(crate::executor::erase_result(result))
+        }
+
+        fn hook_type_name(&self) -> &'static str {
+            self.family
+        }
+    }
+
+    struct RecordingFactory(Ledger);
+
+    impl crate::factory::PluginFactory for RecordingFactory {
+        fn create(
+            &self,
+            config: &PluginConfig,
+        ) -> Result<crate::factory::PluginInstance, Box<PluginError>> {
+            // The hook names a `PluginInstance` carries are `'static`, so the
+            // two the fixtures bind to are named rather than echoed back. One
+            // handler per name, since each reports the family of the hook it
+            // is registered under.
+            let handlers = config
+                .hooks
+                .iter()
+                .map(|hook| -> (&'static str, Arc<dyn AnyHookHandler>) {
+                    let recorder = RecordingHandler::new(config.clone(), &self.0);
+                    match hook.as_str() {
+                        crate::identity::HOOK_IDENTITY_RESOLVE => (
+                            crate::identity::HOOK_IDENTITY_RESOLVE,
+                            Arc::new(recorder.serving(crate::identity::IdentityHook::NAME)),
+                        ),
+                        _ => (TestHook::NAME, Arc::new(recorder)),
+                    }
+                })
+                .collect();
+            Ok(crate::factory::PluginInstance {
+                plugin: Arc::new(AllowPlugin {
+                    cfg: config.clone(),
+                }),
+                handlers,
+            })
+        }
+    }
+
+    /// An initialized engine serving recording plugins for `yaml`.
+    async fn recording_engine(yaml: &str) -> (PolicyEngine, Ledger) {
+        register_fixture_hooks();
+        let ledger: Ledger = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let policy_config = crate::config::parse_config(yaml).expect("the fixture must parse");
+        let mut factories = PluginFactoryRegistry::new();
+        factories.register(
+            "test/record",
+            Box::new(RecordingFactory(Arc::clone(&ledger))),
+        );
+        let mgr = PolicyEngine::from_config(policy_config, &factories).expect("the engine builds");
+        mgr.initialize().await.expect("initialize");
+        (mgr, ledger)
+    }
+
+    /// A generic HTTP request as a host presents one: the reserved global
+    /// entity name, and the request line on its own slot.
+    fn http_request(path: Option<&str>) -> Extensions {
+        http_request_named(ENTITY_NAME_GLOBAL, path, None)
+    }
+
+    fn http_request_named(
+        entity_name: &str,
+        path: Option<&str>,
+        scope: Option<&str>,
+    ) -> Extensions {
+        Extensions {
+            meta: Some(Arc::new(crate::hooks::payload::MetaExtension {
+                entity_type: Some(ENTITY_HTTP.to_owned()),
+                entity_name: Some(entity_name.to_owned()),
+                scope: scope.map(str::to_owned),
+                ..Default::default()
+            })),
+            http: path.map(|path| {
+                Arc::new(crate::extensions::HttpExtension {
+                    method: Some("GET".to_owned()),
+                    path: Some(path.to_owned()),
+                    ..Default::default()
+                })
+            }),
+            ..Default::default()
+        }
+    }
+
+    /// An HTTP request whose `http` slot is present but carries no path.
+    fn http_request_without_path() -> Extensions {
+        let mut ext = http_request(None);
+        ext.http = Some(Arc::new(crate::extensions::HttpExtension::default()));
+        ext
+    }
+
+    async fn dispatch(mgr: &PolicyEngine, hook: &str, ext: Extensions) -> PipelineResult {
+        let payload: Box<dyn PluginPayload> = Box::new(TestPayload {
+            value: "request".into(),
+        });
+        mgr.invoke_by_name(hook, payload, ext, None).await.0
+    }
+
+    /// One prefix route with a plugin, one exact route with none.
+    const HTTP_ROUTES_YAML: &str = r#"
+plugin_settings:
+  routing_enabled: true
+plugins:
+  - name: observer
+    kind: test/record
+    hooks: [test_hook]
+    mode: sequential
+    capabilities: [read_headers]
+routes:
+  - http:
+      path_prefix: /v1/files
+    plugins: [observer]
+  - http: /healthz
+    plugins: []
+"#;
+
+    /// An `http:` route alongside a global policy, so an unmatched request has
+    /// somewhere to fall back to.
+    const HTTP_ROUTE_WITH_GLOBAL_YAML: &str = r#"
+plugin_settings:
+  routing_enabled: true
+global:
+  policies:
+    all:
+      plugins: [observer]
+plugins:
+  - name: observer
+    kind: test/record
+    hooks: [test_hook]
+    mode: sequential
+    capabilities: [read_headers]
+routes:
+  - http:
+      path_prefix: /v1/files
+    plugins: [observer]
+"#;
+
+    /// No `http:` route anywhere, which is every configuration that exists
+    /// today.
+    const NO_HTTP_ROUTE_YAML: &str = r#"
+plugin_settings:
+  routing_enabled: true
+global:
+  policies:
+    all:
+      plugins: [observer]
+plugins:
+  - name: observer
+    kind: test/record
+    hooks: [test_hook]
+    mode: sequential
+    capabilities: [read_headers]
+routes:
+  - tool: get_weather
+    plugins: [observer]
+"#;
+
+    /// The name the first route in a document is known by, from the one
+    /// function that owns that mapping.
+    fn first_route_identity(yaml: &str) -> (&'static str, String) {
+        let parsed = crate::config::parse_config(yaml).expect("the fixture must parse");
+        let route = parsed.routes.first().expect("a first route");
+        let (entity_type, mut names) =
+            config::route_entity_identity(route).expect("the route declares a selector");
+        (entity_type, names.remove(0))
+    }
+
+    #[tokio::test]
+    async fn many_http_paths_matching_one_route_share_one_cache_entry() {
+        let (mgr, ledger) = recording_engine(HTTP_ROUTES_YAML).await;
+
+        for n in 0..25 {
+            let path = format!("/v1/files/report-{n}.pdf");
+            let result = dispatch(&mgr, "test_hook", http_request(Some(&path))).await;
+            assert!(result.continue_processing, "{path} must be allowed");
+        }
+
+        assert_eq!(
+            mgr.routing_cache_size(),
+            1,
+            "keying on the matched selector rather than the request path makes \
+             cache cardinality a function of the configuration"
+        );
+        assert_eq!(
+            plugins_that_fired(&ledger).len(),
+            25,
+            "every request must still reach the route's plugin"
+        );
+    }
+
+    #[tokio::test]
+    async fn an_http_request_resolves_the_route_its_path_matches() {
+        let (mgr, ledger) = recording_engine(HTTP_ROUTES_YAML).await;
+
+        // Matching reads the whole string the host set, query included, the way
+        // the router reads the path it was given. The prefix still matches at
+        // the same segment boundary, and the policy sees the string verbatim.
+        let raw = "/v1/files/q3.pdf?download=1";
+        let result = dispatch(&mgr, "test_hook", http_request(Some(raw))).await;
+        assert!(result.continue_processing);
+
+        // The exact route carries no plugins, so nothing fires for it. That is
+        // the route resolving, not the prefix route failing to.
+        let healthz = dispatch(&mgr, "test_hook", http_request(Some("/healthz"))).await;
+        assert!(healthz.continue_processing);
+
+        assert_eq!(
+            recorded(&ledger),
+            vec![Seen {
+                plugin: "observer".to_owned(),
+                path: Some(raw.to_owned()),
+                entity_name: Some(ENTITY_NAME_GLOBAL.to_owned()),
+            }],
+            "only the prefix route's plugin fires, and it reads the path and the \
+             entity name exactly as the host set them"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_path_shaped_entity_name_does_not_reach_the_cache_key() {
+        // A host is asked to set the reserved global name on an HTTP request
+        // but nothing makes it. Reading the field here would put one cache
+        // entry per request path in the cache.
+        let (mgr, _ledger) = recording_engine(HTTP_ROUTE_WITH_GLOBAL_YAML).await;
+
+        for n in 0..25 {
+            let path = format!("/elsewhere/{n}");
+            let ext = http_request_named(&path, Some(&path), None);
+            let result = dispatch(&mgr, "test_hook", ext).await;
+            assert!(result.continue_processing, "{path} must be allowed");
+        }
+
+        assert_eq!(
+            mgr.routing_cache_size(),
+            1,
+            "the fallback name is the reserved constant, not the entity name the \
+             host supplied"
+        );
+    }
+
+    #[tokio::test]
+    async fn without_an_http_route_an_http_request_resolves_the_global_name() {
+        let (mgr, ledger) = recording_engine(NO_HTTP_ROUTE_YAML).await;
+
+        for n in 0..5 {
+            let path = format!("/v1/files/{n}");
+            let result = dispatch(&mgr, "test_hook", http_request(Some(&path))).await;
+            assert!(result.continue_processing);
+        }
+
+        assert_eq!(
+            plugins_that_fired(&ledger).len(),
+            5,
+            "the global policy governs, as it does today"
+        );
+        assert_eq!(
+            mgr.routing_cache_size(),
+            1,
+            "one entry under the reserved global name"
+        );
+    }
+
+    #[tokio::test]
+    async fn an_absent_request_line_falls_back_instead_of_denying() {
+        let (mgr, ledger) = recording_engine(HTTP_ROUTE_WITH_GLOBAL_YAML).await;
+
+        for ext in [http_request(None), http_request_without_path()] {
+            let result = dispatch(&mgr, "test_hook", ext).await;
+            assert!(
+                result.continue_processing,
+                "no request line means no route matched, which is not an error"
+            );
+        }
+
+        assert_eq!(
+            plugins_that_fired(&ledger),
+            vec!["observer".to_owned(), "observer".to_owned()],
+            "the global policy runs for a request that named no path"
+        );
+        assert_eq!(mgr.routing_cache_size(), 1);
+    }
+
+    #[tokio::test]
+    async fn an_unreadable_path_denies_only_when_an_http_route_is_declared() {
+        // A carriage return in a request line is a smuggling signal, and
+        // guessing which path a route should answer for is exactly what the
+        // deny exists to avoid. This is the whole of what the path normalizer
+        // affects: matching itself runs on the path as given, and only the
+        // refusal reaches a decision.
+        let smuggled = "/v1/files/q3.pdf\r\nX-Injected: 1";
+
+        let (with_routes, _) = recording_engine(HTTP_ROUTES_YAML).await;
+        let denied = dispatch(&with_routes, "test_hook", http_request(Some(smuggled))).await;
+        assert!(
+            denied.is_denied(),
+            "an unreadable path must not fall through"
+        );
+        let violation = denied.violation.expect("a denial carries a violation");
+        assert_eq!(violation.code, VIOLATION_UNREADABLE_REQUEST_PATH);
+        assert_eq!(
+            violation.proto_error_code,
+            Some(400),
+            "the request is malformed rather than forbidden"
+        );
+
+        let (without_routes, ledger) = recording_engine(NO_HTTP_ROUTE_YAML).await;
+        let allowed = dispatch(&without_routes, "test_hook", http_request(Some(smuggled))).await;
+        assert!(
+            allowed.continue_processing,
+            "with no http: route nothing could have answered for the path, so \
+             behavior is what it is today"
+        );
+        assert_eq!(plugins_that_fired(&ledger), vec!["observer".to_owned()]);
+
+        let nothing_registered =
+            dispatch(&with_routes, "no_such_hook", http_request(Some(smuggled))).await;
+        assert!(
+            nothing_registered.continue_processing,
+            "a hook with no entries and no annotations returns before resolution \
+             runs, and nothing would have enforced there anyway"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_scoped_annotation_wins_over_an_unscoped_one_for_a_resolved_name() {
+        let (mgr, _ledger) = recording_engine(HTTP_ROUTES_YAML).await;
+        let (entity_type, resolved_name) = first_route_identity(HTTP_ROUTES_YAML);
+        let annotated: Ledger = Arc::new(std::sync::Mutex::new(Vec::new()));
+
+        for (tag, scope) in [("scoped", Some("tenant-a".to_owned())), ("unscoped", None)] {
+            let cfg = make_config(tag, 0, PluginMode::Sequential);
+            mgr.annotate_route(
+                entity_type,
+                resolved_name.clone(),
+                scope,
+                "test_hook",
+                Arc::new(RecordingHandler::new(cfg.clone(), &annotated)),
+                cfg,
+            );
+        }
+
+        for scope in [Some("tenant-a"), None, Some("tenant-b")] {
+            let ext = http_request_named(ENTITY_NAME_GLOBAL, Some("/v1/files/q3.pdf"), scope);
+            let result = dispatch(&mgr, "test_hook", ext).await;
+            assert!(result.continue_processing);
+        }
+
+        assert_eq!(
+            plugins_that_fired(&annotated),
+            vec![
+                "scoped".to_owned(),
+                "unscoped".to_owned(),
+                "unscoped".to_owned()
+            ],
+            "the scoped annotation wins for its own scope; every other scope \
+             falls back to the unscoped default"
+        );
+    }
+
+    /// A route's `authentication:` list needs the host to supply the request
+    /// line at the identity hook. Without it the global list runs, which is
+    /// long-standing behavior, so the engine says so once instead of silently.
+    #[tokio::test]
+    async fn a_route_authentication_list_that_cannot_apply_warns_once() {
+        let yaml = r#"
+plugin_settings:
+  routing_enabled: true
+global:
+  authentication:
+    - global-jwt
+plugins:
+  - name: global-jwt
+    kind: test/record
+    hooks: [identity.resolve]
+    mode: sequential
+  - name: route-jwt
+    kind: test/record
+    hooks: [identity.resolve]
+    mode: sequential
+routes:
+  - http:
+      path_prefix: /v1/files
+    authentication:
+      - route-jwt
+"#;
+        let (mgr, ledger) = recording_engine(yaml).await;
+        let (events, sink) = capturing();
+
+        for _ in 0..3 {
+            let result = dispatch(
+                &mgr,
+                crate::identity::HOOK_IDENTITY_RESOLVE,
+                http_request(None),
+            )
+            .await;
+            assert!(result.continue_processing);
+        }
+
+        assert_eq!(
+            plugins_that_fired(&ledger),
+            vec![
+                "global-jwt".to_owned(),
+                "global-jwt".to_owned(),
+                "global-jwt".to_owned()
+            ],
+            "the global authentication list runs, exactly as it does today"
+        );
+        let warnings = events.matching("global authentication");
+        assert_eq!(
+            warnings.len(),
+            1,
+            "the warning latches after the first request, got {warnings:?}"
+        );
+        assert!(
+            warnings[0].contains(&first_route_identity(yaml).1),
+            "the warning must name the route whose list could not apply, got {warnings:?}"
+        );
+        drop(sink);
+    }
+
+    /// The load-time answer the request path reads, straight off the snapshot.
+    fn routes_declaring_authentication(mgr: &PolicyEngine) -> Vec<String> {
+        mgr.load_runtime()
+            .http_routes_declaring_authentication
+            .to_vec()
+    }
+
+    /// An engine owning the recording factory, so configs can be loaded and
+    /// replaced through it rather than handed in once at construction.
+    fn reloadable_recording_engine() -> (PolicyEngine, Ledger) {
+        register_fixture_hooks();
+        let ledger: Ledger = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let mgr = PolicyEngine::default();
+        mgr.register_factory(
+            "test/record",
+            Box::new(RecordingFactory(Arc::clone(&ledger))),
+        );
+        (mgr, ledger)
+    }
+
+    /// An `http:` route and a global `authentication:` list, with nothing
+    /// declared per route. The ordinary shape, and the one that used to walk
+    /// the route table on every identity hook without a readable path.
+    const HTTP_ROUTE_WITHOUT_ROUTE_AUTHENTICATION_YAML: &str = r#"
+plugin_settings:
+  routing_enabled: true
+global:
+  authentication:
+    - global-jwt
+plugins:
+  - name: global-jwt
+    kind: test/record
+    hooks: [identity.resolve]
+    mode: sequential
+routes:
+  - http:
+      path_prefix: /v1/files
+    plugins: []
+"#;
+
+    /// The answer is computed when the config lands, so a config with nothing
+    /// to report leaves the request path an empty slice to look at rather than
+    /// a route table to walk.
+    #[tokio::test]
+    async fn a_config_with_no_route_authentication_leaves_no_answer_to_scan_for() {
+        let (mgr, ledger) = recording_engine(HTTP_ROUTE_WITHOUT_ROUTE_AUTHENTICATION_YAML).await;
+
+        assert!(
+            mgr.load_runtime()
+                .policy_config
+                .as_ref()
+                .is_some_and(declares_http_route),
+            "the fixture must declare an http: route, or an empty answer says \
+             nothing about route-level authentication"
+        );
+        assert!(
+            routes_declaring_authentication(&mgr).is_empty(),
+            "no http: route declares authentication:, so there is nothing for a \
+             request to be warned about and nothing to compute per request"
+        );
+
+        let (events, sink) = capturing();
+        for _ in 0..5 {
+            let result = dispatch(
+                &mgr,
+                crate::identity::HOOK_IDENTITY_RESOLVE,
+                http_request(None),
+            )
+            .await;
+            assert!(result.continue_processing);
+        }
+
+        assert_eq!(
+            plugins_that_fired(&ledger).len(),
+            5,
+            "the global authentication list runs for each request"
+        );
+        assert!(
+            events.matching("global authentication").is_empty(),
+            "nothing to report means nothing reported"
+        );
+        drop(sink);
+    }
+
+    /// Only an `http:` route with its own `authentication:` list can lose that
+    /// list to a missing path, so only those routes are in the answer.
+    #[tokio::test]
+    async fn the_answer_names_only_http_routes_declaring_authentication() {
+        let yaml = r#"
+plugin_settings:
+  routing_enabled: true
+plugins:
+  - name: route-jwt
+    kind: test/record
+    hooks: [identity.resolve]
+    mode: sequential
+routes:
+  - http:
+      path_prefix: /v1/files
+    authentication:
+      - route-jwt
+  - http: /healthz
+    plugins: []
+  - tool: get_weather
+    authentication:
+      - route-jwt
+"#;
+        let (mgr, _ledger) = recording_engine(yaml).await;
+
+        assert_eq!(
+            routes_declaring_authentication(&mgr),
+            vec!["prefix:/v1/files".to_owned()],
+            "an http: route with no authentication: and a tool route with one \
+             both have nothing to lose to a missing request path"
+        );
+    }
+
+    /// A config replacement rebuilds the snapshot, so the answer follows the
+    /// config it was derived from. A stale answer would warn about routes that
+    /// are gone, or stay silent about ones that arrived.
+    #[tokio::test]
+    async fn a_reload_recomputes_which_routes_declare_authentication() {
+        // A load merges its plugins into the registry, so each generation names
+        // its own rather than colliding with the one before it.
+        let config_for = |generation: u8, prefix: &str, declares: bool| {
+            let authentication = if declares {
+                format!("    authentication:\n      - route-jwt-{generation}\n")
+            } else {
+                String::new()
+            };
+            crate::config::parse_config(&format!(
+                r#"
+plugin_settings:
+  routing_enabled: true
+global:
+  authentication:
+    - global-jwt-{generation}
+plugins:
+  - name: global-jwt-{generation}
+    kind: test/record
+    hooks: [identity.resolve]
+    mode: sequential
+  - name: route-jwt-{generation}
+    kind: test/record
+    hooks: [identity.resolve]
+    mode: sequential
+routes:
+  - http:
+      path_prefix: {prefix}
+{authentication}"#
+            ))
+            .expect("the fixture must parse")
+        };
+
+        let (mgr, _ledger) = reloadable_recording_engine();
+        mgr.load_config(config_for(1, "/v1/files", true))
+            .expect("the first config loads");
+        mgr.initialize().await.expect("initialize");
+        assert_eq!(
+            routes_declaring_authentication(&mgr),
+            vec!["prefix:/v1/files".to_owned()]
+        );
+
+        mgr.load_config(config_for(2, "/v1/files", false))
+            .expect("the replacement loads");
+        assert!(
+            routes_declaring_authentication(&mgr).is_empty(),
+            "the route that declared authentication: is gone, so the answer is too"
+        );
+
+        mgr.load_config(config_for(3, "/v2/files", true))
+            .expect("the third config loads");
+        assert_eq!(
+            routes_declaring_authentication(&mgr),
+            vec!["prefix:/v2/files".to_owned()],
+            "the answer names the route the current config declares"
+        );
+
+        let (events, sink) = capturing();
+        let result = dispatch(
+            &mgr,
+            crate::identity::HOOK_IDENTITY_RESOLVE,
+            http_request(None),
+        )
+        .await;
+        assert!(result.continue_processing);
+        let warnings = events.matching("global authentication");
+        assert_eq!(
+            warnings.len(),
+            1,
+            "a reload clears the latch, so the new config warns once, got \
+             {warnings:?}"
+        );
+        assert!(
+            warnings[0].contains("prefix:/v2/files") && !warnings[0].contains("/v1/files"),
+            "the warning names the route the reload installed, got {warnings:?}"
+        );
+        drop(sink);
+    }
+
+    #[tokio::test]
+    async fn the_resolved_name_is_traced_when_a_route_is_resolved() {
+        let (mgr, _ledger) = recording_engine(HTTP_ROUTES_YAML).await;
+        let (_, resolved_name) = first_route_identity(HTTP_ROUTES_YAML);
+        let (events, sink) = capturing();
+
+        let result = dispatch(&mgr, "test_hook", http_request(Some("/v1/files/q3.pdf"))).await;
+        assert!(result.continue_processing);
+
+        let traced = events.matching("Resolved route for request");
+        assert_eq!(traced.len(), 1, "one resolution, one trace, got {traced:?}");
+        assert!(
+            traced[0].contains(&resolved_name),
+            "an operator cannot otherwise tell which route a path matched, got \
+             {traced:?}"
+        );
+        assert!(
+            traced[0].contains(ENTITY_HTTP) && traced[0].contains("test_hook"),
+            "the entity type and the hook belong in the same line, got {traced:?}"
+        );
+        drop(sink);
+    }
+
+    /// A root-prefix `http:` route alongside nothing else, so the only other
+    /// name in play is the reserved global one.
+    const HTTP_CATCHALL_ROUTE_YAML: &str = r#"
+plugin_settings:
+  routing_enabled: true
+routes:
+  - http:
+      path_prefix: /
+    plugins: []
+"#;
+
+    /// A route annotation does not pass through the registry's family check:
+    /// it lands in `route_annotations`, not the hook index. The pairing the
+    /// registry refuses installs here, which is the bound on what that check
+    /// covers.
+    #[test]
+    fn an_annotation_installs_whatever_family_the_handler_reports() {
+        let mgr = PolicyEngine::default();
+        let ledger: Ledger = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let cfg = make_config("cmf-on-http", 0, PluginMode::Sequential);
+        let handler = || {
+            Arc::new(RecordingHandler::new(cfg.clone(), &ledger).serving(crate::cmf::CmfHook::NAME))
+        };
+
+        let replaced = mgr.annotate_route(
+            ENTITY_HTTP,
+            ENTITY_NAME_GLOBAL,
+            None,
+            crate::http_hook::HOOK_HTTP_REQUEST,
+            handler(),
+            cfg.clone(),
+        );
+        assert!(
+            !replaced,
+            "nothing was annotated under those coordinates yet"
+        );
+
+        // The second call reports a replacement, which is only true if the
+        // first one was recorded.
+        assert!(mgr.annotate_route(
+            ENTITY_HTTP,
+            ENTITY_NAME_GLOBAL,
+            None,
+            crate::http_hook::HOOK_HTTP_REQUEST,
+            handler(),
+            cfg,
+        ));
+    }
+
+    /// An annotation is the whole lineup for its coordinates, so a route's own
+    /// `plugins:` list stops firing for the requests it answers unless the
+    /// handler dispatches into it by name.
+    #[tokio::test]
+    async fn an_annotated_http_route_dispatches_instead_of_its_plugin_chain() {
+        let (mgr, chain) = recording_engine(HTTP_ROUTES_YAML).await;
+        let (entity_type, resolved_name) = first_route_identity(HTTP_ROUTES_YAML);
+        let annotated: Ledger = Arc::new(std::sync::Mutex::new(Vec::new()));
+
+        let cfg = make_config("policy-body", 0, PluginMode::Sequential);
+        mgr.annotate_route(
+            entity_type,
+            resolved_name,
+            None,
+            "test_hook",
+            Arc::new(RecordingHandler::new(cfg.clone(), &annotated)),
+            cfg,
+        );
+
+        let result = dispatch(&mgr, "test_hook", http_request(Some("/v1/files/q3.pdf"))).await;
+        assert!(result.continue_processing, "the handler allows the request");
+
+        assert_eq!(
+            plugins_that_fired(&annotated),
+            vec!["policy-body".to_owned()],
+            "the annotated handler answers for everything the route resolves"
+        );
+        assert!(
+            plugins_that_fired(&chain).is_empty(),
+            "the route's plugin list is replaced rather than appended to, got {:?}",
+            plugins_that_fired(&chain)
+        );
+    }
+
+    /// The annotation table overwrites from any source, so a second install at
+    /// one coordinate says so and the later handler is the one that evaluates.
+    #[tokio::test]
+    async fn a_second_annotation_at_one_coordinate_reports_the_replacement() {
+        let (mgr, _chain) = recording_engine(HTTP_ROUTES_YAML).await;
+        let (entity_type, resolved_name) = first_route_identity(HTTP_ROUTES_YAML);
+        let annotated: Ledger = Arc::new(std::sync::Mutex::new(Vec::new()));
+
+        let mut reported = Vec::new();
+        for tag in ["first", "second"] {
+            let cfg = make_config(tag, 0, PluginMode::Sequential);
+            reported.push(mgr.annotate_route(
+                entity_type,
+                resolved_name.clone(),
+                None,
+                "test_hook",
+                Arc::new(RecordingHandler::new(cfg.clone(), &annotated)),
+                cfg,
+            ));
+        }
+        assert_eq!(
+            reported,
+            vec![false, true],
+            "the first install is new, the second replaces it"
+        );
+
+        let result = dispatch(&mgr, "test_hook", http_request(Some("/v1/files/q3.pdf"))).await;
+        assert!(result.continue_processing, "the handler allows the request");
+        assert_eq!(
+            plugins_that_fired(&annotated),
+            vec!["second".to_owned()],
+            "the later handler is the one kept"
+        );
+    }
+
+    /// An explicit catch-all `http:` route derives its own name, so it and the
+    /// reserved global name are different keys: the route governs what it
+    /// resolves and the reserved name governs what resolves nothing.
+    #[tokio::test]
+    async fn a_root_prefix_route_does_not_share_the_reserved_global_annotation() {
+        let (mgr, _chain) = recording_engine(HTTP_CATCHALL_ROUTE_YAML).await;
+        let (entity_type, route_name) = first_route_identity(HTTP_CATCHALL_ROUTE_YAML);
+        assert_ne!(
+            route_name, ENTITY_NAME_GLOBAL,
+            "a root prefix is not the reserved name, so the two cannot collide"
+        );
+
+        let annotated: Ledger = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let mut reported = Vec::new();
+        for (tag, name) in [
+            ("route", route_name.as_str()),
+            ("catch-all", ENTITY_NAME_GLOBAL),
+        ] {
+            let cfg = make_config(tag, 0, PluginMode::Sequential);
+            reported.push(mgr.annotate_route(
+                entity_type,
+                name,
+                None,
+                "test_hook",
+                Arc::new(RecordingHandler::new(cfg.clone(), &annotated)),
+                cfg,
+            ));
+        }
+        assert_eq!(
+            reported,
+            vec![false, false],
+            "neither install landed on the other's key"
+        );
+
+        // A request carrying a path resolves the route. One that named no path
+        // resolves nothing, which is where the reserved name applies.
+        for ext in [http_request(Some("/anything/at/all")), http_request(None)] {
+            let result = dispatch(&mgr, "test_hook", ext).await;
+            assert!(result.continue_processing, "both handlers allow");
+        }
+        assert_eq!(
+            plugins_that_fired(&annotated),
+            vec!["route".to_owned(), "catch-all".to_owned()],
+            "the route answers what it resolves; the reserved name answers the rest"
+        );
+    }
+
+    // -- Capturing what the engine emits --
+    //
+    // A subscriber installed once for the whole binary, always interested, so
+    // callsite interest never depends on which test reached it first. The
+    // thread-local sink keeps each test reading only its own events.
+
+    #[derive(Clone, Default)]
+    struct Events(Arc<std::sync::Mutex<Vec<String>>>);
+
+    impl Events {
+        fn matching(&self, needle: &str) -> Vec<String> {
+            self.0
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .iter()
+                .filter(|event| event.contains(needle))
+                .cloned()
+                .collect()
+        }
+    }
+
+    std::thread_local! {
+        static SINK: std::cell::RefCell<Option<Events>> =
+            const { std::cell::RefCell::new(None) };
+    }
+
+    struct Capture;
+
+    /// Clears the sink even if the body panics, so a failing test cannot leak
+    /// its events into whichever test the runner puts on this thread next.
+    struct Sink;
+
+    impl Drop for Sink {
+        fn drop(&mut self) {
+            SINK.with_borrow_mut(|sink| *sink = None);
+        }
+    }
+
+    struct Render(String);
+
+    impl tracing::field::Visit for Render {
+        fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+            self.0.push_str(&format!(" {}={value:?}", field.name()));
+        }
+
+        fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+            self.0.push_str(&format!(" {}={value}", field.name()));
+        }
+    }
+
+    impl tracing::Subscriber for Capture {
+        fn register_callsite(&self, _: &tracing::Metadata<'_>) -> tracing::subscriber::Interest {
+            tracing::subscriber::Interest::always()
+        }
+
+        fn max_level_hint(&self) -> Option<tracing::level_filters::LevelFilter> {
+            Some(tracing::level_filters::LevelFilter::TRACE)
+        }
+
+        fn enabled(&self, _: &tracing::Metadata<'_>) -> bool {
+            true
+        }
+
+        fn new_span(&self, _: &tracing::span::Attributes<'_>) -> tracing::span::Id {
+            tracing::span::Id::from_u64(1)
+        }
+
+        fn record(&self, _: &tracing::span::Id, _: &tracing::span::Record<'_>) {}
+
+        fn record_follows_from(&self, _: &tracing::span::Id, _: &tracing::span::Id) {}
+
+        fn event(&self, event: &tracing::Event<'_>) {
+            SINK.with_borrow(|sink| {
+                let Some(events) = sink.as_ref() else {
+                    return;
+                };
+                let mut render = Render(format!("[{}]", event.metadata().level()));
+                event.record(&mut render);
+                events
+                    .0
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .push(render.0);
+            });
+        }
+
+        fn enter(&self, _: &tracing::span::Id) {}
+
+        fn exit(&self, _: &tracing::span::Id) {}
+    }
+
+    /// Capture what the engine emits until the returned guard is dropped.
+    fn capturing() -> (Events, Sink) {
+        static INSTALLED: std::sync::OnceLock<()> = std::sync::OnceLock::new();
+        INSTALLED.get_or_init(|| {
+            tracing::subscriber::set_global_default(Capture)
+                .expect("no other subscriber is installed in this test binary");
+        });
+        let events = Events::default();
+        SINK.with_borrow_mut(|sink| *sink = Some(events.clone()));
+        (events, Sink)
     }
 }
