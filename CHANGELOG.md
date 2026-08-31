@@ -594,6 +594,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 - **A workload's trust domain is no longer mappable.** It is the authority of the SPIFFE ID, so it is derived from the identity rather than read from a claim. ([#31](https://github.com/praxis-proxy/policy/pull/31))
 
+- **Unused items fail the build.** `dead_code` is denied workspace-wide, so a function with no caller is a compile error rather than something coverage work has to find by hand. Public host-facing API with no in-tree caller stays, marked with a reason naming who calls it from outside. ([#13](https://github.com/praxis-proxy/policy/issues/13))
+
 ### Removed
 
 - **`compile_config`, and the second `routes:` shape it defined.** Along with it
@@ -786,6 +788,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
   `global.apl.attribute_files` becomes `global.attribute_files`.
 
 - **The `hooks::types::hook_names` and `hooks::types::cmf_hook_names` modules.** Sixteen `pub const`s that no dispatch site read. Six of `hook_names` shadowed CMF hooks under names nothing fires; two spelled identity and delegation `identity_resolve` / `token_delegate`, which no handler answers to. `cmf_hook_names` duplicated `cmf::constants` and got the prompt pair wrong, teaching `cmf.prompt_pre_fetch` where the dispatched name is `cmf.prompt_pre_invoke`. Because nothing consumed them they drifted unnoticed for months. **Breaking**, with no replacement needed: `praxis_policy_core::cmf::constants` holds the CMF names and is the supported import path, alongside `identity::HOOK_IDENTITY_RESOLVE`, `delegation::HOOK_TOKEN_DELEGATE`, and `elicitation::HOOK_ELICIT`. Those constants keep their paths and their values. The values are operator-facing, since a `hooks:` list in YAML names them as strings, so they are fixed as public API rather than free to rename.
+
+- **`AplRouteHandler::with_pdp_router` is gone.** Install a `PdpRouter` through `with_pdp`, which is what the visitor already does. ([#13](https://github.com/praxis-proxy/policy/issues/13))
 
 ### Fixed
 

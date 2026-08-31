@@ -12,13 +12,26 @@
 //! this crate's `README.md`. That document is the contract; the catalog and
 //! allowlist here are the executable form.
 
-mod allowlist;
-mod cases;
-mod classify;
-mod drivers;
-mod outcome;
+/// Factory `kind:` strings this harness drives.
+///
+/// Keep in lockstep with `praxis_policy::builtin_pdp_factories` (see the
+/// facade crate test `every_builtin_pdp_kind_is_in_the_differential_harness`).
+/// Public so that test imports this constant instead of duplicating the list.
+pub const HARNESS_PDP_KINDS: &[&str] = &["cedar-direct", "cel", "opa"];
 
-pub use drivers::HARNESS_PDP_KINDS;
+// The harness runs from this crate's own test module and from nowhere else, so
+// a non-test build reaches none of it. `HARNESS_PDP_KINDS` above is the one
+// item a dependent reads, which is why it sits here rather than in `drivers`.
+#[cfg(test)]
+mod allowlist;
+#[cfg(test)]
+mod cases;
+#[cfg(test)]
+mod classify;
+#[cfg(test)]
+mod drivers;
+#[cfg(test)]
+mod outcome;
 
 #[cfg(test)]
 #[allow(

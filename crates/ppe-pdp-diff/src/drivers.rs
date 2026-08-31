@@ -7,13 +7,6 @@ use praxis_policy_apl_core::step::{PdpCall, PdpDecision, PdpDialect, PdpError, P
 
 use crate::cases::Case;
 
-/// Factory `kind:` strings this harness drives.
-///
-/// Keep in lockstep with `praxis_policy::builtin_pdp_factories` (see the
-/// facade crate test `every_builtin_pdp_kind_is_in_the_differential_harness`).
-/// Public so that test imports this constant instead of duplicating the list.
-pub const HARNESS_PDP_KINDS: &[&str] = &["cedar-direct", "cel", "opa"];
-
 /// A shipped dialect the catalog evaluates. Adding a variant requires a
 /// corresponding arm in [`evaluate`] — that is the harness side of
 /// "not just the router."
