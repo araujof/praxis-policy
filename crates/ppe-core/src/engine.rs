@@ -160,6 +160,42 @@ fn declares_assertions(config: &PolicyConfig) -> bool {
         || config.routes.iter().any(|route| route.assertions.is_some())
 }
 
+/// Whether any route selects a named entity with a glob pattern.
+///
+/// The annotation table is keyed on the name the configuration writes, and for
+/// the four named entity types a request arrives under a name of its own. Those
+/// two agree for an exact selector and diverge for a glob, so a glob route needs
+/// its route resolved before its annotation can be found. Resolving is a route
+/// table walk, and this is what keeps it off every deployment that writes no
+/// glob, which is the ordinary one.
+///
+/// A list selector matches by equality, so it is not a glob: `matched_selector_name`
+/// returns the element that matched and that is the name the annotation carries.
+fn declares_glob_named_routes(config: &PolicyConfig) -> bool {
+    config.routes.iter().any(|route| {
+        [
+            route.tool.as_ref(),
+            route.resource.as_ref(),
+            route.prompt.as_ref(),
+            route.llm.as_ref(),
+        ]
+        .into_iter()
+        .flatten()
+        .any(is_glob_selector)
+    })
+}
+
+/// Whether a name selector can match a name it is not equal to.
+///
+/// Only the single-pattern shape can: `wildmatch` reads `*` and `?` as
+/// metacharacters, and a list matches by equality.
+fn is_glob_selector(selector: &config::StringOrList) -> bool {
+    match selector {
+        config::StringOrList::Single(pattern) => pattern.as_str().contains(['*', '?']),
+        config::StringOrList::List(_) => false,
+    }
+}
+
 /// Turn a refused assertion into a denial, keeping what the pipeline recorded.
 ///
 /// `PipelineResult::denied` constructs with no errors and no metadata, so a bare
@@ -493,6 +529,11 @@ struct RuntimeSnapshot {
     /// under. Read on the generic-HTTP path when a request carries no readable
     /// path, for the same reason its authentication counterpart is.
     http_routes_declaring_assertions: Arc<[String]>,
+
+    /// Whether any route selects a named entity with a glob. False for every
+    /// config that writes only exact names and lists, which is what keeps the
+    /// route resolution a glob annotation needs out of those deployments.
+    declares_glob_named_routes: bool,
 }
 
 /// Composite key for route annotations. Includes the hook name so a single
@@ -823,6 +864,7 @@ fn snapshot_from_config(registry: PluginRegistry, policy_config: PolicyConfig) -
     let http_routes_declaring_authentication = http_routes_declaring_authentication(&policy_config);
     let declares_assertions = declares_assertions(&policy_config);
     let http_routes_declaring_assertions = http_routes_declaring_assertions(&policy_config);
+    let declares_glob_named_routes = declares_glob_named_routes(&policy_config);
     RuntimeSnapshot {
         registry,
         executor,
@@ -832,6 +874,7 @@ fn snapshot_from_config(registry: PluginRegistry, policy_config: PolicyConfig) -
         http_routes_declaring_authentication,
         declares_assertions,
         http_routes_declaring_assertions,
+        declares_glob_named_routes,
     }
 }
 
@@ -848,6 +891,7 @@ impl PolicyEngine {
             http_routes_declaring_authentication: Arc::from(Vec::new()),
             declares_assertions: false,
             http_routes_declaring_assertions: Arc::from(Vec::new()),
+            declares_glob_named_routes: false,
         };
         Self {
             runtime: arc_swap::ArcSwap::from_pointee(snapshot),
@@ -2493,6 +2537,62 @@ impl PolicyEngine {
                     entity_name: en.to_owned(),
                     scope: None,
                     hook_name: hook_name.to_owned(),
+                })
+            });
+            // A glob selector annotates under the pattern it writes, and the
+            // two lookups above ask for the name the request arrived under, so
+            // neither can find it. Resolve the route and ask again under the
+            // name that matched. Without this a route like `tool: get_*`
+            // carrying `authorization:` resolved for everything else it
+            // declares and dispatched no policy at all, which is a deny an
+            // operator wrote and an allow the request got.
+            //
+            // Gated on the config declaring a glob, so a deployment writing
+            // only exact names and lists pays neither the walk nor a second
+            // pair of lookups. `early_named` is the same resolution, already
+            // done when an `assertions:` contract needed it.
+            let glob_matched = if candidate.is_none() && snapshot.declares_glob_named_routes {
+                early_named.as_ref().map_or_else(
+                    || {
+                        routing_config.and_then(|policy_config| {
+                            config::resolve_route(
+                                policy_config,
+                                config::RouteQuery::named(et, en).with_scope(request_scope),
+                            )
+                        })
+                    },
+                    |matched| {
+                        Some(config::MatchedRoute {
+                            route: matched.route,
+                            name: matched.name.clone(),
+                        })
+                    },
+                )
+            } else {
+                None
+            };
+            // Only when the route resolved to a name other than the request's:
+            // an equal name is what the two lookups above already asked for.
+            let candidate = candidate.or_else(|| {
+                let matched = glob_matched.as_ref()?;
+                if matched.name == en {
+                    return None;
+                }
+                let scoped = request_scope.and_then(|s| {
+                    snapshot.route_annotations.get(&AnnotationKey {
+                        entity_type: et.to_owned(),
+                        entity_name: matched.name.clone(),
+                        scope: Some(s.to_owned()),
+                        hook_name: hook_name.to_owned(),
+                    })
+                });
+                scoped.or_else(|| {
+                    snapshot.route_annotations.get(&AnnotationKey {
+                        entity_type: et.to_owned(),
+                        entity_name: matched.name.clone(),
+                        scope: None,
+                        hook_name: hook_name.to_owned(),
+                    })
                 })
             });
             if let Some(entry) = candidate {

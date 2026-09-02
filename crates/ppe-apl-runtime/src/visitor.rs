@@ -2146,8 +2146,8 @@ routes:
     }
 
     /// A glob route under one of the four MCP selectors. The annotation is
-    /// installed under the pattern as written, and the lookup is exact
-    /// equality, so a request named by a glob never reaches the body.
+    /// installed under the pattern as written, so reaching the body means
+    /// resolving the request's name to that pattern first.
     const GLOB_TOOL_ROUTE: &str = r#"
 engine_settings:
   dispatch: policy
@@ -2159,10 +2159,10 @@ routes:
 "#;
 
     #[tokio::test]
-    async fn a_glob_tool_route_still_does_not_evaluate_its_policy_body() {
+    async fn a_glob_tool_route_evaluates_its_policy_body() {
         let mgr = engine_with(GLOB_TOOL_ROUTE).await;
 
-        let (allowed, _bg) = mgr
+        let (denied, _bg) = mgr
             .invoke_named::<CmfHook>(
                 HOOK_CMF_TOOL_PRE_INVOKE,
                 payload(),
@@ -2171,25 +2171,24 @@ routes:
             )
             .await;
         assert!(
-            allowed.continue_processing,
-            "a name the glob matches does not equal the pattern the handler is \
-             installed under, so the body does not evaluate; violation = {:?}",
-            allowed.violation
+            !denied.continue_processing,
+            "the route denies and the name the glob covers is governed by it"
         );
 
-        // The handler exists and its body denies, so the line above is the
-        // lookup and not a missing installation.
-        let (denied, _bg) = mgr
+        // A name the pattern does not cover resolves no route, so the body that
+        // denies is not reached and the request is not governed by it.
+        let (allowed, _bg) = mgr
             .invoke_named::<CmfHook>(
                 HOOK_CMF_TOOL_PRE_INVOKE,
                 payload(),
-                tool_request("hr-*"),
+                tool_request("finance-close"),
                 None,
             )
             .await;
         assert!(
-            !denied.continue_processing,
-            "the body is installed under the pattern as written"
+            allowed.continue_processing,
+            "a name outside the pattern reaches no body; violation = {:?}",
+            allowed.violation
         );
     }
 

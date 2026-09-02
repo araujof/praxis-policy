@@ -818,6 +818,29 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **A glob route under `tool:` / `resource:` / `prompt:` / `llm:` evaluates its
+  policy body.** A name selector matches by glob, and a route annotates its
+  compiled body under the pattern as written, but the annotation lookup asked for
+  the name the request arrived under. Those agree for an exact selector and
+  diverge for a glob, so `tool: "hr-*"` carrying `authorization:` resolved for
+  everything else it declares, installed a handler, and dispatched no policy at
+  all. An operator wrote a deny and the request got an allow, with no diagnostic
+  either way.
+
+  The lookup now resolves the route and asks again under the name that matched,
+  which is what the `http:` selector already did: `matched_http_name` exists so
+  that "the cache and the annotation table key on the config rather than on the
+  traffic", and the named path was the half still keying on the traffic. Gated on
+  the configuration declaring a glob, so a deployment writing only exact names and
+  lists pays neither the route walk nor a second pair of lookups, and the
+  resolution an `assertions:` contract already needed is reused where present.
+
+  Specificity is unchanged, and two consequences of it are worth knowing. An
+  exact selector still outranks a glob that also matches, and it is found before
+  the route is resolved at all. And an exact route carrying no policy still
+  shadows a glob that has one, because the more specific route won and declares
+  nothing; that is the one shape where adding a route removes enforcement.
+
 - **A bundle joined through both `meta.tags` and `groups:` no longer runs its
   `authentication:` steps twice.** Bundle membership is now deduplicated before
   authentication and assertion layers are resolved, keeping their inheritance
