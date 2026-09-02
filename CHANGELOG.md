@@ -818,6 +818,18 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **`docs/upgrade-apl.md` documents the host half of the release.** Its "Rust API
+  changes" section is written for a host embedding the engine, and it named one of
+  the four changes that actually break one: the `routing_enabled()` rename. It now
+  also carries the generic-HTTP hook family move (`HOOK_CMF_HTTP_REQUEST` to
+  `http_hook::HOOK_HTTP_REQUEST`, dispatched through `HttpHook` with an
+  `HttpPayload`), the `Subject::claims` change from `String` to `Value` with the
+  flattening a host that wants the old shape writes, and the `HttpTransport` a host
+  must install. The transport is the one that matters most there, because it is the
+  only break in the section a clean build does not catch: it surfaces at
+  `PolicyEngine::initialize()`. Its `perform_http` half reaches a configuration
+  rather than a host, so the guide's introduction points a config-only reader at it.
+
 - **A glob route under `tool:` / `resource:` / `prompt:` / `llm:` evaluates its
   policy body.** A name selector matches by glob, and a route annotates its
   compiled body under the pattern as written, but the annotation lookup asked for
