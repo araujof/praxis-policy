@@ -189,8 +189,28 @@ impl HyperTransport {
     }
 
     /// The shared client, built on first call.
-    fn client(&self) -> &HyperClient {
-        self.client.get_or_init(|| {
+    ///
+    /// Fallible because building the TLS configuration is: naming a crypto
+    /// provider means asking it for protocol versions, and that answer is a
+    /// `Result`. Returning it beats unwrapping, which is the panic this whole
+    /// path exists to remove.
+    fn client(&self) -> Result<&HyperClient, HttpTransportError> {
+        if let Some(client) = self.client.get() {
+            return Ok(client);
+        }
+        let built = Self::build_client(self)?;
+        // A racing caller may have won `set`; either client is equivalent, and
+        // `get_or_init`'s own contract is the same. Read back whichever landed
+        // so every caller shares one pool.
+        let _ = self.client.set(built);
+        self.client
+            .get()
+            .ok_or_else(|| HttpTransportError::Connect("HTTP client init raced".to_owned()))
+    }
+
+    /// Build the pooling client. Called once per transport, from `client`.
+    fn build_client(&self) -> Result<HyperClient, HttpTransportError> {
+        {
             let mut http = HttpConnector::new();
             // The HTTPS connector wraps this one, so it must accept the
             // `https` scheme rather than rejecting it as non-HTTP.
@@ -204,11 +224,37 @@ impl HyperTransport {
             http.set_nodelay(true);
             http.set_keepalive(self.tcp_keepalive);
 
+            // An explicit provider, not the process-level default.
+            //
+            // `with_webpki_roots()` builds its `ClientConfig` through
+            // `rustls::ClientConfig::builder()`, which reads the default
+            // provider, and a host's own dependency graph is what sets
+            // that. A graph carrying both `ring` and `aws-lc-rs` has no
+            // unambiguous default, so rustls panics on the first
+            // connection rather than choosing; Praxis is exactly that
+            // graph, because pingora and its TLS stack pull `aws-lc-rs`
+            // while this transport pulls `ring`.
+            //
+            // Naming the provider here keeps that decision inside the
+            // transport. Installing a process default instead would
+            // reach outside it and could lose a race with a host
+            // installing its own.
+            //
+            // Webpki roots rather than the system store, matching what
+            // the reqwest path resolved to and keeping the trust set
+            // identical across every deployment.
+            let mut roots = rustls::RootCertStore::empty();
+            roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+            let tls_config = rustls::ClientConfig::builder_with_provider(std::sync::Arc::new(
+                rustls::crypto::ring::default_provider(),
+            ))
+            .with_safe_default_protocol_versions()
+            .map_err(|e| HttpTransportError::Connect(format!("rustls client configuration: {e}")))?
+            .with_root_certificates(roots)
+            .with_no_client_auth();
+
             let tls = hyper_rustls::HttpsConnectorBuilder::new()
-                // Webpki roots rather than the system store, matching
-                // what the reqwest path resolved to and keeping the
-                // trust set identical across every deployment.
-                .with_webpki_roots()
+                .with_tls_config(tls_config)
                 // `https_or_http`, not `https_only`: `identity-jwt`
                 // supports an explicit `insecure_http: true` for local
                 // development, and it already refuses plaintext by
@@ -226,7 +272,7 @@ impl HyperTransport {
                 tls.enable_http1().wrap_connector(http)
             };
 
-            Client::builder(TokioExecutor::new())
+            let client = Client::builder(TokioExecutor::new())
                 // Without a timer, `pool_idle_timeout` silently does
                 // nothing and idle connections are never evicted. With
                 // `pool_max_idle_per_host` defaulting to unlimited, that
@@ -235,8 +281,10 @@ impl HyperTransport {
                 .pool_timer(TokioTimer::new())
                 .pool_idle_timeout(self.pool_idle_timeout)
                 .pool_max_idle_per_host(self.pool_max_idle_per_host)
-                .build(https)
-        })
+                .build(https);
+
+            Ok(client)
+        }
     }
 }
 
@@ -285,7 +333,7 @@ impl HttpTransport for HyperTransport {
         // `req.connect_timeout` is not consulted: the bound belongs to the
         // shared connector. See `with_connect_timeout`. The overall
         // deadline below still covers the connect phase.
-        let client = self.client();
+        let client = self.client()?;
         let limit = req.max_response_bytes;
 
         // The deadline covers the *whole* exchange, headers and body.
@@ -406,6 +454,37 @@ mod tests {
         );
         let _ = t.execute(HttpRequest::get("http://127.0.0.1:1/x")).await;
         assert!(t.client.get().is_some(), "first use must build the pool");
+    }
+
+    #[tokio::test]
+    async fn the_pool_builds_with_no_process_default_crypto_provider() {
+        // The graph guard, and the reason the TLS configuration names its
+        // provider. `ClientConfig::builder()` reads the process-level default,
+        // and a host's own dependency graph is what sets that: a graph carrying
+        // both `ring` and `aws-lc-rs` has no unambiguous default, so rustls
+        // panicked on the first connection rather than choosing. Praxis is
+        // exactly that graph.
+        //
+        // This test process installs no default, which is the same condition
+        // from the other direction: if the connector went back to reading it,
+        // building the pool would panic here.
+        assert!(
+            rustls::crypto::CryptoProvider::get_default().is_none(),
+            "the guard only means something while nothing has installed a default"
+        );
+        let t = HyperTransport::new();
+        // A closed port, so this reaches the connector and stops there. What is
+        // under test is that building it produced a client at all.
+        let _ = t.execute(HttpRequest::get("https://127.0.0.1:1/x")).await;
+        assert!(
+            t.client.get().is_some(),
+            "the pool must build against the named provider"
+        );
+        assert!(
+            rustls::crypto::CryptoProvider::get_default().is_none(),
+            "naming a provider must not install one process-wide, which would \
+             race a host installing its own"
+        );
     }
 
     #[test]

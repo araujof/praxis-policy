@@ -2379,7 +2379,9 @@ dependencies = [
  "praxis-policy-plugin-elicitation-ciba",
  "praxis-policy-plugin-identity-jwt",
  "praxis-policy-session-valkey",
+ "rustls",
  "tokio",
+ "webpki-roots",
 ]
 
 [[package]]

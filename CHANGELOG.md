@@ -830,6 +830,26 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
   `PolicyEngine::initialize()`. Its `perform_http` half reaches a configuration
   rather than a host, so the guide's introduction points a config-only reader at it.
 
+- **The bundled hyper transport names its crypto provider instead of reading the
+  process default.** `HttpsConnectorBuilder::with_webpki_roots()` builds its
+  `ClientConfig` through `rustls::ClientConfig::builder()`, which reads the
+  process-level `CryptoProvider`, and a host's own dependency graph is what sets
+  that. A graph carrying both `ring` and `aws-lc-rs` has no unambiguous default,
+  so rustls panicked on the first connection rather than choosing. Praxis is
+  exactly that graph: pingora and its TLS stack pull `aws-lc-rs` while this
+  transport pulls `ring`, so `install_default_http_transport` worked standalone
+  and panicked inside the gateway, on the first JWKS fetch.
+
+  The transport now builds its configuration against `ring` explicitly, so the
+  decision stays inside it. Installing a process default instead would reach
+  outside the transport and could lose a race with a host installing its own; a
+  test asserts that none is installed as a side effect. `HyperTransport::client`
+  is fallible as a result, since naming a provider means asking it for protocol
+  versions, and a TLS configuration failure now reports as
+  `HttpTransportError::Connect` rather than unwrapping. `rustls` and
+  `webpki-roots` become direct dependencies under `http-hyper`; both were already
+  in the graph through `hyper-rustls`.
+
 - **A glob route under `tool:` / `resource:` / `prompt:` / `llm:` evaluates its
   policy body.** A name selector matches by glob, and a route annotates its
   compiled body under the pattern as written, but the annotation lookup asked for
