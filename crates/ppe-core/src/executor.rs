@@ -491,10 +491,15 @@ impl Executor {
             match result {
                 Ok(Ok(result_box)) => {
                     if let Some(erased) = extract_erased(result_box) {
-                        if !erased.continue_processing
-                            && can_block
-                            && let Some(mut v) = erased.violation
-                        {
+                        if !erased.continue_processing && can_block {
+                            // A blocking result always halts; synthesize a violation
+                            // when the plugin did not provide one.
+                            let mut v = erased.violation.unwrap_or_else(|| {
+                                crate::error::PluginViolation::new(
+                                    "plugin_deny",
+                                    format!("Plugin '{plugin_name}' denied"),
+                                )
+                            });
                             v.plugin_name = Some(plugin_name.to_owned());
                             return Some(v);
                         }
