@@ -781,15 +781,7 @@ routes:
     }
 }
 
-/// A glob route under one of the entity selectors installs its annotation under
-/// the pattern as written, and the lookup is exact, so its policy body never
-/// evaluates. With the activation list gone there is no chain behind it either,
-/// so the route reaches nothing.
-/// A glob selector annotates under the pattern it writes, and a request arrives
-/// under a name of its own, so finding the body means resolving the route first.
-/// This used to dispatch nothing: the route resolved for everything else it
-/// declared and its policy never ran, which is a deny an operator wrote and an
-/// allow the request got.
+/// A glob selector resolves request names to the annotation keyed by its pattern.
 #[tokio::test]
 async fn a_glob_entity_route_dispatches_its_body() {
     const YAML: &str = r#"
@@ -811,13 +803,11 @@ routes:
     assert_eq!(
         fired(&ledger),
         vec!["body-audit".to_owned()],
-        "the pattern the route writes is what its annotation is keyed on, so the \
-         request's own name has to resolve to that pattern before the body is found"
+        "the request name must resolve to the glob annotation"
     );
 }
 
-/// Two names under one pattern reach the same compiled body, the way two paths
-/// under one `path_prefix` do.
+/// Every name matched by a glob shares its compiled body.
 #[tokio::test]
 async fn many_names_under_one_glob_share_its_body() {
     const YAML: &str = r#"
@@ -845,7 +835,7 @@ routes:
     );
 }
 
-/// A name the pattern does not cover resolves no route and reaches no body.
+/// A name outside the glob reaches no body.
 #[tokio::test]
 async fn a_name_outside_the_glob_reaches_no_body() {
     const YAML: &str = r#"
@@ -864,14 +854,10 @@ routes:
     let (mgr, ledger) = engine_with(YAML).await;
 
     assert!(fire(&mgr, "cmf.tool_pre_invoke", tool_request("finance-close")).await);
-    assert!(
-        fired(&ledger).is_empty(),
-        "resolving the route is what finds a glob's body, and this name resolves none"
-    );
+    assert!(fired(&ledger).is_empty(), "the name matches no route");
 }
 
-/// An exact selector outranks a glob that also matches, so the exact route's
-/// body is the one that runs.
+/// An exact selector outranks a matching glob.
 #[tokio::test]
 async fn an_exact_entity_route_outranks_a_glob_that_also_matches() {
     const YAML: &str = r#"
@@ -900,8 +886,7 @@ routes:
     assert_eq!(
         fired(&ledger),
         vec!["exact-audit".to_owned()],
-        "the exact name is looked up before the route is resolved at all, so the \
-         glob never gets the chance to answer for a name spelled out beside it"
+        "the exact route must win"
     );
 
     clear(&ledger);
@@ -913,10 +898,7 @@ routes:
     );
 }
 
-/// An exact route carrying no policy shadows a glob that would have governed the
-/// name. Worth pinning: it is the one shape where adding a route removes
-/// enforcement, and it follows from specificity rather than from anything the
-/// annotation lookup does.
+/// An exact route without policy still shadows a matching glob.
 #[tokio::test]
 async fn an_exact_route_with_no_body_shadows_a_glob_that_has_one() {
     const YAML: &str = r#"
@@ -938,8 +920,7 @@ routes:
     assert!(fire(&mgr, "cmf.tool_pre_invoke", tool_request("hr-get-salary")).await);
     assert!(
         fired(&ledger).is_empty(),
-        "the exact route wins on specificity and declares no policy, so the glob's \
-         body does not stand in for it"
+        "the glob body must not replace the more specific route's empty body"
     );
 }
 
@@ -1650,8 +1631,7 @@ routes:
             tool_request("get_weather"),
             "tool-audit",
         ),
-        // The glob's annotation is keyed on the pattern as written, and the
-        // name resolves to that pattern before the lookup, so its body runs.
+        // Resolve the request name to the glob pattern used as the annotation key.
         (
             "cmf.tool_pre_invoke",
             tool_request("hr-get-salary"),

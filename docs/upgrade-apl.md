@@ -12,10 +12,8 @@ means every key in it does something.
 Work through the sections in order. The first two change the shape of the
 document, and the rest are local rewrites.
 
-One item in section 10 reaches a configuration even though the section is written
-for a host: a plugin that fetches a JWKS, exchanges a token, or dispatches a CIBA
-prompt must now declare the `perform_http` capability. Read that subsection even
-if you write no Rust.
+Section 10 also covers the `perform_http` capability required by plugins that
+fetch JWKS, exchange tokens, or dispatch CIBA prompts.
 
 ---
 
@@ -442,10 +440,8 @@ For a host embedding the engine rather than only writing configuration.
 
 ### The generic-HTTP hooks moved families
 
-Both names and both constants moved, and so did the type a handler is written
-against. The two names are `http.request` and `http.response`, the constants live
-in `praxis_policy_core::http_hook`, and the payload is `HttpPayload`, which
-carries no fields:
+The hook names are now `http.request` and `http.response`; their constants,
+handler type, and empty payload live in `praxis_policy_core::http_hook`:
 
 ```rust
 // before
@@ -460,20 +456,13 @@ use praxis_policy_core::http_hook::{HOOK_HTTP_REQUEST, HttpHook, HttpPayload};
 mgr.invoke_named::<HttpHook>(HOOK_HTTP_REQUEST, HttpPayload, ext, None).await;
 ```
 
-The placeholder message is what the split removes. Nothing on the HTTP path
-filled it, so a content-inspecting plugin registered on an HTTP hook scanned a
-fabricated message and reported clean, and an always-passing scanner is worse
-than no scanner. A `hooks:` entry in YAML naming `cmf.http_request` or
-`cmf.http_response` fails the load and names the replacement.
+HTTP handlers no longer receive a fabricated placeholder message. YAML using
+`cmf.http_request` or `cmf.http_response` now fails with the replacement name.
 
 ### Subject claims keep their JSON shape
 
-`Subject::claims` is `HashMap<String, Value>`. It was `HashMap<String, String>`,
-where a structured claim had already been flattened for you.
-
-A host that wants the old flat strings does the flattening itself, and wants
-`as_str()` on the string arm rather than `to_string()`, or every string claim
-arrives quoted:
+`Subject::claims` changed from `HashMap<String, String>` to
+`HashMap<String, Value>`. To retain flat strings without quoting string values:
 
 ```rust
 let flat = value.as_str().map_or_else(|| value.to_string(), str::to_owned);
@@ -481,35 +470,28 @@ let flat = value.as_str().map_or_else(|| value.to_string(), str::to_owned);
 
 ### A host must install an HTTP transport
 
-**This one compiles.** It is the only change in this section a clean build does
-not catch, so read it even if your build is green.
+This requirement is checked at initialization, not compile time.
 
-PPE performs no outbound HTTP of its own. `identity-jwt`, `delegator-oauth` and
-`elicitation-ciba` borrow a transport the host installs, and with none installed
-a `jwks_url` issuer fails at `PolicyEngine::initialize()` rather than at load.
+`identity-jwt`, `delegator-oauth`, and `elicitation-ciba` use a transport supplied
+by the host. Without one, HTTP-dependent plugins fail at
+`PolicyEngine::initialize()`.
 
-A host that already has an HTTP stack should lend that one, so the process keeps
-one connection pool, one TLS trust store, and one egress path:
+To reuse the host's connection pool, trust store, and egress path:
 
 ```rust
 mgr.set_http_transport(Arc::new(MyTransport::new()));
 ```
 
-A host without one enables the non-default `http-hyper` feature on
-`praxis-policy` and installs the bundled implementation. It is deliberately not
-folded into `install_builtins`, so wiring an egress path stays one explicit line:
+Otherwise, enable `praxis-policy`'s non-default `http-hyper` feature and install
+the bundled transport explicitly:
 
 ```rust
 praxis_policy::install_builtins(&mgr);
 praxis_policy::install_default_http_transport(&mgr);
 ```
 
-The bundled transport builds its pool on first use, so installing it from a
-short-lived initialization runtime is safe.
-
-**Breaking for existing configuration too**, and it is checked at
-initialization: a plugin using `jwks_url`, an OAuth delegator, or a CIBA approver
-must declare the `perform_http` capability.
+The bundled transport builds its pool on first use. Each plugin using `jwks_url`,
+OAuth delegation, or CIBA must also declare `perform_http`:
 
 ```yaml
 plugins:
@@ -519,11 +501,8 @@ plugins:
       - perform_http
 ```
 
-Withholding it stops the call rather than degrading it, because a plugin that
-quietly skipped its `IdP` call would fail open. The two failures report
-separately: `ServiceError::NotInstalled` says the embedding host installed no
-transport, which is a wiring problem, and `NotPermitted` names the capability to
-add, which is a configuration one.
+`ServiceError::NotInstalled` indicates a missing host transport;
+`ServiceError::NotPermitted` indicates a missing capability.
 
 `Phase` and `CompiledRoute` both derive `Serialize`, so **the serialized keys
 change too**: a phase serializes as `pre_invocation` / `post_invocation`, and a

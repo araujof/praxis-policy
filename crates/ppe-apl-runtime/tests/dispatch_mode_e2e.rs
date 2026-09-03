@@ -556,14 +556,7 @@ routes:
     );
 }
 
-/// A delegator reached by a `delegate(...)` step is not narrowed.
-///
-/// Its hook is `token.delegate`, fixed by its own family rather than by the
-/// entity the route selects. The tally credited every reached plugin with the
-/// route's CMF hook pair, so a delegator came out covered on
-/// `cmf.tool_pre_invoke` and uncovered on the one hook it actually declares.
-/// That fired on every configuration that delegates, which is most of them, and
-/// an alarm that always fires is one nobody reads.
+/// A `delegate(...)` step reaches its plugin on `token.delegate`.
 #[test]
 fn a_delegator_reached_by_a_delegate_step_is_not_reported_as_narrowed() {
     let alarms = alarms_raised_by_loading(
@@ -581,12 +574,11 @@ routes:
     );
     assert!(
         !alarms.contains(&NARROWED.to_owned()),
-        "the step reaches it under `token.delegate`, which is the hook it \
-         declares, so there is nothing uncovered: {alarms:?}"
+        "`token.delegate` is covered: {alarms:?}"
     );
 }
 
-/// The same for an elicitation handler, whose hook is `elicit`.
+/// An elicitation verb reaches its handler on `elicit`.
 #[test]
 fn an_elicitation_handler_reached_by_a_verb_is_not_reported_as_narrowed() {
     let alarms = alarms_raised_by_loading(
@@ -604,13 +596,11 @@ routes:
     );
     assert!(
         !alarms.contains(&NARROWED.to_owned()),
-        "the verb reaches it under `elicit`, which is the hook it declares: \
-         {alarms:?}"
+        "`elicit` is covered: {alarms:?}"
     );
 }
 
-/// And the report still fires for a delegator that genuinely declares a hook
-/// nothing reaches, so the fix above narrowed the alarm rather than muting it.
+/// Family-specific reachability does not hide other uncovered hooks.
 #[test]
 fn a_delegator_declaring_an_unreached_cmf_hook_is_still_reported() {
     let alarms = alarms_raised_by_loading(

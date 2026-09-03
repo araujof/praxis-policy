@@ -160,17 +160,9 @@ fn declares_assertions(config: &PolicyConfig) -> bool {
         || config.routes.iter().any(|route| route.assertions.is_some())
 }
 
-/// Whether any route selects a named entity with a glob pattern.
+/// Whether any named route uses a glob selector.
 ///
-/// The annotation table is keyed on the name the configuration writes, and for
-/// the four named entity types a request arrives under a name of its own. Those
-/// two agree for an exact selector and diverge for a glob, so a glob route needs
-/// its route resolved before its annotation can be found. Resolving is a route
-/// table walk, and this is what keeps it off every deployment that writes no
-/// glob, which is the ordinary one.
-///
-/// A list selector matches by equality, so it is not a glob: `matched_selector_name`
-/// returns the element that matched and that is the name the annotation carries.
+/// This avoids resolving routes before annotation lookup in exact/list-only configs.
 fn declares_glob_named_routes(config: &PolicyConfig) -> bool {
     config.routes.iter().any(|route| {
         [
@@ -185,10 +177,7 @@ fn declares_glob_named_routes(config: &PolicyConfig) -> bool {
     })
 }
 
-/// Whether a name selector can match a name it is not equal to.
-///
-/// Only the single-pattern shape can: `wildmatch` reads `*` and `?` as
-/// metacharacters, and a list matches by equality.
+/// Whether a selector can match a different name through wildcards.
 fn is_glob_selector(selector: &config::StringOrList) -> bool {
     match selector {
         config::StringOrList::Single(pattern) => pattern.as_str().contains(['*', '?']),
@@ -530,9 +519,7 @@ struct RuntimeSnapshot {
     /// path, for the same reason its authentication counterpart is.
     http_routes_declaring_assertions: Arc<[String]>,
 
-    /// Whether any route selects a named entity with a glob. False for every
-    /// config that writes only exact names and lists, which is what keeps the
-    /// route resolution a glob annotation needs out of those deployments.
+    /// Whether any named route uses a glob selector.
     declares_glob_named_routes: bool,
 }
 
@@ -2539,18 +2526,8 @@ impl PolicyEngine {
                     hook_name: hook_name.to_owned(),
                 })
             });
-            // A glob selector annotates under the pattern it writes, and the
-            // two lookups above ask for the name the request arrived under, so
-            // neither can find it. Resolve the route and ask again under the
-            // name that matched. Without this a route like `tool: get_*`
-            // carrying `authorization:` resolved for everything else it
-            // declares and dispatched no policy at all, which is a deny an
-            // operator wrote and an allow the request got.
-            //
-            // Gated on the config declaring a glob, so a deployment writing
-            // only exact names and lists pays neither the walk nor a second
-            // pair of lookups. `early_named` is the same resolution, already
-            // done when an `assertions:` contract needed it.
+            // Glob annotations are keyed by their pattern, not the request name.
+            // Resolve only when a glob exists, reusing assertion resolution when available.
             let glob_matched = if candidate.is_none() && snapshot.declares_glob_named_routes {
                 early_named.as_ref().map_or_else(
                     || {
@@ -2571,8 +2548,7 @@ impl PolicyEngine {
             } else {
                 None
             };
-            // Only when the route resolved to a name other than the request's:
-            // an equal name is what the two lookups above already asked for.
+            // An equal name was already checked above.
             let candidate = candidate.or_else(|| {
                 let matched = glob_matched.as_ref()?;
                 if matched.name == en {

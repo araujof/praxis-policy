@@ -818,76 +818,20 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
-- **`docs/upgrade-apl.md` documents the host half of the release.** Its "Rust API
-  changes" section is written for a host embedding the engine, and it named one of
-  the four changes that actually break one: the `routing_enabled()` rename. It now
-  also carries the generic-HTTP hook family move (`HOOK_CMF_HTTP_REQUEST` to
-  `http_hook::HOOK_HTTP_REQUEST`, dispatched through `HttpHook` with an
-  `HttpPayload`), the `Subject::claims` change from `String` to `Value` with the
-  flattening a host that wants the old shape writes, and the `HttpTransport` a host
-  must install. The transport is the one that matters most there, because it is the
-  only break in the section a clean build does not catch: it surfaces at
-  `PolicyEngine::initialize()`. Its `perform_http` half reaches a configuration
-  rather than a host, so the guide's introduction points a config-only reader at it.
+- **Delegators and elicitation handlers are no longer reported as narrowed when
+  their family-specific hooks are reached.** `delegate(...)` is credited to
+  `token.delegate`, and elicitation verbs to `elicit`. Unreached hooks declared by
+  those plugins are still reported.
 
-- **A delegator or an elicitation handler is no longer reported as narrowed.** The
-  per-hook reachability tally credited every plugin a route reaches with that
-  route's CMF hook pair, but a `delegate(...)` step invokes its plugin under
-  `token.delegate` and an elicitation verb invokes its handler under `elicit`,
-  whichever entity the route selects. So a delegator declaring `token.delegate`
-  came out covered on `cmf.tool_pre_invoke` and uncovered on the one hook it
-  actually has, and `plugin_narrowed_by_policy` fired on every configuration that
-  delegates or elicits. An alarm that always fires is one nobody reads, and this
-  one exists to name a real coverage gap.
+- **The bundled hyper transport selects `ring` explicitly.** It no longer depends
+  on rustls's process default, which is ambiguous when a host includes both `ring`
+  and `aws-lc-rs`. It neither reads nor installs that default, and TLS setup errors
+  now return `HttpTransportError::Connect` instead of panicking.
 
-  The two families are now credited under their own hook. The plugin-level tally
-  was already right, so this was never a load failure, only noise: the three demo
-  policies raised four of these warnings between them and one was real. The report
-  still fires for a delegator that declares a CMF hook nothing reaches, so the
-  alarm was narrowed rather than muted.
-
-- **The bundled hyper transport names its crypto provider instead of reading the
-  process default.** `HttpsConnectorBuilder::with_webpki_roots()` builds its
-  `ClientConfig` through `rustls::ClientConfig::builder()`, which reads the
-  process-level `CryptoProvider`, and a host's own dependency graph is what sets
-  that. A graph carrying both `ring` and `aws-lc-rs` has no unambiguous default,
-  so rustls panicked on the first connection rather than choosing. Praxis is
-  exactly that graph: pingora and its TLS stack pull `aws-lc-rs` while this
-  transport pulls `ring`, so `install_default_http_transport` worked standalone
-  and panicked inside the gateway, on the first JWKS fetch.
-
-  The transport now builds its configuration against `ring` explicitly, so the
-  decision stays inside it. Installing a process default instead would reach
-  outside the transport and could lose a race with a host installing its own; a
-  test asserts that none is installed as a side effect. `HyperTransport::client`
-  is fallible as a result, since naming a provider means asking it for protocol
-  versions, and a TLS configuration failure now reports as
-  `HttpTransportError::Connect` rather than unwrapping. `rustls` and
-  `webpki-roots` become direct dependencies under `http-hyper`; both were already
-  in the graph through `hyper-rustls`.
-
-- **A glob route under `tool:` / `resource:` / `prompt:` / `llm:` evaluates its
-  policy body.** A name selector matches by glob, and a route annotates its
-  compiled body under the pattern as written, but the annotation lookup asked for
-  the name the request arrived under. Those agree for an exact selector and
-  diverge for a glob, so `tool: "hr-*"` carrying `authorization:` resolved for
-  everything else it declares, installed a handler, and dispatched no policy at
-  all. An operator wrote a deny and the request got an allow, with no diagnostic
-  either way.
-
-  The lookup now resolves the route and asks again under the name that matched,
-  which is what the `http:` selector already did: `matched_http_name` exists so
-  that "the cache and the annotation table key on the config rather than on the
-  traffic", and the named path was the half still keying on the traffic. Gated on
-  the configuration declaring a glob, so a deployment writing only exact names and
-  lists pays neither the route walk nor a second pair of lookups, and the
-  resolution an `assertions:` contract already needed is reused where present.
-
-  Specificity is unchanged, and two consequences of it are worth knowing. An
-  exact selector still outranks a glob that also matches, and it is found before
-  the route is resolved at all. And an exact route carrying no policy still
-  shadows a glob that has one, because the more specific route won and declares
-  nothing; that is the one shape where adding a route removes enforcement.
+- **Glob routes under `tool:`, `resource:`, `prompt:`, and `llm:` now evaluate
+  their policy bodies.** Annotation lookup now resolves a request name to the
+  configured pattern. Exact selectors still outrank globs, including when the
+  exact route has no policy body.
 
 - **A bundle joined through both `meta.tags` and `groups:` no longer runs its
   `authentication:` steps twice.** Bundle membership is now deduplicated before

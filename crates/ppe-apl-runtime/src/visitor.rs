@@ -518,11 +518,7 @@ impl AplConfigVisitor {
     /// routes below it.
     fn record_reached_plugins(&self, route: &CompiledRoute, hook_pre: &str, hook_post: &str) {
         let (pre, post) = crate::dispatch_plan::collect_plugin_names_by_half(route);
-        // A delegator and an elicitation handler dispatch under their own
-        // family's hook, not the route's entity pair, so they are credited
-        // separately below. Crediting them with the CMF hook made their declared
-        // `token.delegate` / `elicit` read as uncovered, and the narrowing report
-        // then fired on every configuration that delegates.
+        // Delegation and elicitation use family-specific hooks, recorded below.
         let family_fixed = crate::dispatch_plan::collect_family_fixed_plugin_hooks(route);
         let mut state = self
             .state
@@ -534,7 +530,6 @@ impl AplConfigVisitor {
             for name in names {
                 state.reached_plugin_names.insert(name.clone());
                 if family_fixed_names.contains(name.as_str()) {
-                    // Reached, but on its own family's hook. Recorded below.
                     continue;
                 }
                 state
@@ -2165,9 +2160,7 @@ routes:
         );
     }
 
-    /// A glob route under one of the four MCP selectors. The annotation is
-    /// installed under the pattern as written, so reaching the body means
-    /// resolving the request's name to that pattern first.
+    /// A glob route's annotation is keyed by its pattern, not the request name.
     const GLOB_TOOL_ROUTE: &str = r#"
 engine_settings:
   dispatch: policy
@@ -2195,8 +2188,7 @@ routes:
             "the route denies and the name the glob covers is governed by it"
         );
 
-        // A name the pattern does not cover resolves no route, so the body that
-        // denies is not reached and the request is not governed by it.
+        // A name outside the pattern reaches no route body.
         let (allowed, _bg) = mgr
             .invoke_named::<CmfHook>(
                 HOOK_CMF_TOOL_PRE_INVOKE,
