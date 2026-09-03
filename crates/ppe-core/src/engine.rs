@@ -178,6 +178,11 @@ fn declares_glob_named_routes(config: &PolicyConfig) -> bool {
 }
 
 /// Whether a selector can match a different name through wildcards.
+///
+/// `*` and `?` are the whole set: `wildmatch` defines no others and no escapes,
+/// so `hr-[a-z]` is the literal eight characters rather than a character class.
+/// A literal selector needs nothing here, because its annotation key and the
+/// request name agree whenever it matches.
 fn is_glob_selector(selector: &config::StringOrList) -> bool {
     match selector {
         config::StringOrList::Single(pattern) => pattern.as_str().contains(['*', '?']),

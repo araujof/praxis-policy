@@ -835,6 +835,44 @@ routes:
     );
 }
 
+/// A bracket expression is a literal, not a character class.
+///
+/// `wildmatch` reads `*` and `?` and nothing else, so `hr-[a-z]` matches the
+/// eight characters `hr-[a-z]` and no other name. That makes it an exact
+/// selector: the annotation key and the request name agree whenever it matches,
+/// which is why the glob detector does not look for `[`.
+#[tokio::test]
+async fn a_bracket_selector_is_matched_literally() {
+    const YAML: &str = r#"
+engine_settings:
+  dispatch: policy
+plugins:
+  - name: body-audit
+    kind: test/record
+    hooks: [cmf.tool_pre_invoke]
+routes:
+  - tool: "hr-[a-z]"
+    authorization:
+      pre_invocation:
+        - "run(body-audit)"
+"#;
+    let (mgr, ledger) = engine_with(YAML).await;
+
+    // The name a character class would have covered.
+    assert!(fire(&mgr, "cmf.tool_pre_invoke", tool_request("hr-x")).await);
+    assert!(fired(&ledger).is_empty(), "`hr-x` matches no route");
+
+    // The literal spelling is what the selector names, and the exact lookup
+    // finds its annotation with no glob resolution.
+    clear(&ledger);
+    assert!(fire(&mgr, "cmf.tool_pre_invoke", tool_request("hr-[a-z]")).await);
+    assert_eq!(
+        fired(&ledger),
+        vec!["body-audit".to_owned()],
+        "the literal name reaches the body"
+    );
+}
+
 /// A name outside the glob reaches no body.
 #[tokio::test]
 async fn a_name_outside_the_glob_reaches_no_body() {

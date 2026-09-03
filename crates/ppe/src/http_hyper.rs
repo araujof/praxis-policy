@@ -203,65 +203,63 @@ impl HyperTransport {
 
     /// Build a pooling client.
     fn build_client(&self) -> Result<HyperClient, HttpTransportError> {
-        {
-            let mut http = HttpConnector::new();
-            // The HTTPS connector wraps this one, so it must accept the
-            // `https` scheme rather than rejecting it as non-HTTP.
-            http.enforce_http(false);
-            http.set_connect_timeout(Some(self.connect_timeout));
-            // hyper-util defaults this to false; reqwest sets it true.
-            // Leaving Nagle on would let a small request body — a token
-            // exchange form is a couple of hundred bytes — sit waiting to
-            // coalesce with data that never comes, adding tens of
-            // milliseconds to a call on the request path.
-            http.set_nodelay(true);
-            http.set_keepalive(self.tcp_keepalive);
+        let mut http = HttpConnector::new();
+        // The HTTPS connector wraps this one, so it must accept the
+        // `https` scheme rather than rejecting it as non-HTTP.
+        http.enforce_http(false);
+        http.set_connect_timeout(Some(self.connect_timeout));
+        // hyper-util defaults this to false; reqwest sets it true.
+        // Leaving Nagle on would let a small request body — a token
+        // exchange form is a couple of hundred bytes — sit waiting to
+        // coalesce with data that never comes, adding tens of
+        // milliseconds to a call on the request path.
+        http.set_nodelay(true);
+        http.set_keepalive(self.tcp_keepalive);
 
-            // Select `ring` locally: a host may load both supported providers,
-            // leaving rustls without a process default. Do not install one here.
-            // Keep the webpki roots used by the previous connector configuration.
-            let mut roots = rustls::RootCertStore::empty();
-            roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
-            let tls_config = rustls::ClientConfig::builder_with_provider(std::sync::Arc::new(
-                rustls::crypto::ring::default_provider(),
-            ))
-            .with_safe_default_protocol_versions()
-            .map_err(|e| HttpTransportError::Connect(format!("rustls client configuration: {e}")))?
-            .with_root_certificates(roots)
-            .with_no_client_auth();
+        // Select `ring` locally: a host may load both supported providers,
+        // leaving rustls without a process default. Do not install one here.
+        // Keep the webpki roots used by the previous connector configuration.
+        let mut roots = rustls::RootCertStore::empty();
+        roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+        let tls_config = rustls::ClientConfig::builder_with_provider(std::sync::Arc::new(
+            rustls::crypto::ring::default_provider(),
+        ))
+        .with_safe_default_protocol_versions()
+        .map_err(|e| HttpTransportError::Connect(format!("rustls client configuration: {e}")))?
+        .with_root_certificates(roots)
+        .with_no_client_auth();
 
-            let tls = hyper_rustls::HttpsConnectorBuilder::new()
-                .with_tls_config(tls_config)
-                // `https_or_http`, not `https_only`: `identity-jwt`
-                // supports an explicit `insecure_http: true` for local
-                // development, and it already refuses plaintext by
-                // default one layer up. Enforcing here as well would
-                // make that setting silently ineffective.
-                .https_or_http();
+        let tls = hyper_rustls::HttpsConnectorBuilder::new()
+            .with_tls_config(tls_config)
+            // `https_or_http`, not `https_only`: `identity-jwt`
+            // supports an explicit `insecure_http: true` for local
+            // development, and it already refuses plaintext by
+            // default one layer up. Enforcing here as well would
+            // make that setting silently ineffective.
+            .https_or_http();
 
-            // `enable_all_versions` advertises ALPN `h2, http/1.1`;
-            // `enable_http1` advertises none. Either way a peer that
-            // cannot do HTTP/2 gets HTTP/1.1, and plaintext gets it
-            // regardless since there is no ALPN without TLS.
-            let https = if self.http2 {
-                tls.enable_all_versions().wrap_connector(http)
-            } else {
-                tls.enable_http1().wrap_connector(http)
-            };
+        // `enable_all_versions` advertises ALPN `h2, http/1.1`;
+        // `enable_http1` advertises none. Either way a peer that
+        // cannot do HTTP/2 gets HTTP/1.1, and plaintext gets it
+        // regardless since there is no ALPN without TLS.
+        let https = if self.http2 {
+            tls.enable_all_versions().wrap_connector(http)
+        } else {
+            tls.enable_http1().wrap_connector(http)
+        };
 
-            let client = Client::builder(TokioExecutor::new())
-                // Without a timer, `pool_idle_timeout` silently does
-                // nothing and idle connections are never evicted. With
-                // `pool_max_idle_per_host` defaulting to unlimited, that
-                // is unbounded socket growth against a busy `IdP`, which
-                // is a slow leak rather than an error anyone would see.
-                .pool_timer(TokioTimer::new())
-                .pool_idle_timeout(self.pool_idle_timeout)
-                .pool_max_idle_per_host(self.pool_max_idle_per_host)
-                .build(https);
+        let client = Client::builder(TokioExecutor::new())
+            // Without a timer, `pool_idle_timeout` silently does
+            // nothing and idle connections are never evicted. With
+            // `pool_max_idle_per_host` defaulting to unlimited, that
+            // is unbounded socket growth against a busy `IdP`, which
+            // is a slow leak rather than an error anyone would see.
+            .pool_timer(TokioTimer::new())
+            .pool_idle_timeout(self.pool_idle_timeout)
+            .pool_max_idle_per_host(self.pool_max_idle_per_host)
+            .build(https);
 
-            Ok(client)
-        }
+        Ok(client)
     }
 }
 
