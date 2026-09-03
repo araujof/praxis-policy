@@ -637,6 +637,38 @@ pub(crate) fn collect_plugin_names_by_half(route: &CompiledRoute) -> (Vec<String
     (pre, post)
 }
 
+/// The plugins a route reaches whose hook is fixed by their own family rather
+/// than by the route's entity.
+///
+/// A `delegate(...)` step invokes its plugin under `token.delegate` and an
+/// elicitation verb invokes its handler under `elicit`, whatever entity the route
+/// selects. [`collect_plugin_names_by_half`] does not say that: it answers "which
+/// plugins does this half reach", and a caller pairing that with the route's own
+/// CMF hook pair credits a delegator with `cmf.tool_pre_invoke`. The plugin's
+/// declared hook then reads as uncovered and the narrowing report cries wolf on
+/// every configuration that delegates, which is most of them.
+///
+/// Returns `(name, hook)` pairs so the caller can record each under the hook it
+/// actually dispatches on.
+pub(crate) fn collect_family_fixed_plugin_hooks(
+    route: &CompiledRoute,
+) -> Vec<(String, &'static str)> {
+    let mut out: Vec<(String, &'static str)> = Vec::new();
+    let mut visit = |e: &Effect| {
+        let pair = match e {
+            Effect::Delegate(ds) => (ds.plugin_name.clone(), HOOK_TOKEN_DELEGATE),
+            Effect::Elicit(es) => (es.plugin_name.clone(), HOOK_ELICIT),
+            _ => return,
+        };
+        if !out.contains(&pair) {
+            out.push(pair);
+        }
+    };
+    walk_effects(&route.pre_invocation, &mut visit);
+    walk_effects(&route.post_invocation, &mut visit);
+    out
+}
+
 /// Compute the union of capabilities declared by every plugin a
 /// `CompiledRoute` can dispatch to (with per-route overrides applied).
 ///

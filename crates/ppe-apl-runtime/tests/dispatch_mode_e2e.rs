@@ -556,6 +556,83 @@ routes:
     );
 }
 
+/// A delegator reached by a `delegate(...)` step is not narrowed.
+///
+/// Its hook is `token.delegate`, fixed by its own family rather than by the
+/// entity the route selects. The tally credited every reached plugin with the
+/// route's CMF hook pair, so a delegator came out covered on
+/// `cmf.tool_pre_invoke` and uncovered on the one hook it actually declares.
+/// That fired on every configuration that delegates, which is most of them, and
+/// an alarm that always fires is one nobody reads.
+#[test]
+fn a_delegator_reached_by_a_delegate_step_is_not_reported_as_narrowed() {
+    let alarms = alarms_raised_by_loading(
+        "
+plugins:
+  - name: workday-oauth
+    kind: builtin
+    hooks: [token.delegate]
+routes:
+  - tool: get_compensation
+    authorization:
+      pre_invocation:
+        - \"delegate(workday-oauth, target: workday-api, audience: workday-api)\"
+",
+    );
+    assert!(
+        !alarms.contains(&NARROWED.to_owned()),
+        "the step reaches it under `token.delegate`, which is the hook it \
+         declares, so there is nothing uncovered: {alarms:?}"
+    );
+}
+
+/// The same for an elicitation handler, whose hook is `elicit`.
+#[test]
+fn an_elicitation_handler_reached_by_a_verb_is_not_reported_as_narrowed() {
+    let alarms = alarms_raised_by_loading(
+        "
+plugins:
+  - name: manager-approver
+    kind: builtin
+    hooks: [elicit]
+routes:
+  - tool: adjust_compensation
+    authorization:
+      pre_invocation:
+        - \"require_approval(manager-approver, from: claim.manager, channel: \\\"ciba\\\")\"
+",
+    );
+    assert!(
+        !alarms.contains(&NARROWED.to_owned()),
+        "the verb reaches it under `elicit`, which is the hook it declares: \
+         {alarms:?}"
+    );
+}
+
+/// And the report still fires for a delegator that genuinely declares a hook
+/// nothing reaches, so the fix above narrowed the alarm rather than muting it.
+#[test]
+fn a_delegator_declaring_an_unreached_cmf_hook_is_still_reported() {
+    let alarms = alarms_raised_by_loading(
+        "
+plugins:
+  - name: workday-oauth
+    kind: builtin
+    hooks: [token.delegate, cmf.tool_post_invoke]
+routes:
+  - tool: get_compensation
+    authorization:
+      pre_invocation:
+        - \"delegate(workday-oauth, target: workday-api, audience: workday-api)\"
+",
+    );
+    assert!(
+        alarms.contains(&NARROWED.to_owned()),
+        "`cmf.tool_post_invoke` is declared and no step reaches it there: \
+         {alarms:?}"
+    );
+}
+
 // ---- the core-side backstop -------------------------------------------
 
 /// A host that registers no orchestrator gets the flipped default with no

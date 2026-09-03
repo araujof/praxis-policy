@@ -830,6 +830,22 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
   `PolicyEngine::initialize()`. Its `perform_http` half reaches a configuration
   rather than a host, so the guide's introduction points a config-only reader at it.
 
+- **A delegator or an elicitation handler is no longer reported as narrowed.** The
+  per-hook reachability tally credited every plugin a route reaches with that
+  route's CMF hook pair, but a `delegate(...)` step invokes its plugin under
+  `token.delegate` and an elicitation verb invokes its handler under `elicit`,
+  whichever entity the route selects. So a delegator declaring `token.delegate`
+  came out covered on `cmf.tool_pre_invoke` and uncovered on the one hook it
+  actually has, and `plugin_narrowed_by_policy` fired on every configuration that
+  delegates or elicits. An alarm that always fires is one nobody reads, and this
+  one exists to name a real coverage gap.
+
+  The two families are now credited under their own hook. The plugin-level tally
+  was already right, so this was never a load failure, only noise: the three demo
+  policies raised four of these warnings between them and one was real. The report
+  still fires for a delegator that declares a CMF hook nothing reaches, so the
+  alarm was narrowed rather than muted.
+
 - **The bundled hyper transport names its crypto provider instead of reading the
   process default.** `HttpsConnectorBuilder::with_webpki_roots()` builds its
   `ClientConfig` through `rustls::ClientConfig::builder()`, which reads the

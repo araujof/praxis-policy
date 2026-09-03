@@ -518,19 +518,39 @@ impl AplConfigVisitor {
     /// routes below it.
     fn record_reached_plugins(&self, route: &CompiledRoute, hook_pre: &str, hook_post: &str) {
         let (pre, post) = crate::dispatch_plan::collect_plugin_names_by_half(route);
+        // A delegator and an elicitation handler dispatch under their own
+        // family's hook, not the route's entity pair, so they are credited
+        // separately below. Crediting them with the CMF hook made their declared
+        // `token.delegate` / `elicit` read as uncovered, and the narrowing report
+        // then fired on every configuration that delegates.
+        let family_fixed = crate::dispatch_plan::collect_family_fixed_plugin_hooks(route);
         let mut state = self
             .state
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let family_fixed_names: std::collections::HashSet<&str> =
+            family_fixed.iter().map(|(name, _)| name.as_str()).collect();
         for (names, hook) in [(pre, hook_pre), (post, hook_post)] {
             for name in names {
                 state.reached_plugin_names.insert(name.clone());
+                if family_fixed_names.contains(name.as_str()) {
+                    // Reached, but on its own family's hook. Recorded below.
+                    continue;
+                }
                 state
                     .reached_plugin_hooks
                     .entry(name)
                     .or_default()
                     .insert(hook.to_owned());
             }
+        }
+        for (name, hook) in family_fixed {
+            state.reached_plugin_names.insert(name.clone());
+            state
+                .reached_plugin_hooks
+                .entry(name)
+                .or_default()
+                .insert(hook.to_owned());
         }
     }
 
