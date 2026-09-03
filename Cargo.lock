@@ -2380,6 +2380,7 @@ dependencies = [
  "praxis-policy-plugin-identity-jwt",
  "praxis-policy-session-valkey",
  "tokio",
+ "tower-service",
 ]
 
 [[package]]
