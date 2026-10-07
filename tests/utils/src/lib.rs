@@ -18,6 +18,10 @@
 #[cfg(feature = "suite")]
 pub mod capture;
 #[cfg(feature = "suite")]
+pub mod fixtures;
+#[cfg(feature = "suite")]
+pub mod host;
+#[cfg(feature = "suite")]
 pub mod idp;
 #[cfg(feature = "suite")]
 pub mod mcp;
@@ -25,18 +29,3 @@ pub mod mcp;
 pub mod secrets;
 #[cfg(feature = "suite")]
 pub mod upstream;
-
-#[cfg(feature = "suite")]
-use std::sync::Arc;
-
-#[cfg(feature = "suite")]
-use praxis_policy::{PolicyEngine, install_builtins};
-
-/// A policy engine with every builtin and the APL config visitor installed.
-#[cfg(feature = "suite")]
-#[must_use]
-pub fn builtin_engine() -> Arc<PolicyEngine> {
-    let engine = Arc::new(PolicyEngine::default());
-    install_builtins(&engine);
-    engine
-}

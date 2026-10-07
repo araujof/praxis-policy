@@ -15,6 +15,9 @@
 //! test's own thread ([`capturing`]), and [`multi_thread`] builds a runtime
 //! whose every worker carries the test's sink. Each test owns its runtime's
 //! threads, so parallel tests stay isolated.
+//!
+//! Sinks stack: a capture opened inside another one, as the reference host
+//! opens one per call, feeds both.
 
 use std::cell::RefCell;
 use std::sync::{Arc, Mutex, OnceLock, PoisonError};
@@ -69,11 +72,18 @@ impl Events {
 }
 
 thread_local! {
-    static SINK: RefCell<Option<Events>> = const { RefCell::new(None) };
+    static SINKS: RefCell<Vec<Events>> = const { RefCell::new(Vec::new()) };
 }
 
-fn set_sink(events: Option<Events>) -> Option<Events> {
-    SINK.with_borrow_mut(|sink| std::mem::replace(sink, events))
+/// Open `events` on this thread, on top of any sink already open.
+fn push_sink(events: Events) {
+    SINKS.with_borrow_mut(|sinks| sinks.push(events));
+}
+
+fn pop_sink() {
+    SINKS.with_borrow_mut(|sinks| {
+        sinks.pop();
+    });
 }
 
 struct Render {
@@ -124,25 +134,28 @@ impl tracing::Subscriber for Subscriber {
     fn record_follows_from(&self, _: &tracing::span::Id, _: &tracing::span::Id) {}
 
     fn event(&self, event: &tracing::Event<'_>) {
-        SINK.with_borrow(|sink| {
-            let Some(events) = sink.as_ref() else {
+        SINKS.with_borrow(|sinks| {
+            if sinks.is_empty() {
                 return;
-            };
+            }
             let meta = event.metadata();
             let mut render = Render {
                 rendered: format!("[{} {}]", meta.level(), meta.target()),
                 record: None,
             };
             event.record(&mut render);
-            events
-                .0
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner)
-                .push(Event {
-                    target: meta.target().to_owned(),
-                    rendered: render.rendered,
-                    record: render.record,
-                });
+            let captured = Event {
+                target: meta.target().to_owned(),
+                rendered: render.rendered,
+                record: render.record,
+            };
+            for events in sinks {
+                events
+                    .0
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .push(captured.clone());
+            }
         });
     }
 
@@ -159,13 +172,13 @@ fn install() {
     });
 }
 
-/// Restores the thread's previous sink on drop, even if the test panics.
+/// Closes the capture on drop, even if the test panics.
 #[derive(Debug)]
-pub struct CaptureGuard(Option<Events>);
+pub struct CaptureGuard(());
 
 impl Drop for CaptureGuard {
     fn drop(&mut self) {
-        set_sink(self.0.take());
+        pop_sink();
     }
 }
 
@@ -177,8 +190,8 @@ impl Drop for CaptureGuard {
 pub fn capturing() -> (Events, CaptureGuard) {
     install();
     let events = Events::default();
-    let previous = set_sink(Some(events.clone()));
-    (events, CaptureGuard(previous))
+    push_sink(events.clone());
+    (events, CaptureGuard(()))
 }
 
 /// A multi-thread runtime whose every thread captures into one sink.
@@ -197,8 +210,8 @@ impl CapturingRuntime {
 
     /// Run `future` to completion, capturing on the calling thread as well.
     pub fn block_on<F: std::future::Future>(&self, future: F) -> F::Output {
-        let previous = set_sink(Some(self.events.clone()));
-        let _restore = CaptureGuard(previous);
+        push_sink(self.events.clone());
+        let _close = CaptureGuard(());
         self.runtime.block_on(future)
     }
 }
@@ -216,12 +229,8 @@ pub fn multi_thread(workers: usize) -> CapturingRuntime {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(workers)
         .enable_all()
-        .on_thread_start(move || {
-            set_sink(Some(sink.clone()));
-        })
-        .on_thread_stop(|| {
-            set_sink(None);
-        })
+        .on_thread_start(move || push_sink(sink.clone()))
+        .on_thread_stop(pop_sink)
         .build()
         .expect("build a multi-thread runtime");
     CapturingRuntime { runtime, events }

@@ -73,7 +73,7 @@ fn meta_for_tool(tool: &str) -> MetaExtension {
 }
 
 /// The HTTP view of a `POST /mcp`, header names lowercased.
-fn http_extension(headers: &HashMap<String, String>) -> HttpExtension {
+pub(crate) fn http_extension(headers: &HashMap<String, String>) -> HttpExtension {
     HttpExtension {
         method: Some("POST".to_owned()),
         path: Some("/mcp".to_owned()),

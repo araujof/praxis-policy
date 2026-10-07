@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::panic::AssertUnwindSafe;
 use std::sync::{Arc, Barrier};
 
+use praxis_policy::{SessionStore, SessionStoreFactory};
 use praxis_policy_core::cmf::{CmfHook, ContentPart};
 use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::extensions::Extensions;
@@ -17,13 +18,15 @@ use praxis_policy_core::identity::{
 };
 use praxis_policy_plugin_audit_logger::{AuditLoggerFactory, KIND as AUDIT_KIND};
 use praxis_policy_test_utils::capture::{self, Events};
+use praxis_policy_test_utils::fixtures::{self, CLIENT_SECRET, Fixture};
+use praxis_policy_test_utils::host::{Call, RefHost, Stage};
 use praxis_policy_test_utils::idp::{
     self, ACCESS_TOKEN_TYPE, CIBA_BACKCHANNEL_URL, CIBA_TOKEN_URL, Ciba, CibaPoll, Exchange,
     Persona, TOKEN_EXCHANGE_URL,
 };
 use praxis_policy_test_utils::secrets::Planted;
 use praxis_policy_test_utils::upstream::Upstream;
-use praxis_policy_test_utils::{builtin_engine, mcp};
+use praxis_policy_test_utils::{host, mcp};
 use serde_json::{Value, json};
 
 fn headers(pairs: &[(&str, &str)]) -> HashMap<String, String> {
@@ -83,7 +86,7 @@ plugins:
 async fn persona_tokens_verify_against_the_published_jwks() {
     let transport =
         Arc::new(FakeTransport::new().json(idp::JWKS_URL, 200, &idp::jwks().to_string()));
-    let engine = builtin_engine();
+    let engine = host::engine(Vec::new());
     let shared: Arc<dyn HttpTransport> = transport.clone();
     engine.set_http_transport(shared);
     engine.load_config_yaml(JWT_CONFIG).expect("load");
@@ -461,4 +464,276 @@ fn mcp_builders_match_the_filter_shapes() {
         panic!("a tool result part");
     };
     assert_eq!(content.content["ssn"], "x");
+}
+
+// -----------------------------------------------------------------------------
+// The reference host
+// -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// The reference host
+// -----------------------------------------------------------------------------
+
+/// The Jane Smith record, which `server.py` answers with an SSN when asked.
+fn jane_with_ssn() -> Value {
+    json!({ "employee_id": "EMP-001234", "include_ssn": true })
+}
+
+#[tokio::test]
+async fn every_fixture_loads_and_initializes() {
+    for fixture in Fixture::ALL {
+        let host = RefHost::hermetic(fixture).await;
+        assert!(
+            host.transport().call_count_for(idp::JWKS_URL) >= 1,
+            "{}: initialize fetches the JWKS",
+            fixture.name()
+        );
+        assert_eq!(
+            host.transport().call_count_for(TOKEN_EXCHANGE_URL),
+            0,
+            "{}: nothing delegates before a call",
+            fixture.name()
+        );
+    }
+}
+
+#[tokio::test]
+async fn a_call_without_tokens_is_denied_at_the_identity_gate() {
+    for fixture in Fixture::ALL {
+        let host = RefHost::hermetic(fixture).await;
+        let out = host.call(Call::anonymous("get_compensation")).await;
+        let pdp = fixture.name();
+        assert_eq!(out.denied_at, Some(Stage::Identity), "{pdp}");
+        assert_eq!(out.violation_code(), Some("auth.malformed_header"), "{pdp}");
+        assert!(
+            out.events.audit_records().is_empty(),
+            "{pdp}: no CMF hook ran, so the audit plugin did not"
+        );
+        assert_eq!(
+            host.transport().call_count_for(TOKEN_EXCHANGE_URL),
+            0,
+            "{pdp}"
+        );
+        assert!(out.upstream.is_none(), "{pdp}");
+        assert!(host.upstream().requests().is_empty(), "{pdp}");
+    }
+}
+
+#[tokio::test]
+async fn an_allowed_call_reaches_the_upstream_with_a_delegated_token() {
+    for fixture in Fixture::ALL {
+        let pdp = fixture.name();
+        let host = RefHost::hermetic(fixture).await;
+        let call = Call::new(Persona::Bob, "get_compensation")
+            .args(jane_with_ssn())
+            .session("s-1");
+        let mut planted = call.planted();
+        planted.plant("client secret", CLIENT_SECRET);
+        let out = host.call(call).await;
+        assert!(out.allowed(), "{pdp}: {:?}", out.violation);
+
+        let seen = out.upstream.as_ref().expect("the upstream was called");
+        let bearer = seen
+            .jwt_claims("authorization")
+            .expect("a delegated bearer");
+        assert_eq!(bearer["aud"], "workday-api", "{pdp}");
+        assert_eq!(bearer["sub"], Persona::Bob.sub(), "{pdp}");
+        assert_eq!(bearer["scope"], "read_compensation", "{pdp}");
+        assert!(
+            !seen.headers.contains_key("x-user-token"),
+            "{pdp}: assertions strip the user's own token: {:?}",
+            seen.headers.keys()
+        );
+        assert_eq!(
+            seen.headers.get("x-auth-user-id").map(String::as_str),
+            Some(Persona::Bob.sub()),
+            "{pdp}"
+        );
+        assert_eq!(seen.arguments["include_ssn"], true, "{pdp}");
+        assert_eq!(
+            host.transport().call_count_for(TOKEN_EXCHANGE_URL),
+            1,
+            "{pdp}: the delegator caches nothing by default"
+        );
+
+        let record = out.record().expect("the tool's record");
+        assert_eq!(record["ssn"], "123-45-6789", "{pdp}: Bob holds view_ssn");
+        let audit = out.events.audit_records();
+        assert_eq!(audit.len(), 1, "{pdp}");
+        assert_eq!(
+            audit[0]["delegated_tokens"][0]["audience"], "workday-api",
+            "{pdp}"
+        );
+
+        let minted = seen.headers["authorization"].trim_start_matches("Bearer ");
+        planted.plant("minted workday token", minted);
+        out.assert_no_leaks(&planted);
+    }
+}
+
+#[tokio::test]
+async fn the_pdp_step_denies_with_the_fixture_violation() {
+    for fixture in Fixture::ALL {
+        let host = RefHost::hermetic(fixture).await;
+        let call = Call::new(Persona::Alice, "search_repos")
+            .args(json!({ "repo_name": "partner-sdk", "visibility": "external" }));
+        let planted = call.planted();
+        let out = host.call(call).await;
+        assert_eq!(out.denied_at, Some(Stage::Request), "{}", fixture.name());
+        assert_eq!(out.violation_code(), Some(fixture.deny_violation()));
+        assert_eq!(host.transport().call_count_for(TOKEN_EXCHANGE_URL), 0);
+        assert!(host.upstream().requests().is_empty());
+        out.assert_no_leaks(&planted);
+    }
+}
+
+/// No route names the tool and `dispatch: policy` has no catch-all, so the
+/// call passes on identity alone. Nothing delegates, so the agent's own
+/// bearer reaches the upstream, while assertions still strip the user token
+/// and assert the subject.
+#[tokio::test]
+async fn an_unknown_tool_passes_on_identity_with_the_global_assertions() {
+    for fixture in Fixture::ALL {
+        let pdp = fixture.name();
+        let host = RefHost::hermetic(fixture).await;
+        let call = Call::new(Persona::Bob, "delete_records").args(json!({ "all": true }));
+        let planted = call.planted();
+        let out = host.call(call).await;
+        assert!(out.allowed(), "{pdp}: {:?}", out.violation);
+        let seen = out.upstream.as_ref().expect("the upstream was called");
+        assert_eq!(seen.tool, "delete_records", "{pdp}");
+        let bearer = seen.jwt_claims("authorization").expect("a bearer");
+        assert_eq!(
+            bearer["azp"], "hr-copilot",
+            "{pdp}: the inbound agent token"
+        );
+        assert!(!seen.headers.contains_key("x-user-token"), "{pdp}");
+        assert_eq!(
+            seen.headers.get("x-auth-username").map(String::as_str),
+            Some("bob"),
+            "{pdp}"
+        );
+        assert_eq!(
+            host.transport().call_count_for(TOKEN_EXCHANGE_URL),
+            0,
+            "{pdp}"
+        );
+        assert!(
+            out.events.audit_records().is_empty(),
+            "{pdp}: no route runs audit-log"
+        );
+        assert_eq!(
+            out.response.as_ref().map(|r| r["error"]["code"].clone()),
+            Some(json!(-32601)),
+            "{pdp}: the upstream's own answer"
+        );
+        out.assert_no_leaks(&planted);
+    }
+}
+
+#[tokio::test]
+async fn a_pending_elicitation_carries_its_protocol_code_and_details() {
+    let host = RefHost::hermetic(Fixture::Cedar).await;
+    let adjust = || {
+        Call::new(Persona::Bob, "adjust_compensation")
+            .args(json!({ "employee_id": "EMP-001234", "amount": 25_000 }))
+    };
+    let call = adjust();
+    let mut planted = call.planted();
+    planted.plant("client secret", CLIENT_SECRET);
+    let out = host.call(call).await;
+    assert_eq!(out.denied_at, Some(Stage::Request));
+    assert_eq!(out.violation_code(), Some("elicitation.pending"));
+    assert_eq!(out.proto_error_code(), Some(-32_120));
+    assert_eq!(out.detail("approver"), Some(&json!("alice")));
+    assert_eq!(out.detail("channel"), Some(&json!("ciba")));
+    let id = out
+        .detail("elicitation_id")
+        .and_then(Value::as_str)
+        .expect("an elicitation id")
+        .to_owned();
+    assert_eq!(
+        host.ciba().auth_req_ids(),
+        vec![id.clone()],
+        "the CIBA auth_req_id is the elicitation id the caller echoes"
+    );
+    out.assert_no_leaks(&planted);
+
+    let peek = host.call(adjust().elicitation_id(&id).peek()).await;
+    assert_eq!(peek.violation_code(), Some("elicitation.pending"));
+    assert!(host.upstream().requests().is_empty());
+}
+
+#[tokio::test]
+async fn a_secret_assertion_reaches_only_the_upstream_in_clear() {
+    const KEY: &str = "sk-hr-mcp-0f9e8d7c";
+    let host = RefHost::builder()
+        .transport(fixtures::vault(FakeTransport::new(), KEY))
+        .start(fixtures::SECRET_HEADER)
+        .await
+        .expect("the secret fixture starts");
+    let call = Call::new(Persona::Bob, "get_directory").args(json!({ "department": "hr" }));
+    let mut planted = call.planted();
+    planted.plant("vault-sourced api key", KEY);
+    planted.plant("vault client token", "hvs.ppe-tests");
+    let out = host.call(call).await;
+    assert!(out.allowed(), "{:?}", out.violation);
+
+    let seen = out.upstream.as_ref().expect("the upstream was called");
+    assert_eq!(seen.headers.get("x-api-key").map(String::as_str), Some(KEY));
+    assert!(!seen.headers.contains_key("x-user-token"));
+
+    let marker = format!("<redacted secret.{}>", fixtures::SECRET_NAME);
+    let views = host.header_views();
+    let hooks: Vec<&str> = views.iter().map(|(hook, _)| hook.as_str()).collect();
+    assert_eq!(hooks, ["cmf.tool_pre_invoke", "cmf.tool_post_invoke"]);
+    assert!(
+        !views[0].1.contains_key("x-api-key"),
+        "a pre-invoke plugin runs before the contract renders: {:?}",
+        views[0].1
+    );
+    assert_eq!(
+        views[1].1.get("x-api-key"),
+        Some(&marker),
+        "a later hook sees the marker, not the value"
+    );
+    // A plugin holding read_headers sees the caller's own tokens, by design.
+    let mut key_only = Planted::new();
+    key_only.plant("vault-sourced api key", KEY);
+    for (hook, headers) in &views {
+        key_only.assert_absent_json(hook, &json!(headers));
+    }
+    assert_eq!(out.events.audit_records().len(), 1);
+    out.assert_no_leaks(&planted);
+}
+
+/// A session store that cannot be reached, standing in for an outage.
+struct Unreachable;
+
+impl SessionStoreFactory for Unreachable {
+    fn kind(&self) -> &str {
+        "test/unreachable"
+    }
+
+    fn build(
+        &self,
+        _config: &serde_yaml::Value,
+    ) -> Result<Arc<dyn SessionStore>, Box<dyn std::error::Error + Send + Sync>> {
+        Err("session store unreachable".into())
+    }
+}
+
+#[tokio::test]
+async fn a_builder_session_store_is_selectable_by_kind() {
+    let yaml = Fixture::Cedar.hermetic().replacen(
+        "\nroutes:",
+        "\n  session_store:\n    kind: test/unreachable\n\nroutes:",
+        1,
+    );
+    let err = RefHost::builder()
+        .session_store(Arc::new(Unreachable))
+        .start(&yaml)
+        .await
+        .expect_err("the store fails to build");
+    assert!(err.to_string().contains("unreachable"), "{err}");
 }

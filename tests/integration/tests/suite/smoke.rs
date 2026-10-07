@@ -3,11 +3,11 @@
 
 //! The harness builds and initializes an engine through the facade.
 
-use praxis_policy_test_utils::builtin_engine;
+use praxis_policy_test_utils::host;
 
 #[tokio::test]
 async fn engine_initializes_an_empty_config() {
-    let engine = builtin_engine();
+    let engine = host::engine(Vec::new());
     engine
         .load_config_yaml("plugins: []\n")
         .expect("load an empty config");
