@@ -42,6 +42,10 @@ struct Rule {
     replies: VecDeque<Reply>,
 }
 
+/// A reply computed from the request, for an endpoint whose answer depends
+/// on what was sent. See [`FakeTransport::respond_with`].
+type Responder = Arc<dyn Fn(&HttpRequest) -> Reply + Send + Sync>;
+
 /// An `HttpTransport` that answers from a script and records what it was
 /// asked.
 ///
@@ -55,6 +59,8 @@ struct Rule {
 #[derive(Default)]
 pub struct FakeTransport {
     rules: Mutex<Vec<Rule>>,
+    /// Checked before `rules`, so a responder wins over queued replies.
+    responders: Mutex<Vec<(String, Responder)>>,
     seen: Mutex<Vec<HttpRequest>>,
     /// Held open for this long before answering. See
     /// [`FakeTransport::with_latency`].
@@ -131,6 +137,28 @@ impl FakeTransport {
                     .with_headers(headers),
             ),
         )
+    }
+
+    /// Answer any URL containing `fragment` with whatever `respond`
+    /// returns for the request.
+    ///
+    /// For an endpoint whose reply depends on the body, such as a token
+    /// endpoint minting from the form it was sent. A responder takes
+    /// priority over replies queued for the same URL.
+    #[must_use]
+    pub fn respond_with(
+        self,
+        fragment: &str,
+        respond: impl Fn(&HttpRequest) -> Result<HttpResponse, HttpTransportError>
+        + Send
+        + Sync
+        + 'static,
+    ) -> Self {
+        self.responders
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push((fragment.to_owned(), Arc::new(respond)));
+        self
     }
 
     /// Hold every call open for `latency` before answering.
@@ -213,10 +241,28 @@ pub fn granting(transport: Arc<FakeTransport>) -> crate::host::InitExtensions {
 impl HttpTransport for FakeTransport {
     async fn execute(&self, req: HttpRequest) -> Result<HttpResponse, HttpTransportError> {
         let url = req.url.clone();
+
+        // Clone the responder out so it runs without the lock held.
+        let responder = self
+            .responders
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .iter()
+            .find(|(fragment, _)| url.contains(fragment.as_str()))
+            .map(|(_, respond)| Arc::clone(respond));
+        let computed = responder.map(|respond| respond(&req));
+
         self.seen
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .push(req);
+
+        if let Some(reply) = computed {
+            if let Some(latency) = self.latency {
+                tokio::time::sleep(latency).await;
+            }
+            return reply;
+        }
 
         // Take the reply first, then sleep, so the reply queue advances
         // in arrival order rather than in wake order. The `rules` guard
@@ -335,6 +381,29 @@ mod tests {
         assert_eq!(&*one.body, b"first");
         assert_eq!(&*two.body, b"second");
         assert_eq!(&*three.body, b"second");
+    }
+
+    #[tokio::test]
+    async fn a_responder_sees_the_request_and_wins_over_queued_replies() {
+        let t = FakeTransport::new()
+            .json("/token", 200, "queued")
+            .respond_with("/token", |req| Ok(HttpResponse::new(200, req.body.clone())));
+
+        let resp = t
+            .execute(HttpRequest::post(
+                "https://idp/token",
+                Bytes::from_static(b"audience=api"),
+            ))
+            .await
+            .expect("the responder answers");
+        assert_eq!(&*resp.body, b"audience=api");
+        assert_eq!(t.call_count_for("/token"), 1, "the call is still recorded");
+
+        let err = t
+            .execute(HttpRequest::get("https://idp/jwks"))
+            .await
+            .expect_err("no rule or responder matches");
+        assert!(matches!(err, HttpTransportError::Connect(_)), "{err}");
     }
 
     #[tokio::test]

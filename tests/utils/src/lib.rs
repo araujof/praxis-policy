@@ -7,6 +7,25 @@
 //! builds an empty crate and unifies no builtin features. A crate-level
 //! `#![cfg]` would strip these docs too and trip `missing_docs`.
 
+#![allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::missing_panics_doc,
+    clippy::panic,
+    reason = "test harness; a broken fixture should fail the test loudly"
+)]
+
+#[cfg(feature = "suite")]
+pub mod capture;
+#[cfg(feature = "suite")]
+pub mod idp;
+#[cfg(feature = "suite")]
+pub mod mcp;
+#[cfg(feature = "suite")]
+pub mod secrets;
+#[cfg(feature = "suite")]
+pub mod upstream;
+
 #[cfg(feature = "suite")]
 use std::sync::Arc;
 

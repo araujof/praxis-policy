@@ -167,6 +167,15 @@ debug = "line-tables-only"
 [profile.test]
 debug = "line-tables-only"
 
+# RSA key generation in test fixtures takes seconds unoptimized, paid once per
+# test process under nextest. Optimizing just the bignum stack cuts it to well
+# under a second without touching how workspace code is built.
+[profile.dev.package.num-bigint-dig]
+opt-level = 3
+
+[profile.dev.package.rsa]
+opt-level = 3
+
 [profile.release]
 lto = true
 codegen-units = 1

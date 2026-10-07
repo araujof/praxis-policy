@@ -22,4 +22,5 @@
     reason = "test code"
 )]
 
+mod host_contract;
 mod smoke;

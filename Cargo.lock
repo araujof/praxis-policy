@@ -2875,17 +2875,28 @@ dependencies = [
 name = "praxis-policy-test-utils"
 version = "0.4.1"
 dependencies = [
+ "base64 0.23.1",
+ "bytes",
+ "jsonwebtoken",
  "praxis-policy",
  "praxis-policy-core",
  "praxis-policy-plugin-audit-logger",
  "praxis-policy-plugin-pii-scanner",
+ "rand 0.8.8",
+ "rsa",
+ "serde_json",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
 name = "praxis-policy-tests-integration"
 version = "0.4.1"
 dependencies = [
+ "praxis-policy-core",
+ "praxis-policy-plugin-audit-logger",
  "praxis-policy-test-utils",
+ "serde_json",
  "tokio",
 ]
 
