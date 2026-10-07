@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 Praxis Contributors
+
+# praxis-policy-test-utils: shared harness for the integration, resilience and
+# security suites under `tests/`.
+#
+# Every dependency is declared without features, and the lib is empty unless
+# `suite` is on. Cargo unifies features across the workspace, so a feature named
+# here would reach the default `--workspace` pass and turn on builtins there.
+# The suites forward `suite`, which only `--all-features` enables.
+
+[package]
+name = "praxis-policy-test-utils"
+description = "Shared test harness for the PPE integration, resilience and security suites."
+publish = false
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+rust-version.workspace = true
+
+# No unit tests live here, so no lib-test or doctest binary is built.
+[lib]
+test = false
+doctest = false
+
+[features]
+default = []
+suite = ["praxis-policy/builtins", "praxis-policy/http-hyper", "praxis-policy-core/test-util"]
+
+[dependencies]
+praxis-policy = { path = "../../crates/ppe" }
+praxis-policy-core = { workspace = true }
+praxis-policy-plugin-pii-scanner = { path = "../../reference/plugins/pii-scanner" }
+praxis-policy-plugin-audit-logger = { path = "../../reference/plugins/audit-logger" }
+
+[lints]
+workspace = true

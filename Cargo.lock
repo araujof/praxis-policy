@@ -2872,6 +2872,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "praxis-policy-test-utils"
+version = "0.4.1"
+dependencies = [
+ "praxis-policy",
+ "praxis-policy-core",
+ "praxis-policy-plugin-audit-logger",
+ "praxis-policy-plugin-pii-scanner",
+]
+
+[[package]]
+name = "praxis-policy-tests-integration"
+version = "0.4.1"
+dependencies = [
+ "praxis-policy-test-utils",
+ "tokio",
+]
+
+[[package]]
+name = "praxis-policy-tests-resilience"
+version = "0.4.1"
+dependencies = [
+ "praxis-policy-test-utils",
+]
+
+[[package]]
+name = "praxis-policy-tests-security"
+version = "0.4.1"
+dependencies = [
+ "praxis-policy-test-utils",
+]
+
+[[package]]
 name = "precomputed-hash"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
