@@ -49,7 +49,9 @@
 //!
 //! Each lives in praxis and is tested there:
 //!
-//! - the SSRF-checking transport (private and loopback destinations);
+//! - the SSRF-checking transport (private and loopback destinations). The
+//!   resilience suite's `dependency_failure::ssrf` is the one full-engine
+//!   check, through `HyperTransport` and without this driver;
 //! - Content-Length fitting of a rewritten response, and the
 //!   `gateway.response_rewrite_overflow` deny when a rewrite grows;
 //! - JSON-RPC parsing of an invalid body, and classifier metadata;

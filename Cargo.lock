@@ -2907,7 +2907,14 @@ dependencies = [
 name = "praxis-policy-tests-resilience"
 version = "0.4.1"
 dependencies = [
+ "async-trait",
+ "bytes",
+ "praxis-policy",
+ "praxis-policy-core",
  "praxis-policy-test-utils",
+ "serde_json",
+ "tokio",
+ "yaml_serde",
 ]
 
 [[package]]

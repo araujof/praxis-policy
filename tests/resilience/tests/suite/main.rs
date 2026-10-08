@@ -16,4 +16,5 @@
     reason = "test code"
 )]
 
+mod dependency_failure;
 mod smoke;
