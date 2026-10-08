@@ -886,11 +886,17 @@ fn p99_latency_under_concurrency_stays_near_the_single_call_baseline() {
             times[percentile_index(times.len(), 50)],
             times.len()
         );
-        assert!(
-            p99 < baseline * MULTIPLE,
-            "seed={}: p99 {p99:?} is over {MULTIPLE}x the baseline {baseline:?}",
-            k.seed
-        );
+        // Coverage instrumentation on a small runner makes the load CPU-bound,
+        // so the bound would measure the machine. cargo-llvm-cov sets this.
+        if std::env::var_os("CARGO_LLVM_COV").is_some() {
+            eprintln!("latency: bound skipped under coverage instrumentation");
+        } else {
+            assert!(
+                p99 < baseline * MULTIPLE,
+                "seed={}: p99 {p99:?} is over {MULTIPLE}x the baseline {baseline:?}",
+                k.seed
+            );
+        }
         assert_shared_state(&host, &runtime, &done, k.seed);
     });
 }
