@@ -817,17 +817,18 @@ fn percentile_index(n: usize, p: usize) -> usize {
     (n * p).div_ceil(100).saturating_sub(1)
 }
 
-/// A coarse regression guard, not a benchmark: with every dependency call
-/// held for a fixed latency, the p99 of a read under concurrency stays
-/// within a generous multiple of one read alone. The load is fixed rather
-/// than `PPE_STRESS_TASKS`, since past a few tasks per worker the reads
-/// queue on CPU and the bound would measure the machine. Serialized reads
-/// would take about 32 latencies each and fail it.
+/// A regression guard against serialized dependency calls, such as a lock
+/// held across a token exchange. With every dependency call held for a fixed
+/// latency, concurrent reads must overlap at the transport. Timing against a
+/// baseline is printed but not asserted: on a shared CI runner it measures
+/// the machine, not the engine.
 #[test]
 #[allow(clippy::print_stderr, reason = "the measured times explain a failure")]
-fn p99_latency_under_concurrency_stays_near_the_single_call_baseline() {
+fn concurrent_reads_overlap_their_dependency_calls() {
     const LATENCY: Duration = Duration::from_millis(25);
-    const MULTIPLE: u32 = 10;
+    /// Well under the 32 tasks, so a busy runner still clears it; serialized
+    /// calls give exactly 1.
+    const MIN_OVERLAP: usize = 4;
     const TASKS: usize = 32;
     const CALLS_PER_TASK: usize = 3;
     let k = knobs("latency");
@@ -886,17 +887,13 @@ fn p99_latency_under_concurrency_stays_near_the_single_call_baseline() {
             times[percentile_index(times.len(), 50)],
             times.len()
         );
-        // Coverage instrumentation on a small runner makes the load CPU-bound,
-        // so the bound would measure the machine. cargo-llvm-cov sets this.
-        if std::env::var_os("CARGO_LLVM_COV").is_some() {
-            eprintln!("latency: bound skipped under coverage instrumentation");
-        } else {
-            assert!(
-                p99 < baseline * MULTIPLE,
-                "seed={}: p99 {p99:?} is over {MULTIPLE}x the baseline {baseline:?}",
-                k.seed
-            );
-        }
+        let peak = host.transport().peak_in_flight();
+        eprintln!("latency: peak in-flight dependency calls={peak}");
+        assert!(
+            peak >= MIN_OVERLAP,
+            "seed={}: at most {peak} dependency calls overlapped; they look serialized",
+            k.seed
+        );
         assert_shared_state(&host, &runtime, &done, k.seed);
     });
 }

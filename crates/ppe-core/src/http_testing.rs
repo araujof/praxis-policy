@@ -21,6 +21,7 @@
 // URL through three layers to assert on a path is a test nobody updates.
 
 use std::collections::VecDeque;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -65,6 +66,19 @@ pub struct FakeTransport {
     /// Held open for this long before answering. See
     /// [`FakeTransport::with_latency`].
     latency: Option<Duration>,
+    /// Calls currently held open, and the most ever held at once. See
+    /// [`FakeTransport::peak_in_flight`].
+    in_flight: AtomicUsize,
+    peak_in_flight: AtomicUsize,
+}
+
+/// Counts one call as in flight until dropped.
+struct InFlight<'a>(&'a AtomicUsize);
+
+impl Drop for InFlight<'_> {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::SeqCst);
+    }
 }
 
 impl std::fmt::Debug for FakeTransport {
@@ -188,6 +202,15 @@ impl FakeTransport {
         self.push(fragment, Err(err))
     }
 
+    /// The most calls this transport has held open at once.
+    ///
+    /// With [`FakeTransport::with_latency`], this shows whether a caller
+    /// really overlaps its dependency calls or serializes them, without
+    /// depending on how fast the machine is.
+    pub fn peak_in_flight(&self) -> usize {
+        self.peak_in_flight.load(Ordering::SeqCst)
+    }
+
     /// How many requests this transport has been given.
     pub fn call_count(&self) -> usize {
         self.seen
@@ -241,6 +264,9 @@ pub fn granting(transport: Arc<FakeTransport>) -> crate::host::InitExtensions {
 impl HttpTransport for FakeTransport {
     async fn execute(&self, req: HttpRequest) -> Result<HttpResponse, HttpTransportError> {
         let url = req.url.clone();
+        let now = self.in_flight.fetch_add(1, Ordering::SeqCst) + 1;
+        self.peak_in_flight.fetch_max(now, Ordering::SeqCst);
+        let _in_flight = InFlight(&self.in_flight);
 
         // Clone the responder out so it runs without the lock held.
         let responder = self
@@ -381,6 +407,33 @@ mod tests {
         assert_eq!(&*one.body, b"first");
         assert_eq!(&*two.body, b"second");
         assert_eq!(&*three.body, b"second");
+    }
+
+    #[tokio::test]
+    async fn peak_in_flight_tells_overlapping_calls_from_serial_ones() {
+        let t = FakeTransport::new()
+            .json("/x", 200, "{}")
+            .with_latency(Duration::from_millis(20));
+
+        t.execute(HttpRequest::get("https://idp/x"))
+            .await
+            .expect("first");
+        t.execute(HttpRequest::get("https://idp/x"))
+            .await
+            .expect("second");
+        assert_eq!(t.peak_in_flight(), 1, "serial calls never overlap");
+
+        let (a, b, c) = tokio::join!(
+            t.execute(HttpRequest::get("https://idp/x")),
+            t.execute(HttpRequest::get("https://idp/x")),
+            t.execute(HttpRequest::get("https://idp/x")),
+        );
+        assert!(a.is_ok() && b.is_ok() && c.is_ok(), "all three answer");
+        assert_eq!(
+            t.peak_in_flight(),
+            3,
+            "joined calls are all held open at once"
+        );
     }
 
     #[tokio::test]
