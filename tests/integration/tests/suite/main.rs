@@ -23,4 +23,5 @@
 )]
 
 mod host_contract;
+mod scenarios;
 mod smoke;
