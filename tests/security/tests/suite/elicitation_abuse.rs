@@ -7,6 +7,8 @@
 //! caller by design (`docs/content/apl/elicitation.md`), so it is never
 //! planted.
 
+use praxis_policy_core::http::HttpResponse;
+use praxis_policy_core::http_testing::FakeTransport;
 use praxis_policy_test_utils::fixtures::Fixture;
 use praxis_policy_test_utils::host::{Call, Outcome, RefHost, Stage};
 use praxis_policy_test_utils::idp::{self, CibaPoll, Persona};
@@ -37,11 +39,20 @@ fn applied(host: &RefHost, tool: &str) -> usize {
         .count()
 }
 
+async fn approved_unused(host: &RefHost) -> String {
+    let call = adjust(25_000);
+    let planted = planted_for(&call);
+    let out = host.call(call).await;
+    out.assert_no_leaks(&planted);
+    let id = elicitation_id(&out);
+    assert!(host.upstream().requests().is_empty(), "the id is unused");
+    approve(host, "alice");
+    id
+}
+
 /// Bob asks for 25000, alice approves, and the approved retry applies once.
 async fn approved_once(host: &RefHost) -> String {
-    let out = host.call(adjust(25_000)).await;
-    let id = elicitation_id(&out);
-    approve(host, "alice");
+    let id = approved_unused(host).await;
     let call = adjust(25_000).elicitation_id(&id);
     let planted = planted_for(&call);
     let out = host.call(call).await;
@@ -58,6 +69,11 @@ async fn approved_once(host: &RefHost) -> String {
 fn assert_not_applied(out: &Outcome) {
     assert_eq!(out.denied_at, Some(Stage::Request), "{:?}", out.violation);
     assert!(out.upstream.is_none(), "the upstream was not called");
+}
+
+#[tokio::test]
+async fn an_unused_approval_applies_for_its_owner_and_tool() {
+    approved_once(&RefHost::hermetic(Fixture::Cedar).await).await;
 }
 
 #[tokio::test]
@@ -93,8 +109,16 @@ async fn an_approval_from_someone_other_than_the_login_hint_is_denied() {
 
 #[tokio::test]
 async fn an_invented_id_is_denied_even_while_the_op_approves() {
-    let host = RefHost::hermetic(Fixture::Cedar).await;
-    approve(&host, "alice");
+    // This OP approves even an id the engine never dispatched.
+    let tokens = json!({"id_token": Persona::Alice.token()}).to_string();
+    let transport = FakeTransport::new().respond_with(idp::CIBA_TOKEN_URL, move |_| {
+        Ok(HttpResponse::new(200, tokens.clone().into()))
+    });
+    let host = RefHost::builder()
+        .transport(transport)
+        .start(Fixture::Cedar.hermetic())
+        .await
+        .expect("untrusted OP fixture");
     let call = adjust(25_000).elicitation_id("ciba-00000000deadbeef");
     let planted = planted_for(&call);
     let out = host.call(call).await;
@@ -146,7 +170,7 @@ async fn two_approval_routes() -> RefHost {
 #[should_panic(expected = "known gap #181 elicitation-tool-binding")]
 async fn known_gap_an_approved_id_is_bound_to_its_tool() {
     let host = two_approval_routes().await;
-    let id = approved_once(&host).await;
+    let id = approved_unused(&host).await;
     let call = Call::new(Persona::Bob, "approve_bonus")
         .args(json!({ "employee_id": "EMP-001234", "amount": 25_000 }))
         .elicitation_id(&id);
@@ -168,7 +192,7 @@ async fn known_gap_an_approved_id_is_bound_to_its_tool() {
 #[should_panic(expected = "known gap #181 elicitation-subject-binding")]
 async fn known_gap_an_approved_id_is_bound_to_its_subject() {
     let host = RefHost::hermetic(Fixture::Cedar).await;
-    let id = approved_once(&host).await;
+    let id = approved_unused(&host).await;
     let mut eve = Persona::Eve.claims();
     eve["manager"] = json!("carol");
     let call = adjust(25_000)
@@ -177,9 +201,15 @@ async fn known_gap_an_approved_id_is_bound_to_its_subject() {
     let planted = planted_for(&call);
     let out = host.call(call).await;
     out.assert_no_leaks(&planted);
+    if let Some(seen) = &out.upstream {
+        assert_eq!(
+            seen.headers.get("x-auth-user-id").map(String::as_str),
+            Some(Persona::Eve.sub())
+        );
+    }
     assert_eq!(
         applied(&host, "adjust_compensation"),
-        1,
+        0,
         "known gap #181 elicitation-subject-binding: Bob's approval applied Eve's call"
     );
 }

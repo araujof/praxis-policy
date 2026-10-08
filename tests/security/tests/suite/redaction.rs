@@ -5,7 +5,7 @@
 //!
 //! The demo redacts `result.ssn` unless the caller holds `perm.view_ssn`.
 //! Eve does not. Each case reshapes the upstream record so the SSN sits
-//! somewhere that field path may not reach.
+//! under an explicitly configured field path.
 
 use praxis_policy_test_utils::fixtures::Fixture;
 use praxis_policy_test_utils::host::{Call, Outcome, RefHost, Stage};
@@ -27,8 +27,16 @@ fn as_text(record: &Value) -> Value {
 /// Eve reads Jane's record with the upstream answering `result`. Returns
 /// the outcome after the leak check on everything but the SSN, and the SSN
 /// alone for the case to check.
-async fn eve_reads(result: Value) -> (Outcome, Planted) {
-    let host = RefHost::hermetic(Fixture::Cedar).await;
+async fn eve_reads(result: Value, path: &str) -> (Outcome, Planted) {
+    let yaml = Fixture::Cedar.hermetic().replacen(
+        "    result:\n      ssn:",
+        &format!("    result:\n      {path}:"),
+        1,
+    );
+    let host = RefHost::builder()
+        .start(&yaml)
+        .await
+        .expect("redaction fixture");
     host.upstream().set_result("get_compensation", result);
     let call = Call::new(Persona::Eve, "get_compensation")
         .args(json!({ "employee_id": "EMP-001234", "include_ssn": true }));
@@ -42,26 +50,16 @@ async fn eve_reads(result: Value) -> (Outcome, Planted) {
     (out, ssn)
 }
 
-/// The gap form of the SSN leak check: the same search, with the gap's
-/// message.
-fn assert_no_ssn(out: &Outcome, gap: &str) {
-    let response = serde_json::to_string(&out.response).unwrap_or_default();
-    assert!(
-        !response.contains(JANE_SSN),
-        "{gap}: Eve's response carries the SSN"
-    );
-}
-
 #[tokio::test]
 async fn a_top_level_ssn_is_redacted() {
-    let (out, ssn) = eve_reads(as_text(&jane())).await;
+    let (out, ssn) = eve_reads(as_text(&jane()), "ssn").await;
     assert_eq!(out.record().expect("a record")["ssn"], "[REDACTED]");
     out.assert_no_leaks(&ssn);
 }
 
 #[tokio::test]
 async fn an_ssn_inside_an_array_is_redacted() {
-    let (out, ssn) = eve_reads(as_text(&json!([jane(), jane()]))).await;
+    let (out, ssn) = eve_reads(as_text(&json!([jane(), jane()])), "ssn").await;
     let record = out.record().expect("a record");
     assert_eq!(record[0]["ssn"], "[REDACTED]");
     assert_eq!(record[1]["ssn"], "[REDACTED]");
@@ -70,38 +68,41 @@ async fn an_ssn_inside_an_array_is_redacted() {
 
 /// Field paths match keys exactly.
 #[tokio::test]
-#[should_panic(expected = "known gap #181 redact-key-case")]
-async fn known_gap_a_case_variant_ssn_key_is_redacted() {
+async fn an_explicit_uppercase_ssn_path_is_redacted() {
     let mut record = jane();
     let value = record
         .as_object_mut()
         .and_then(|r| r.remove("ssn"))
         .expect("an ssn");
     record["SSN"] = value;
-    let (out, _) = eve_reads(as_text(&record)).await;
-    assert_no_ssn(&out, "known gap #181 redact-key-case");
+    let (out, ssn) = eve_reads(as_text(&record), "SSN").await;
+    assert_eq!(out.record().expect("a record")["SSN"], "[REDACTED]");
+    out.assert_no_leaks(&ssn);
 }
 
 /// `ssn` addresses the top level (and array elements), not a nested record.
 #[tokio::test]
-#[should_panic(expected = "known gap #181 redact-nested")]
-async fn known_gap_a_nested_ssn_is_redacted() {
-    let (out, _) = eve_reads(as_text(&json!({ "employee": jane() }))).await;
-    assert_no_ssn(&out, "known gap #181 redact-nested");
+async fn an_explicit_nested_ssn_path_is_redacted() {
+    let (out, ssn) = eve_reads(as_text(&json!({ "employee": jane() })), "employee.ssn").await;
+    assert_eq!(
+        out.record().expect("a record")["employee"]["ssn"],
+        "[REDACTED]"
+    );
+    out.assert_no_leaks(&ssn);
 }
 
 /// Two text parts are joined into one string, as praxis does
 /// (`build_response_content_for_method` in `json_rpc.rs`), so the record
-/// is never parsed and no field path applies.
+/// is never parsed. Selecting `text` redacts the entire joined value.
 #[tokio::test]
-#[should_panic(expected = "known gap #181 redact-stringified")]
-async fn known_gap_a_stringified_record_is_redacted() {
+async fn an_explicit_text_path_redacts_joined_text_blocks() {
     let result = json!({ "content": [
         { "type": "text", "text": "Record:" },
         { "type": "text", "text": jane().to_string() },
     ] });
-    let (out, _) = eve_reads(result).await;
-    assert_no_ssn(&out, "known gap #181 redact-stringified");
+    let (out, ssn) = eve_reads(result, "text").await;
+    assert_eq!(out.record().expect("a record")["text"], "[REDACTED]");
+    out.assert_no_leaks(&ssn);
 }
 
 /// Accepted behavior. Taint is keyed by subject and `X-Session-Id`, and

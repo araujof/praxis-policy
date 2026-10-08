@@ -40,10 +40,13 @@
 //!
 //! # Not mirrored
 //!
-//! - The post-invoke HTTP view. Praxis rebuilds it from the inbound request
-//!   headers. The driver carries the pre-invoke `HttpExtension` instead,
-//!   `secret_headers` included, which is what `docs/content/assertions.md`
-//!   asks of a host.
+//! - Praxis supplies no HTTP extension to `cmf.tool_post_invoke`. This driver
+//!   carries the pre-invoke view, including `secret_headers`, as required by
+//!   `docs/content/assertions.md`. Both hosts rebuild the `http.response`
+//!   view from inbound headers plus response headers and status.
+//! - Praxis bounds the synchronous CMF response-body hook on `dispatch.rs`'s
+//!   two-worker runtime by `max(2 * plugin_timeout, 1s)`. This driver awaits
+//!   it directly. Both hosts await `http.response` directly.
 //!
 //! # Host-owned behavior not reproduced
 //!
@@ -96,7 +99,7 @@ use crate::fixtures::Fixture;
 use crate::idp::{self, Ciba, Exchange, Persona};
 use crate::live::{self, Targets};
 use crate::mcp;
-use crate::secrets::Planted;
+use crate::secrets::{IssuedTokens, Planted};
 use crate::upstream::{Upstream, UpstreamRequest};
 
 /// The praxis commit the mirrored files were last checked against. The
@@ -105,12 +108,13 @@ use crate::upstream::{Upstream, UpstreamRequest};
 pub const PRAXIS_COMMIT: &str = "24731f91707e995b479026afdbe2b1bed89c22bb";
 
 /// The praxis files this driver mirrors, relative to the praxis root.
-pub const MIRRORED: [&str; 5] = [
+pub const MIRRORED: [&str; 6] = [
     "crates/filter/src/builtins/http/security/policy/filter.rs",
     "crates/filter/src/builtins/http/security/policy/assertions.rs",
     "crates/filter/src/builtins/http/security/policy/json_rpc.rs",
     "crates/filter/src/builtins/http/security/policy/common_message_format.rs",
     "crates/filter/src/builtins/http/security/policy/error.rs",
+    "crates/filter/src/builtins/http/security/policy/dispatch.rs",
 ];
 
 /// `kind:` of the header probe a fixture may declare.
@@ -621,6 +625,7 @@ pub enum Stage {
 /// What one call did.
 #[derive(Debug)]
 pub struct Outcome {
+    issued_tokens: IssuedTokens,
     /// `None` when the call was allowed through both phases.
     pub denied_at: Option<Stage>,
     /// The deny's violation, as praxis would put it on the wire.
@@ -678,12 +683,16 @@ impl Outcome {
     /// Assert no planted secret reached anything the caller or an operator
     /// observes: the violation, the errors, the response and its headers,
     /// the logs and the audit records. The upstream request is exempt,
-    /// since delivering credentials there is the point.
+    /// since delivering credentials there is the point. Includes every OAuth
+    /// token returned by this host's dependencies, across calls and denials.
     ///
     /// # Panics
     ///
     /// Naming the place and the labels of every secret found.
     pub fn assert_no_leaks(&self, planted: &Planted) {
+        let mut all = self.issued_tokens.snapshot();
+        all.extend(planted);
+        let planted = &all;
         if let Some(v) = &self.violation {
             planted.assert_absent_json(
                 "the violation",
@@ -778,6 +787,8 @@ impl HostBuilder {
         } else {
             Arc::new(live::Split::new(self.live_bases, transport.clone()))
         };
+        let issued_tokens = IssuedTokens::default();
+        let egress = issued_tokens.record(egress);
         engine.set_http_transport(egress.clone());
         engine.set_secret_providers(registry_with_vault(egress));
         engine.load_config_yaml(yaml)?;
@@ -790,6 +801,7 @@ impl HostBuilder {
         let response_hook =
             engine.has_hooks_for(HOOK_HTTP_RESPONSE) || !response_governed.is_empty();
         Ok(RefHost {
+            issued_tokens,
             engine,
             transport,
             ciba,
@@ -806,6 +818,7 @@ impl HostBuilder {
 /// A started engine, its scripted dependencies and the upstream, driven one
 /// call at a time.
 pub struct RefHost {
+    issued_tokens: IssuedTokens,
     engine: Arc<PolicyEngine>,
     transport: Arc<FakeTransport>,
     ciba: Ciba,
@@ -943,6 +956,7 @@ impl RefHost {
         };
         let mut trace = Trace::default();
         let mut outcome = Outcome {
+            issued_tokens: self.issued_tokens.clone(),
             denied_at: None,
             violation: None,
             upstream: None,
@@ -977,9 +991,13 @@ impl RefHost {
             Ok(identity) => identity,
             Err(v) => return deny(outcome, Stage::Identity, v, trace),
         };
-        let identity_ext = identity.apply_to_extensions(Extensions::default());
         let session = inbound.get("x-session-id").map(String::as_str);
-        let extensions = mcp::tool_extensions(identity_ext.clone(), tool, &inbound, session);
+        let identity_ext = mcp::tool_extensions(
+            identity.apply_to_extensions(Extensions::default()),
+            tool,
+            &inbound,
+            session,
+        );
 
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let body = mcp::tool_call_body(id, tool, &call.args);
@@ -989,7 +1007,7 @@ impl RefHost {
             .invoke_named::<CmfHook>(
                 HOOK_CMF_TOOL_PRE_INVOKE,
                 mcp::tool_call(&call_id, tool, &call.args),
-                extensions,
+                identity_ext.clone(),
                 None,
             )
             .await;
@@ -1020,7 +1038,7 @@ impl RefHost {
 
         // Response headers.
         if self.response_hook {
-            let mut ext = identity.apply_to_extensions(Extensions::default());
+            let mut ext = identity_ext.clone();
             ext.meta = Some(Arc::new(MetaExtension {
                 entity_type: Some(ENTITY_HTTP.to_owned()),
                 entity_name: Some(ENTITY_NAME_GLOBAL.to_owned()),
@@ -1051,7 +1069,7 @@ impl RefHost {
             outcome.errors = trace.errors;
             return outcome;
         };
-        let mut post_ext = mcp::tool_extensions(identity_ext, tool, &inbound, session);
+        let mut post_ext = identity_ext;
         if let Some(http) = pre
             .modified_extensions
             .as_ref()

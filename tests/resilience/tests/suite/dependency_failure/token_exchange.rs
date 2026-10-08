@@ -101,6 +101,12 @@ async fn through(mode: Exchange) -> (RefHost, Outcome, Planted) {
         .expect("the cedar fixture starts");
     let (call, planted) = bob_reads_compensation();
     let out = host.call(call).await;
+    assert_eq!(
+        host.transport().call_count_for(TOKEN_EXCHANGE_URL),
+        1,
+        "the exchange was reached"
+    );
+    out.assert_no_leaks(&planted);
     (host, out, planted)
 }
 
@@ -120,21 +126,23 @@ fn forwarded_claim(out: &Outcome, claim: &str) -> serde_json::Value {
 #[should_panic(expected = "known gap #181 exchange-audience-unchecked")]
 async fn known_gap_a_token_for_the_wrong_audience_is_forwarded() {
     let (host, out, planted) = through(Exchange::WrongAudience).await;
-    if out.allowed() {
+    if out.upstream.is_some() {
         assert_eq!(forwarded_claim(&out, "aud"), "not-workday-api");
+        panic!(
+            "known gap #181 exchange-audience-unchecked: wrong audience token reached the upstream"
+        );
     }
     assert!(
         out.violation_code()
             .is_some_and(|c| c.starts_with("delegation.")),
-        "known gap #181 exchange-audience-unchecked: a token minted for another \
-         audience was forwarded: {:?}",
+        "the denial must be attributable to delegation: {:?}",
         out.violation
     );
     assert_fail_closed(
         &host,
         &out,
         Stage::Request,
-        out.violation_code().unwrap_or_default(),
+        out.violation_code().expect("delegation violation"),
         &planted,
         "wrong audience",
     );
@@ -146,21 +154,21 @@ async fn known_gap_a_token_for_the_wrong_audience_is_forwarded() {
 #[should_panic(expected = "known gap #181 exchange-scope-overgrant")]
 async fn known_gap_a_token_broader_than_requested_is_forwarded() {
     let (host, out, planted) = through(Exchange::BroaderScope).await;
-    if out.allowed() {
+    if out.upstream.is_some() {
         assert_eq!(forwarded_claim(&out, "scope"), "read_compensation admin");
+        panic!("known gap #181 exchange-scope-overgrant: broader scope token reached the upstream");
     }
     assert!(
         out.violation_code()
             .is_some_and(|c| c.starts_with("delegation.")),
-        "known gap #181 exchange-scope-overgrant: a token granting more than was \
-         requested was forwarded: {:?}",
+        "the denial must be attributable to delegation: {:?}",
         out.violation
     );
     assert_fail_closed(
         &host,
         &out,
         Stage::Request,
-        out.violation_code().unwrap_or_default(),
+        out.violation_code().expect("delegation violation"),
         &planted,
         "broader scope",
     );
@@ -171,21 +179,23 @@ async fn known_gap_a_token_broader_than_requested_is_forwarded() {
 #[should_panic(expected = "known gap #181 exchange-subject-unchecked")]
 async fn known_gap_a_token_for_another_subject_is_forwarded() {
     let (host, out, planted) = through(Exchange::DifferentSubject).await;
-    if out.allowed() {
+    if out.upstream.is_some() {
         assert_eq!(forwarded_claim(&out, "sub"), Persona::Eve.sub());
+        panic!(
+            "known gap #181 exchange-subject-unchecked: different subject token reached the upstream"
+        );
     }
     assert!(
         out.violation_code()
             .is_some_and(|c| c.starts_with("delegation.")),
-        "known gap #181 exchange-subject-unchecked: a token speaking for another \
-         subject was forwarded: {:?}",
+        "the denial must be attributable to delegation: {:?}",
         out.violation
     );
     assert_fail_closed(
         &host,
         &out,
         Stage::Request,
-        out.violation_code().unwrap_or_default(),
+        out.violation_code().expect("delegation violation"),
         &planted,
         "different subject",
     );
@@ -197,21 +207,24 @@ async fn known_gap_a_token_for_another_subject_is_forwarded() {
 #[should_panic(expected = "known gap #181 exchange-token-type-unchecked")]
 async fn known_gap_an_unexpected_issued_token_type_is_forwarded() {
     let (host, out, planted) = through(Exchange::UnexpectedTokenType).await;
-    if out.allowed() {
+    if out.upstream.is_some() {
         assert_eq!(forwarded_claim(&out, "aud"), "workday-api");
+        assert_eq!(forwarded_claim(&out, "typ"), "ID");
+        panic!(
+            "known gap #181 exchange-token-type-unchecked: unexpected token type token reached the upstream"
+        );
     }
     assert!(
         out.violation_code()
             .is_some_and(|c| c.starts_with("delegation.")),
-        "known gap #181 exchange-token-type-unchecked: an ID token was forwarded as \
-         the delegated bearer: {:?}",
+        "the denial must be attributable to delegation: {:?}",
         out.violation
     );
     assert_fail_closed(
         &host,
         &out,
         Stage::Request,
-        out.violation_code().unwrap_or_default(),
+        out.violation_code().expect("delegation violation"),
         &planted,
         "unexpected token type",
     );

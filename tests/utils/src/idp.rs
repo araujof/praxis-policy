@@ -24,6 +24,8 @@ use rsa::traits::PublicKeyParts as _;
 use rsa::{RsaPrivateKey, RsaPublicKey};
 use serde_json::{Value, json};
 
+use crate::fixtures::CLIENT_SECRET;
+
 /// Issuer every persona token names.
 pub const ISSUER: &str = "https://idp.test/realms/policy-demo";
 
@@ -344,6 +346,21 @@ fn oauth_error(code: &str) -> HttpResponse {
     reply(400, &json!({ "error": code }))
 }
 
+fn authenticated(req: &HttpRequest) -> bool {
+    let expected = format!(
+        "Basic {}",
+        base64::engine::general_purpose::STANDARD.encode(format!("praxis-gateway:{CLIENT_SECRET}"))
+    );
+    req.headers
+        .get("authorization")
+        .and_then(|value| value.to_str().ok())
+        == Some(expected.as_str())
+}
+
+fn field_is(req: &HttpRequest, name: &str, value: &str) -> bool {
+    form_field(req, name).as_deref() == Some(value)
+}
+
 /// How the token endpoint departs from RFC 8693, for misbehaving-IdP rows.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Exchange {
@@ -368,6 +385,17 @@ impl Exchange {
     }
 
     fn mint(self, req: &HttpRequest) -> HttpResponse {
+        if !authenticated(req) {
+            return oauth_error("invalid_client");
+        }
+        if !field_is(
+            req,
+            "grant_type",
+            "urn:ietf:params:oauth:grant-type:token-exchange",
+        ) || !field_is(req, "subject_token_type", ACCESS_TOKEN_TYPE)
+        {
+            return oauth_error("invalid_request");
+        }
         let (Some(subject), Some(audience)) = (
             form_field(req, "subject_token").and_then(|t| claims_of(&t)),
             form_field(req, "audience"),
@@ -418,6 +446,11 @@ impl Exchange {
         if let Some(scope) = &scope {
             merge(&mut claims, json!({ "scope": scope }));
         }
+        claims["typ"] = json!(if self == Self::UnexpectedTokenType {
+            "ID"
+        } else {
+            "Bearer"
+        });
         let issued_token_type = if self == Self::UnexpectedTokenType {
             "urn:ietf:params:oauth:token-type:id_token"
         } else {
@@ -506,11 +539,18 @@ impl Ciba {
     #[must_use]
     pub fn install(&self, transport: FakeTransport) -> FakeTransport {
         let issued = Arc::clone(&self.issued);
+        let known_ids = Arc::clone(&self.issued);
         let poll = Arc::clone(&self.poll);
         let per_id = Arc::clone(&self.per_id);
         transport
             .respond_with(CIBA_BACKCHANNEL_URL, move |req| {
-                if form_field(req, "login_hint").is_none_or(|h| h.is_empty()) {
+                if !authenticated(req) {
+                    return Ok(oauth_error("invalid_client"));
+                }
+                if form_field(req, "login_hint").is_none_or(|h| h.is_empty())
+                    || !form_field(req, "scope")
+                        .is_some_and(|s| s.split_whitespace().any(|s| s == "openid"))
+                {
                     return Ok(oauth_error("invalid_request"));
                 }
                 // Unguessable, because it is a bearer handle on the approval.
@@ -525,9 +565,22 @@ impl Ciba {
                 ))
             })
             .respond_with(CIBA_TOKEN_URL, move |req| {
+                if !authenticated(req) {
+                    return Ok(oauth_error("invalid_client"));
+                }
+                if !field_is(req, "grant_type", "urn:openid:params:grant-type:ciba") {
+                    return Ok(oauth_error("invalid_request"));
+                }
                 let Some(id) = form_field(req, "auth_req_id") else {
                     return Ok(oauth_error("invalid_request"));
                 };
+                if !known_ids
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .contains(&id)
+                {
+                    return Ok(oauth_error("invalid_grant"));
+                }
                 let own = per_id
                     .lock()
                     .unwrap_or_else(PoisonError::into_inner)

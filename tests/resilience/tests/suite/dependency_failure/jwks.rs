@@ -23,15 +23,12 @@ use super::{Fault, assert_fail_closed};
 /// Two identity plugins, a one-second `plugin_timeout`.
 const STALL: &str = include_str!("../../../fixtures/identity-stall.yaml");
 
-/// Base64url of `{"typ":"JWT","alg":"RS256","kid":"rotated-away"}`.
-const ROTATED_HEADER: &str = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6InJvdGF0ZWQtYXdheSJ9";
-
-/// `persona`'s token re-headed with a `kid` the JWKS does not publish, as
-/// after a rotation the gateway has not seen yet.
 fn rotated(persona: Persona) -> String {
-    let token = persona.token();
-    let (_, rest) = token.split_once('.').expect("a JWT");
-    format!("{ROTATED_HEADER}.{rest}")
+    idp::forge(
+        &json!({"typ": "JWT", "alg": "RS256", "kid": "rotated-away"}),
+        &persona.claims(),
+        idp::Signer::Realm,
+    )
 }
 
 fn the_failures() -> [(&'static str, Fault); 7] {
@@ -46,19 +43,48 @@ fn the_failures() -> [(&'static str, Fault); 7] {
     ]
 }
 
-/// The boot fetch succeeds and every later one fails `fault`'s way.
-fn failing_after_boot(fault: Fault) -> (FakeTransport, Arc<AtomicBool>) {
+/// Publish the rotated key after boot, or fail the refresh as scripted.
+fn refresh_after_boot(fault: Option<Fault>) -> (FakeTransport, Arc<AtomicBool>) {
     let booted = Arc::new(AtomicBool::new(false));
     let flag = Arc::clone(&booted);
-    let jwks = idp::jwks().to_string();
+    let original = idp::jwks();
+    let mut rotated = original["keys"][0].clone();
+    rotated["kid"] = json!("rotated-away");
+    let updated = json!({"keys": [original["keys"][0].clone(), rotated]}).to_string();
+    let jwks = original.to_string();
     let transport = FakeTransport::new().respond_with(idp::JWKS_URL, move |_| {
         if flag.load(Ordering::SeqCst) {
-            fault.reply()
+            match &fault {
+                Some(fault) => fault.reply(),
+                None => Ok(HttpResponse::new(200, Bytes::from(updated.clone()))),
+            }
         } else {
             Ok(HttpResponse::new(200, Bytes::from(jwks.clone())))
         }
     });
     (transport, booted)
+}
+
+#[tokio::test]
+async fn a_healthy_refresh_accepts_the_rotated_token() {
+    let (transport, booted) = refresh_after_boot(None);
+    let host = RefHost::builder()
+        .transport(transport)
+        .start(Fixture::Cedar.hermetic())
+        .await
+        .expect("start");
+    let at_boot = host.transport().call_count_for(idp::JWKS_URL);
+    booted.store(true, Ordering::SeqCst);
+    let call = Call::new(Persona::Bob, "get_compensation")
+        .header("x-user-token", &rotated(Persona::Bob))
+        .args(json!({"employee_id": "EMP-001234"}));
+    let planted = call.planted();
+    let out = host.call(call).await;
+    assert!(out.allowed(), "{:?}", out.violation);
+    assert!(out.upstream.is_some());
+    assert!(host.transport().call_count_for(idp::JWKS_URL) > at_boot);
+    assert_eq!(host.transport().call_count_for(TOKEN_EXCHANGE_URL), 1);
+    out.assert_no_leaks(&planted);
 }
 
 /// A token whose `kid` is unknown forces a refresh, and the refresh fails.
@@ -70,7 +96,7 @@ fn failing_after_boot(fault: Fault) -> (FakeTransport, Arc<AtomicBool>) {
 #[tokio::test]
 async fn a_failing_refresh_denies_an_unknown_kid_at_the_identity_gate() {
     for (row, fault) in the_failures() {
-        let (transport, booted) = failing_after_boot(fault);
+        let (transport, booted) = refresh_after_boot(Some(fault));
         let host = RefHost::builder()
             .transport(transport)
             .start(Fixture::Cedar.hermetic())

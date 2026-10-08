@@ -9,6 +9,7 @@
 
 use praxis_policy_test_utils::host::{Call, Outcome, RefHost, Stage};
 use praxis_policy_test_utils::idp::{CibaPoll, Persona};
+use praxis_policy_test_utils::secrets::Planted;
 use serde_json::{Value, json};
 
 use super::{adjust, audit_for, each_pdp, planted, upstream_calls};
@@ -22,14 +23,14 @@ fn over_threshold() -> Call {
 }
 
 /// S1: the first call suspends. Returns the elicitation id.
-async fn suspend(host: &RefHost) -> String {
+async fn suspend(host: &RefHost, secrets: &mut Planted) -> String {
     let call = over_threshold();
-    let planted = planted(&call);
+    secrets.extend(&planted(&call));
     let out = host.call(call).await;
     assert_pending(&out, "S1");
     assert_eq!(out.detail("approver"), Some(&json!("alice")), "S1");
     assert_eq!(upstream_calls(host), 0, "S1 reaches no upstream");
-    out.assert_no_leaks(&planted);
+    out.assert_no_leaks(secrets);
     let id = out
         .detail("elicitation_id")
         .and_then(Value::as_str)
@@ -49,20 +50,22 @@ fn assert_pending(out: &Outcome, step: &str) {
 async fn a_large_adjustment_applies_after_manager_approval() {
     each_pdp(|fixture| async move {
         let host = RefHost::hermetic(fixture).await;
-        let id = suspend(&host).await;
+        let mut secrets = Planted::new();
+        let id = suspend(&host, &mut secrets).await;
 
         let call = over_threshold().elicitation_id(&id).peek();
-        let planted_peek = planted(&call);
+        secrets.extend(&planted(&call));
         let peek = host.call(call).await;
         assert_pending(&peek, "S3 before approval");
+        assert_eq!(upstream_calls(&host), 0, "a pending peek does not apply");
         assert_eq!(peek.detail("elicitation_id"), Some(&json!(id)));
-        peek.assert_no_leaks(&planted_peek);
+        peek.assert_no_leaks(&secrets);
 
         host.ciba().set(CibaPoll::Approved {
             approver: "alice".to_owned(),
         });
         let call = over_threshold().elicitation_id(&id).peek();
-        let planted_peek = planted(&call);
+        secrets.extend(&planted(&call));
         let peek = host.call(call).await;
         assert_eq!(peek.denied_at, Some(Stage::Request), "S3");
         assert_eq!(peek.violation_code(), Some("elicitation.approved"), "S3");
@@ -70,16 +73,16 @@ async fn a_large_adjustment_applies_after_manager_approval() {
         assert_eq!(peek.detail("elicitation_id"), Some(&json!(id)), "S3");
         assert_eq!(peek.detail("approver"), Some(&json!("alice")), "S3");
         assert_eq!(upstream_calls(&host), 0, "a peek does not apply");
-        peek.assert_no_leaks(&planted_peek);
+        peek.assert_no_leaks(&secrets);
 
         let call = over_threshold().elicitation_id(&id);
-        let planted_apply = planted(&call);
+        secrets.extend(&planted(&call));
         let out = host.call(call).await;
         assert!(out.allowed(), "S4: {:?}", out.violation);
         assert_eq!(upstream_calls(&host), 1, "S4");
         assert_eq!(out.record().expect("a record")["status"], "applied");
         assert_eq!(audit_for(&out, "adjust_compensation").len(), 1, "S4");
-        out.assert_no_leaks(&planted_apply);
+        out.assert_no_leaks(&secrets);
     })
     .await;
 }
@@ -88,10 +91,11 @@ async fn a_large_adjustment_applies_after_manager_approval() {
 async fn a_denied_approval_denies_the_adjustment() {
     each_pdp(|fixture| async move {
         let host = RefHost::hermetic(fixture).await;
-        let id = suspend(&host).await;
+        let mut secrets = Planted::new();
+        let id = suspend(&host, &mut secrets).await;
         host.ciba().set(CibaPoll::Denied);
         let call = over_threshold().elicitation_id(&id);
-        let planted = planted(&call);
+        secrets.extend(&planted(&call));
         let out = host.call(call).await;
         assert_eq!(out.denied_at, Some(Stage::Request));
         assert_eq!(out.violation_code(), Some(APPROVAL_STEP));
@@ -99,7 +103,7 @@ async fn a_denied_approval_denies_the_adjustment() {
         assert_eq!(reason, Some("elicitation denied by approver"));
         assert_eq!(out.proto_error_code(), None, "a deny, not a retry signal");
         assert_eq!(upstream_calls(&host), 0);
-        out.assert_no_leaks(&planted);
+        out.assert_no_leaks(&secrets);
     })
     .await;
 }
@@ -108,16 +112,17 @@ async fn a_denied_approval_denies_the_adjustment() {
 async fn an_expired_approval_denies_the_adjustment() {
     each_pdp(|fixture| async move {
         let host = RefHost::hermetic(fixture).await;
-        let id = suspend(&host).await;
+        let mut secrets = Planted::new();
+        let id = suspend(&host, &mut secrets).await;
         host.ciba().set(CibaPoll::Expired);
         let call = over_threshold().elicitation_id(&id);
-        let planted = planted(&call);
+        secrets.extend(&planted(&call));
         let out = host.call(call).await;
         assert_eq!(out.denied_at, Some(Stage::Request));
         assert_eq!(out.violation_code(), Some(APPROVAL_STEP));
         assert_eq!(out.proto_error_code(), None, "a deny, not a retry signal");
         assert_eq!(upstream_calls(&host), 0, "not applied");
-        out.assert_no_leaks(&planted);
+        out.assert_no_leaks(&secrets);
     })
     .await;
 }

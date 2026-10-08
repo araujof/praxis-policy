@@ -4,10 +4,14 @@
 //! Planted secrets and the check that none of them leaks.
 //!
 //! A test plants every value that must never reach a diagnostic (inbound
-//! tokens, client secrets, minted tokens, `auth_req_id`s, the SSN) and then
+//! tokens, client secrets, minted tokens, the SSN) and then
 //! asserts over everything the caller can observe. A failure names the
 //! secret by label, never by value.
 
+use std::sync::{Arc, Mutex, PoisonError};
+
+use async_trait::async_trait;
+use praxis_policy_core::http::{HttpRequest, HttpResponse, HttpTransport, HttpTransportError};
 use serde_json::Value;
 
 use crate::capture::Events;
@@ -94,5 +98,52 @@ fn collect_strings<'a>(value: &'a Value, out: &mut Vec<&'a str>) {
             }
         },
         Value::Null | Value::Bool(_) | Value::Number(_) => {},
+    }
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct IssuedTokens(Arc<Mutex<Planted>>);
+
+impl std::fmt::Debug for IssuedTokens {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("IssuedTokens(<redacted>)")
+    }
+}
+
+impl IssuedTokens {
+    pub(crate) fn snapshot(&self) -> Planted {
+        self.0
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+
+    pub(crate) fn record(&self, transport: Arc<dyn HttpTransport>) -> Arc<dyn HttpTransport> {
+        Arc::new(TokenRecorder {
+            transport,
+            tokens: self.clone(),
+        })
+    }
+}
+
+#[derive(Debug)]
+struct TokenRecorder {
+    transport: Arc<dyn HttpTransport>,
+    tokens: IssuedTokens,
+}
+
+#[async_trait]
+impl HttpTransport for TokenRecorder {
+    async fn execute(&self, request: HttpRequest) -> Result<HttpResponse, HttpTransportError> {
+        let response = self.transport.execute(request).await?;
+        if let Ok(body) = serde_json::from_slice::<Value>(&response.body) {
+            let mut tokens = self.tokens.0.lock().unwrap_or_else(PoisonError::into_inner);
+            for field in ["access_token", "id_token", "refresh_token"] {
+                if let Some(token) = body.get(field).and_then(Value::as_str) {
+                    tokens.plant(field, token);
+                }
+            }
+        }
+        Ok(response)
     }
 }

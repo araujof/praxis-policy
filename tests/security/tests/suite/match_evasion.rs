@@ -141,20 +141,46 @@ async fn a_negative_amount_is_outside_the_gate_as_written() {
     out.assert_no_leaks(&planted);
 }
 
-/// An array amount fails the comparison closed, but an object amount is
-/// read as an absent attribute, so the `when` does not fire and the call
-/// is forwarded with no approval.
+// Object/null parents are absent from the scalar bag. Validate the type
+// and presence explicitly before relying on a numeric approval predicate.
 #[tokio::test]
-#[should_panic(expected = "known gap #181 object-arg-skips-gate")]
-async fn known_gap_an_object_amount_does_not_skip_the_approval_gate() {
-    let host = RefHost::hermetic(Fixture::Cedar).await;
-    let call = adjust(json!({ "value": 25_000 }));
+async fn an_amount_schema_rejects_objects_null_and_missing_values() {
+    let anchor = "  - tool: adjust_compensation\n    authorization:\n      pre_invocation:\n";
+    let yaml = Fixture::Cedar.hermetic().replacen(anchor,
+        "  - tool: adjust_compensation\n    args:\n      amount: int\n    authorization:\n      pre_invocation:\n        - \"!exists(args.amount): deny('amount is required', 'amount_missing')\"\n", 1);
+    assert_ne!(yaml, Fixture::Cedar.hermetic(), "the route matched");
+    let host = RefHost::builder()
+        .start(&yaml)
+        .await
+        .expect("amount schema");
+    for args in [
+        json!({"employee_id": "EMP-001234", "amount": {"value": 25_000}}),
+        json!({"employee_id": "EMP-001234", "amount": null}),
+        json!({"employee_id": "EMP-001234"}),
+    ] {
+        let missing = args.get("amount").is_none();
+        let call = Call::new(Persona::Bob, "adjust_compensation").args(args);
+        let planted = planted_for(&call);
+        let out = host.call(call).await;
+        assert_eq!(out.denied_at, Some(Stage::Request));
+        assert!(out.upstream.is_none());
+        if missing {
+            assert_eq!(out.violation_code(), Some("amount_missing"));
+        } else {
+            assert_ne!(out.violation_code(), Some("elicitation.pending"));
+        }
+        out.assert_no_leaks(&planted);
+    }
+    assert!(host.ciba().auth_req_ids().is_empty());
+    let call = adjust(json!(25_000));
     let planted = planted_for(&call);
     let out = host.call(call).await;
+    assert_eq!(out.violation_code(), Some("elicitation.pending"));
     out.assert_no_leaks(&planted);
-    assert!(
-        !out.allowed() && host.upstream().requests().is_empty(),
-        "known gap #181 object-arg-skips-gate: an object amount reached the upstream \
-         without approval"
-    );
+    assert!(host.upstream().requests().is_empty());
+    let call = adjust(json!(5_000));
+    let planted = planted_for(&call);
+    let out = host.call(call).await;
+    assert!(out.allowed(), "{:?}", out.violation);
+    out.assert_no_leaks(&planted);
 }

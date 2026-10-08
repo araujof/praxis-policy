@@ -5,13 +5,14 @@
 
 use std::collections::HashMap;
 use std::panic::AssertUnwindSafe;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Barrier};
 
 use praxis_policy::{SessionStore, SessionStoreFactory};
 use praxis_policy_core::cmf::{CmfHook, ContentPart};
 use praxis_policy_core::engine::PolicyEngine;
 use praxis_policy_core::extensions::Extensions;
-use praxis_policy_core::http::{HttpRequest, HttpTransport, form_urlencode};
+use praxis_policy_core::http::{HttpRequest, HttpResponse, HttpTransport, form_urlencode};
 use praxis_policy_core::http_testing::FakeTransport;
 use praxis_policy_core::identity::{
     HOOK_IDENTITY_RESOLVE, IdentityHook, IdentityPayload, TokenSource,
@@ -36,10 +37,29 @@ fn headers(pairs: &[(&str, &str)]) -> HashMap<String, String> {
         .collect()
 }
 
+const CLIENT_AUTH: &str = "Basic cHJheGlzLWdhdGV3YXk6cHJheGlzLWdhdGV3YXktc2VjcmV0";
+
 /// POST `form` to `url` on `transport` and parse the JSON answer.
 async fn post_form(transport: &FakeTransport, url: &str, form: &[(&str, &str)]) -> (u16, Value) {
+    post_with_auth(transport, url, form, Some(CLIENT_AUTH)).await
+}
+
+async fn post_with_auth(
+    transport: &FakeTransport,
+    url: &str,
+    form: &[(&str, &str)],
+    auth: Option<&str>,
+) -> (u16, Value) {
+    let mut request = HttpRequest::post(url, form_urlencode(form))
+        .header("content-type", "application/x-www-form-urlencoded")
+        .expect("content type");
+    if let Some(auth) = auth {
+        request = request
+            .header("authorization", auth)
+            .expect("authorization");
+    }
     let resp = transport
-        .execute(HttpRequest::post(url, form_urlencode(form)))
+        .execute(request)
         .await
         .expect("a responder answers");
     let body = serde_json::from_slice(&resp.body).expect("JSON body");
@@ -144,6 +164,7 @@ async fn token_exchange_mints_from_the_request_form() {
             "urn:ietf:params:oauth:grant-type:token-exchange",
         ),
         ("subject_token", subject_token.as_str()),
+        ("subject_token_type", ACCESS_TOKEN_TYPE),
         ("audience", "workday-api"),
         ("scope", "read_compensation"),
     ];
@@ -213,8 +234,12 @@ async fn ciba_answers_pending_then_approved_then_each_terminal_state() {
     let ciba = Ciba::new();
     let transport = ciba.install(FakeTransport::new());
 
-    let (status, ack) =
-        post_form(&transport, CIBA_BACKCHANNEL_URL, &[("login_hint", "alice")]).await;
+    let (status, ack) = post_form(
+        &transport,
+        CIBA_BACKCHANNEL_URL,
+        &[("login_hint", "alice"), ("scope", "openid")],
+    )
+    .await;
     assert_eq!(status, 200, "{ack}");
     let id = ack["auth_req_id"]
         .as_str()
@@ -248,6 +273,77 @@ async fn ciba_answers_pending_then_approved_then_each_terminal_state() {
         let (status, body) = post_form(&transport, CIBA_TOKEN_URL, &poll).await;
         assert_eq!((status, &body["error"]), (400, &json!(code)));
     }
+}
+
+#[tokio::test]
+async fn the_fake_idp_rejects_missing_auth_and_malformed_grants() {
+    let ciba = Ciba::new();
+    let transport = ciba.install(Exchange::Honest.install(FakeTransport::new()));
+    let token = Persona::Bob.token();
+    let exchange = vec![
+        (
+            "grant_type",
+            "urn:ietf:params:oauth:grant-type:token-exchange",
+        ),
+        ("subject_token", token.as_str()),
+        ("subject_token_type", ACCESS_TOKEN_TYPE),
+        ("audience", "workday-api"),
+    ];
+    let backchannel = vec![("login_hint", "alice"), ("scope", "openid")];
+    let (status, ack) = post_form(&transport, CIBA_BACKCHANNEL_URL, &backchannel).await;
+    assert_eq!(status, 200);
+    let id = ack["auth_req_id"].as_str().expect("an issued id");
+    let poll = vec![
+        ("grant_type", "urn:openid:params:grant-type:ciba"),
+        ("auth_req_id", id),
+    ];
+    ciba.set(CibaPoll::Approved {
+        approver: "alice".to_owned(),
+    });
+    for (url, form) in [
+        (TOKEN_EXCHANGE_URL, exchange),
+        (CIBA_BACKCHANNEL_URL, backchannel),
+        (CIBA_TOKEN_URL, poll),
+    ] {
+        for auth in [None, Some("Basic d3Jvbmc6d3Jvbmc=")] {
+            let (status, body) = post_with_auth(&transport, url, &form, auth).await;
+            assert_eq!((status, &body["error"]), (400, &json!("invalid_client")));
+        }
+        for index in 0..form.len() {
+            for replacement in [None, Some("invalid")] {
+                // Audience and login_hint values are fixture inputs, not fixed enums.
+                if replacement.is_some() && matches!(form[index].0, "audience" | "login_hint") {
+                    continue;
+                }
+                let mut invalid = form.clone();
+                if let Some(value) = replacement {
+                    invalid[index].1 = value;
+                } else {
+                    invalid.remove(index);
+                }
+                let (status, _) = post_form(&transport, url, &invalid).await;
+                assert_eq!(status, 400, "{url}: {} = {replacement:?}", form[index].0);
+            }
+        }
+        let (status, _) = post_form(&transport, url, &form).await;
+        assert_eq!(status, 200, "valid request to {url}");
+    }
+    ciba.set_for(
+        "unissued",
+        CibaPoll::Approved {
+            approver: "alice".to_owned(),
+        },
+    );
+    let (status, body) = post_form(
+        &transport,
+        CIBA_TOKEN_URL,
+        &[
+            ("grant_type", "urn:openid:params:grant-type:ciba"),
+            ("auth_req_id", "unissued"),
+        ],
+    )
+    .await;
+    assert_eq!((status, &body["error"]), (400, &json!("invalid_grant")));
 }
 
 /// An engine running the audit-logger reference plugin on tool calls,
@@ -736,4 +832,126 @@ async fn a_builder_session_store_is_selectable_by_kind() {
         .await
         .expect_err("the store fails to build");
     assert!(err.to_string().contains("unreachable"), "{err}");
+}
+
+#[tokio::test]
+async fn http_response_policy_loads_the_request_session() {
+    let yaml = Fixture::Cedar.hermetic().replacen("global:\n", r#"global:
+  authorization:
+    post_invocation:
+      - "http.status == 200 & security.labels contains 'secret': deny('tainted response', 'response_tainted')"
+"#, 1);
+    let host = RefHost::builder()
+        .start(&yaml)
+        .await
+        .expect("response policy");
+    for (tool, session, denied) in [
+        ("get_directory", "response-session", false),
+        ("get_compensation", "response-session", true),
+        ("get_directory", "response-session", true),
+        ("get_directory", "fresh-session", false),
+    ] {
+        let call = Call::new(Persona::Bob, tool)
+            .args(jane_with_ssn())
+            .session(session);
+        let planted = call.planted();
+        let out = host.call(call).await;
+        assert_eq!(
+            out.denied_at,
+            denied.then_some(Stage::Response),
+            "{tool}: {:?}",
+            out.violation
+        );
+        assert_eq!(out.violation_code(), denied.then_some("response_tainted"));
+        assert!(out.upstream.is_some());
+        out.assert_no_leaks(&planted);
+    }
+}
+
+fn assert_recorded_token(out: &mut host::Outcome, token: &str, label: &str) {
+    out.response_headers
+        .insert("x-leak".to_owned(), token.to_owned());
+    let panic = std::panic::catch_unwind(AssertUnwindSafe(|| out.assert_no_leaks(&Planted::new())))
+        .expect_err("dependency token must be planted automatically");
+    let message = panic.downcast_ref::<String>().expect("assertion message");
+    assert!(message.contains(label), "the failure names the token label");
+    assert!(
+        !message.contains(token),
+        "the failure must not print the token"
+    );
+    out.response_headers.remove("x-leak");
+}
+
+fn fixed_reply(url: &str, body: Value) -> FakeTransport {
+    let body = body.to_string();
+    FakeTransport::new().respond_with(url, move |_| {
+        Ok(HttpResponse::new(200, body.clone().into()))
+    })
+}
+
+#[tokio::test]
+async fn leak_checks_retain_ciba_tokens_across_calls() {
+    let access = "ciba-access-secret-180";
+    let refresh = "ciba-refresh-secret-180";
+    let id_token = Persona::Alice.token();
+    let approved = Arc::new(AtomicBool::new(false));
+    let flag = Arc::clone(&approved);
+    let tokens = json!({"access_token": access, "id_token": id_token,
+        "refresh_token": refresh, "token_type": "Bearer"})
+    .to_string();
+    let transport = FakeTransport::new().respond_with(CIBA_TOKEN_URL, move |_| {
+        let (status, body) = if flag.load(Ordering::SeqCst) {
+            (200, tokens.clone())
+        } else {
+            (400, json!({"error": "authorization_pending"}).to_string())
+        };
+        Ok(HttpResponse::new(status, body.into()))
+    });
+    let host = RefHost::builder()
+        .transport(transport)
+        .start(Fixture::Cedar.hermetic())
+        .await
+        .expect("CIBA fixture");
+    let call = Call::new(Persona::Bob, "adjust_compensation")
+        .args(json!({"employee_id": "EMP-001234", "amount": 25_000}));
+    let pending = host.call(call.clone()).await;
+    let id = pending
+        .detail("elicitation_id")
+        .and_then(Value::as_str)
+        .expect("pending id");
+    approved.store(true, Ordering::SeqCst);
+    let mut approved = host.call(call.elicitation_id(id).peek()).await;
+    assert_eq!(approved.violation_code(), Some("elicitation.approved"));
+    approved.assert_no_leaks(&Planted::new());
+    assert!(host.upstream().requests().is_empty());
+    for (token, label) in [
+        (access, "access_token"),
+        (id_token.as_str(), "id_token"),
+        (refresh, "refresh_token"),
+    ] {
+        assert_recorded_token(&mut approved, token, label);
+    }
+    let mut later = host.call(Call::new(Persona::Bob, "get_directory")).await;
+    assert!(later.allowed());
+    assert_recorded_token(&mut later, access, "access_token");
+}
+
+#[tokio::test]
+async fn leak_checks_include_tokens_minted_before_a_denial() {
+    let minted = "minted-before-denial-180";
+    let host = RefHost::builder()
+        .transport(fixed_reply(
+            TOKEN_EXCHANGE_URL,
+            json!({"access_token": minted, "token_type": "Bearer", "scope": "read_directory"}),
+        ))
+        .start(Fixture::Cedar.hermetic())
+        .await
+        .expect("exchange fixture");
+    let mut out = host
+        .call(Call::new(Persona::Bob, "get_compensation").args(jane_with_ssn()))
+        .await;
+    assert_eq!(out.violation_code(), Some("delegation.scope_too_broad"));
+    assert!(out.upstream.is_none());
+    out.assert_no_leaks(&Planted::new());
+    assert_recorded_token(&mut out, minted, "access_token");
 }

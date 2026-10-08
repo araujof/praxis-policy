@@ -286,8 +286,12 @@ async fn live_ciba_a_large_adjustment_applies_after_approval() {
             let host = on_realm(fixture, &realm).await;
             let call = realm.call(Persona::Bob, "adjust_compensation").await;
             let call = call.args(adjust(25_000));
+            let secrets = planted(&call);
             let out = host.call(call.clone()).await;
+            assert_eq!(out.denied_at, Some(Stage::Request));
             assert_eq!(out.violation_code(), Some("elicitation.pending"));
+            assert_eq!(upstream_calls(&host), 0);
+            out.assert_no_leaks(&secrets);
             let id = out
                 .detail("elicitation_id")
                 .and_then(Value::as_str)
@@ -297,6 +301,9 @@ async fn live_ciba_a_large_adjustment_applies_after_approval() {
             let deadline = Instant::now() + Duration::from_secs(60);
             loop {
                 let peek = host.call(call.clone().elicitation_id(&id).peek()).await;
+                assert_eq!(peek.denied_at, Some(Stage::Request));
+                assert_eq!(upstream_calls(&host), 0, "a peek does not apply");
+                peek.assert_no_leaks(&secrets);
                 match peek.violation_code() {
                     Some("elicitation.approved") => break,
                     Some("elicitation.pending") if Instant::now() < deadline => {
@@ -307,6 +314,8 @@ async fn live_ciba_a_large_adjustment_applies_after_approval() {
             }
             let out = host.call(call.elicitation_id(&id)).await;
             assert!(out.allowed(), "{:?}", out.violation);
+            assert_eq!(upstream_calls(&host), 1);
+            out.assert_no_leaks(&secrets);
             assert_eq!(out.record().expect("a record")["status"], "applied");
         }
     })

@@ -165,6 +165,10 @@ response, JSON-RPC parsing and classifier metadata, body size
 ceilings, and header validity on the wire. The module
 docs list each.
 
+`Outcome::assert_no_leaks` also checks all OAuth tokens returned by the host's
+dependencies, including tokens minted before a denial and on earlier calls.
+Scenarios still plant inbound credentials and other sensitive values.
+
 ### Host drift
 
 `host.rs` records the praxis commit it mirrors in `PRAXIS_COMMIT` and the
@@ -180,7 +184,12 @@ A test that exposes an open defect is named `known_gap_*`, asserts the
 desired behavior with a message containing `known gap #<issue>`, and is
 marked `#[should_panic(expected = "known gap #<issue>")]`. It passes while
 the defect stands and fails once the fix lands. The fixing change removes
-the marker and the prefix.
+the marker and the prefix. Preconditions and leak checks run before the gap
+assertion, so unrelated failures cannot satisfy it.
+
+Exact field paths and argument schemas have positive policy tests: `SSN`,
+`employee.ssn`, and the host's joined `text` field need explicit redaction
+rules; numeric approval gates need type and presence checks.
 
 ### Live mode
 
