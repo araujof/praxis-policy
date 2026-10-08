@@ -97,6 +97,71 @@ pub fn sign(claims: &Value) -> String {
     jsonwebtoken::encode(&header, claims, &key).expect("sign JWT")
 }
 
+/// A second fixed-seed key the realm never publishes: an attacker's, or
+/// another issuer's.
+fn foreign_keys() -> &'static Keys {
+    static KEYS: OnceLock<Keys> = OnceLock::new();
+    KEYS.get_or_init(|| {
+        let mut rng = rand::rngs::StdRng::seed_from_u64(0x0bad_c0de);
+        let private = RsaPrivateKey::new(&mut rng, 2048).expect("generate RSA key");
+        Keys {
+            private_pem: private
+                .to_pkcs8_pem(LineEnding::LF)
+                .expect("encode private PEM")
+                .to_string(),
+            public: RsaPublicKey::from(&private),
+        }
+    })
+}
+
+/// The public half of the foreign key, as a JWK under `kid`.
+#[must_use]
+pub fn foreign_jwk(kid: &str) -> Value {
+    let b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    json!({
+        "kty": "RSA",
+        "use": "sig",
+        "alg": "RS256",
+        "kid": kid,
+        "n": b64.encode(foreign_keys().public.n().to_bytes_be()),
+        "e": b64.encode(foreign_keys().public.e().to_bytes_be()),
+    })
+}
+
+/// What signs a [`forge`]d token.
+#[derive(Clone, Copy, Debug)]
+pub enum Signer<'a> {
+    /// The realm key, RS256.
+    Realm,
+    /// The foreign key, RS256.
+    Foreign,
+    /// HMAC-SHA256 keyed with these bytes.
+    Hs256(&'a [u8]),
+    /// No signature: the third segment is empty.
+    Unsigned,
+}
+
+/// A token carrying exactly `header` and `claims`, signed by `signer`. The
+/// header is written verbatim, so its `alg` may disagree with the signature.
+#[must_use]
+pub fn forge(header: &Value, claims: &Value, signer: Signer<'_>) -> String {
+    let b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    let input = format!(
+        "{}.{}",
+        b64.encode(header.to_string()),
+        b64.encode(claims.to_string())
+    );
+    let rsa = |k: &Keys| EncodingKey::from_rsa_pem(k.private_pem.as_bytes()).expect("encoding key");
+    let (key, alg) = match signer {
+        Signer::Realm => (rsa(keys()), Algorithm::RS256),
+        Signer::Foreign => (rsa(foreign_keys()), Algorithm::RS256),
+        Signer::Hs256(secret) => (EncodingKey::from_secret(secret), Algorithm::HS256),
+        Signer::Unsigned => return format!("{input}."),
+    };
+    let signature = jsonwebtoken::crypto::sign(input.as_bytes(), &key, alg).expect("sign JWT");
+    format!("{input}.{signature}")
+}
+
 /// A JWT's payload, decoded without verification. Accepts a `Bearer ` prefix.
 #[must_use]
 pub fn claims_of(token: &str) -> Option<Value> {

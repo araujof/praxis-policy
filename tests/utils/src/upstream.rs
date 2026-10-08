@@ -244,6 +244,11 @@ impl Upstream {
         self
     }
 
+    /// As [`Upstream::with_result`], on a server a host already owns.
+    pub fn set_result(&self, tool: &str, result: Value) {
+        self.lock().overrides.insert(tool.to_owned(), result);
+    }
+
     fn lock(&self) -> std::sync::MutexGuard<'_, State> {
         self.state.lock().unwrap_or_else(PoisonError::into_inner)
     }

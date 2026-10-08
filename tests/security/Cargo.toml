@@ -23,8 +23,13 @@ rust-version.workspace = true
 default = []
 suite = ["praxis-policy-test-utils/suite"]
 
+# No features here: test-utils' `suite` turns on what these need.
 [dev-dependencies]
 praxis-policy-test-utils = { workspace = true }
+praxis-policy = { path = "../../crates/ppe" }
+praxis-policy-core = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
 
 [[test]]
 name = "suite"
