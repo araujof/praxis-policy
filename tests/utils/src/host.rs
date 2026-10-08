@@ -628,8 +628,9 @@ pub struct Outcome {
     pub response_headers: BTreeMap<String, String>,
     /// Every plugin error the call's pipelines recorded.
     pub errors: Vec<PluginErrorRecord>,
-    /// The logs and audit records emitted during the call. Complete on a
-    /// current-thread runtime only, since plugins run in spawned tasks.
+    /// The logs and audit records emitted during the call, on a
+    /// current-thread runtime. Empty on a multi-thread one, where plugins
+    /// run on other workers: read [`capture::CapturingRuntime::events`].
     pub events: Events,
 }
 
@@ -895,7 +896,16 @@ impl RefHost {
 
     /// Drive `call` through both phases.
     pub async fn call(&self, call: Call) -> Outcome {
-        let (events, _guard) = capture::capturing();
+        // A thread-local sink sees a call's spawned plugins only when they
+        // share its thread.
+        let current_thread = tokio::runtime::Handle::try_current()
+            .is_ok_and(|h| h.runtime_flavor() == tokio::runtime::RuntimeFlavor::CurrentThread);
+        let (events, _guard) = if current_thread {
+            let (events, guard) = capture::capturing();
+            (events, Some(guard))
+        } else {
+            (Events::default(), None)
+        };
         let mut trace = Trace::default();
         let mut outcome = Outcome {
             denied_at: None,
@@ -968,8 +978,8 @@ impl RefHost {
 
         // The upstream.
         let forwarded = queued.forwarded(&inbound);
-        let reply = self.upstream.call(&body, &forwarded);
-        outcome.upstream = self.upstream.requests().pop();
+        let (reply, seen) = self.upstream.exchange(&body, &forwarded);
+        outcome.upstream = seen;
         outcome.response_headers =
             BTreeMap::from([("content-type".to_owned(), "application/json".to_owned())]);
 

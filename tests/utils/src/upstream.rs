@@ -257,9 +257,20 @@ impl Upstream {
     ///
     /// Only `tools/call` bodies are recorded, as in `server.py`.
     pub fn call(&self, body: &Value, headers: &HashMap<String, String>) -> Value {
+        self.exchange(body, headers).0
+    }
+
+    /// As [`Upstream::call`], also returning the request as recorded, so a
+    /// concurrent caller gets its own rather than the latest.
+    pub fn exchange(
+        &self,
+        body: &Value,
+        headers: &HashMap<String, String>,
+    ) -> (Value, Option<UpstreamRequest>) {
         let rpc_id = body.get("id").cloned().unwrap_or(Value::Null);
         if body.get("method").and_then(Value::as_str) != Some("tools/call") {
-            return json!({ "jsonrpc": "2.0", "id": rpc_id, "result": { "tools": [] } });
+            let reply = json!({ "jsonrpc": "2.0", "id": rpc_id, "result": { "tools": [] } });
+            return (reply, None);
         }
         let params = body.get("params").cloned().unwrap_or(Value::Null);
         let tool = arg_str(&params, "name").to_owned();
@@ -268,20 +279,22 @@ impl Upstream {
             .cloned()
             .unwrap_or_else(|| json!({}));
 
-        let mut state = self.lock();
-        state.seen.push(UpstreamRequest {
+        let seen = UpstreamRequest {
             tool: tool.clone(),
             arguments: arguments.clone(),
             headers: headers
                 .iter()
                 .map(|(k, v)| (k.to_lowercase(), v.clone()))
                 .collect(),
-        });
+        };
+        let mut state = self.lock();
+        state.seen.push(seen.clone());
 
         if let Some(result) = state.overrides.get(&tool) {
-            return json!({ "jsonrpc": "2.0", "id": rpc_id, "result": result });
+            let reply = json!({ "jsonrpc": "2.0", "id": rpc_id, "result": result });
+            return (reply, Some(seen));
         }
-        match state.run(&tool, &arguments) {
+        let reply = match state.run(&tool, &arguments) {
             Some(out) => json!({
                 "jsonrpc": "2.0",
                 "id": rpc_id,
@@ -294,7 +307,8 @@ impl Upstream {
                 "id": rpc_id,
                 "error": { "code": -32601, "message": format!("Unknown tool: {tool}") },
             }),
-        }
+        };
+        (reply, Some(seen))
     }
 
     /// Every recorded request, in arrival order.

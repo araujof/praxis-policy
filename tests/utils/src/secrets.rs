@@ -32,6 +32,11 @@ impl Planted {
         }
     }
 
+    /// Plant everything `other` planted.
+    pub fn extend(&mut self, other: &Self) {
+        self.0.extend(other.0.iter().cloned());
+    }
+
     /// The labels of the secrets found in `text`.
     fn found_in(&self, text: &str) -> Vec<&str> {
         self.0

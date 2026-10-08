@@ -9,6 +9,7 @@
 //! (RFC 8693 exchange) and for CIBA, each on its own host so their traffic
 //! never mixes.
 
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 
@@ -452,10 +453,11 @@ pub enum CibaPoll {
 }
 
 /// A scripted CIBA OP: a backchannel ack, then polls answered from a state
-/// the test advances.
+/// the test advances, per `auth_req_id` or for all of them.
 #[derive(Clone, Debug)]
 pub struct Ciba {
     poll: Arc<Mutex<CibaPoll>>,
+    per_id: Arc<Mutex<HashMap<String, CibaPoll>>>,
     issued: Arc<Mutex<Vec<String>>>,
 }
 
@@ -463,6 +465,7 @@ impl Default for Ciba {
     fn default() -> Self {
         Self {
             poll: Arc::new(Mutex::new(CibaPoll::Pending)),
+            per_id: Arc::default(),
             issued: Arc::default(),
         }
     }
@@ -475,9 +478,19 @@ impl Ciba {
         Self::default()
     }
 
-    /// Answer every later poll with `poll`.
+    /// Answer every later poll with `poll`, except for an id given its own
+    /// state by [`Ciba::set_for`].
     pub fn set(&self, poll: CibaPoll) {
         *self.poll.lock().unwrap_or_else(PoisonError::into_inner) = poll;
+    }
+
+    /// Answer later polls for `auth_req_id` with `poll`, ahead of
+    /// [`Ciba::set`].
+    pub fn set_for(&self, auth_req_id: &str, poll: CibaPoll) {
+        self.per_id
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(auth_req_id.to_owned(), poll);
     }
 
     /// Every `auth_req_id` the backchannel handed out, in order.
@@ -494,6 +507,7 @@ impl Ciba {
     pub fn install(&self, transport: FakeTransport) -> FakeTransport {
         let issued = Arc::clone(&self.issued);
         let poll = Arc::clone(&self.poll);
+        let per_id = Arc::clone(&self.per_id);
         transport
             .respond_with(CIBA_BACKCHANNEL_URL, move |req| {
                 if form_field(req, "login_hint").is_none_or(|h| h.is_empty()) {
@@ -511,10 +525,16 @@ impl Ciba {
                 ))
             })
             .respond_with(CIBA_TOKEN_URL, move |req| {
-                if form_field(req, "auth_req_id").is_none() {
+                let Some(id) = form_field(req, "auth_req_id") else {
                     return Ok(oauth_error("invalid_request"));
-                }
-                let state = poll.lock().unwrap_or_else(PoisonError::into_inner).clone();
+                };
+                let own = per_id
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .get(&id)
+                    .cloned();
+                let default = || poll.lock().unwrap_or_else(PoisonError::into_inner).clone();
+                let state = own.unwrap_or_else(default);
                 Ok(match state {
                     CibaPoll::Pending => oauth_error("authorization_pending"),
                     CibaPoll::Denied => oauth_error("access_denied"),

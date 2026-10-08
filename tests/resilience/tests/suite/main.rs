@@ -16,5 +16,6 @@
     reason = "test code"
 )]
 
+mod concurrency;
 mod dependency_failure;
 mod smoke;

@@ -86,6 +86,16 @@ fn pop_sink() {
     });
 }
 
+/// Close `events` on this thread. A no-op on any other thread, so a guard
+/// dropped after its task moved cannot close another capture.
+fn remove_sink(events: &Events) {
+    SINKS.with_borrow_mut(|sinks| {
+        if let Some(i) = sinks.iter().rposition(|s| Arc::ptr_eq(&s.0, &events.0)) {
+            sinks.remove(i);
+        }
+    });
+}
+
 struct Render {
     rendered: String,
     record: Option<String>,
@@ -174,11 +184,11 @@ fn install() {
 
 /// Closes the capture on drop, even if the test panics.
 #[derive(Debug)]
-pub struct CaptureGuard(());
+pub struct CaptureGuard(Events);
 
 impl Drop for CaptureGuard {
     fn drop(&mut self) {
-        pop_sink();
+        remove_sink(&self.0);
     }
 }
 
@@ -191,7 +201,7 @@ pub fn capturing() -> (Events, CaptureGuard) {
     install();
     let events = Events::default();
     push_sink(events.clone());
-    (events, CaptureGuard(()))
+    (events.clone(), CaptureGuard(events))
 }
 
 /// A multi-thread runtime whose every thread captures into one sink.
@@ -211,7 +221,7 @@ impl CapturingRuntime {
     /// Run `future` to completion, capturing on the calling thread as well.
     pub fn block_on<F: std::future::Future>(&self, future: F) -> F::Output {
         push_sink(self.events.clone());
-        let _close = CaptureGuard(());
+        let _close = CaptureGuard(self.events.clone());
         self.runtime.block_on(future)
     }
 }
