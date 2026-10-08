@@ -2875,6 +2875,7 @@ dependencies = [
 name = "praxis-policy-test-utils"
 version = "0.4.1"
 dependencies = [
+ "async-trait",
  "base64 0.23.1",
  "bytes",
  "jsonwebtoken",
@@ -2887,6 +2888,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "yaml_serde",
 ]
 
 [[package]]

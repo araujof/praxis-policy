@@ -82,6 +82,7 @@ use praxis_policy_core::extensions::{Extensions, MetaExtension};
 use praxis_policy_core::factory::{PluginFactory, PluginInstance};
 use praxis_policy_core::hooks::TypedHandlerAdapter;
 use praxis_policy_core::hooks::trait_def::{HookHandler, PluginResult};
+use praxis_policy_core::http::HttpTransport;
 use praxis_policy_core::http_hook::{HOOK_HTTP_RESPONSE, HttpHook, HttpPayload};
 use praxis_policy_core::http_testing::FakeTransport;
 use praxis_policy_core::identity::{
@@ -94,12 +95,15 @@ use serde_json::{Value, json};
 use crate::capture::{self, Events};
 use crate::fixtures::Fixture;
 use crate::idp::{self, Ciba, Exchange, Persona};
+use crate::live::{self, Targets};
 use crate::mcp;
 use crate::secrets::Planted;
 use crate::upstream::{Upstream, UpstreamRequest};
 
-/// The praxis commit the mirrored files were last checked against.
-pub const PRAXIS_COMMIT: &str = "446637b0";
+/// The praxis commit the mirrored files were last checked against. The
+/// `host-drift` job in `.github/workflows/integration-live.yml` diffs
+/// [`MIRRORED`] from here to praxis `main`, so keep the full SHA.
+pub const PRAXIS_COMMIT: &str = "446637b01cb038b13710be5ae1a59629edda946c";
 
 /// The praxis files this driver mirrors, relative to the praxis root.
 pub const MIRRORED: [&str; 5] = [
@@ -523,12 +527,15 @@ impl Call {
     /// token in `X-User-Token` and the agent's in `Authorization`.
     #[must_use]
     pub fn new(user: Persona, tool: &str) -> Self {
+        Self::with_tokens(tool, &user.token(), &Persona::HrCopilot.token())
+    }
+
+    /// `tool` with tokens minted elsewhere, such as by a live realm.
+    #[must_use]
+    pub fn with_tokens(tool: &str, user_token: &str, agent_token: &str) -> Self {
         Self::anonymous(tool)
-            .header("x-user-token", &user.token())
-            .header(
-                "authorization",
-                &format!("Bearer {}", Persona::HrCopilot.token()),
-            )
+            .header("x-user-token", user_token)
+            .header("authorization", &format!("Bearer {agent_token}"))
     }
 
     /// A call carrying no token at all.
@@ -710,12 +717,14 @@ impl Outcome {
 pub struct HostBuilder {
     transport: FakeTransport,
     session_stores: Vec<Arc<dyn SessionStoreFactory>>,
+    live_bases: Vec<String>,
 }
 
 impl std::fmt::Debug for HostBuilder {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("HostBuilder")
             .field("session_stores", &self.session_stores.len())
+            .field("live_bases", &self.live_bases)
             .finish_non_exhaustive()
     }
 }
@@ -738,6 +747,14 @@ impl HostBuilder {
         self
     }
 
+    /// Send requests under these base URLs over a real socket instead of
+    /// the scripted transport. See [`live`].
+    #[must_use]
+    pub fn live(mut self, bases: Vec<String>) -> Self {
+        self.live_bases = bases;
+        self
+    }
+
     /// Load `yaml` and initialize, as `PolicyFilter::new` does.
     ///
     /// The transport answers the JWKS, an honest token exchange and the
@@ -757,8 +774,13 @@ impl HostBuilder {
         let engine = engine(self.session_stores);
         let views = Views::default();
         engine.register_factory(PROBE_KIND, Box::new(HeaderProbeFactory(Arc::clone(&views))));
-        engine.set_http_transport(transport.clone());
-        engine.set_secret_providers(registry_with_vault(transport.clone()));
+        let egress: Arc<dyn HttpTransport> = if self.live_bases.is_empty() {
+            transport.clone()
+        } else {
+            Arc::new(live::Split::new(self.live_bases, transport.clone()))
+        };
+        engine.set_http_transport(egress.clone());
+        engine.set_secret_providers(registry_with_vault(egress));
         engine.load_config_yaml(yaml)?;
         engine.initialize().await?;
 
@@ -838,7 +860,21 @@ impl RefHost {
             .unwrap_or_else(|e| panic!("{} fixture fails to start: {e}", fixture.name()))
     }
 
-    /// The scripted transport every dependency call went through.
+    /// A host running `fixture` against the live `targets`.
+    ///
+    /// # Panics
+    ///
+    /// When the fixture fails to load or initialize.
+    pub async fn live(fixture: Fixture, targets: Targets<'_>) -> Self {
+        Self::builder()
+            .live(targets.bases())
+            .start(&fixture.live(targets))
+            .await
+            .unwrap_or_else(|e| panic!("live {} fixture fails to start: {e}", fixture.name()))
+    }
+
+    /// The scripted transport every dependency call went through. In live
+    /// mode, calls to a live base bypass it.
     #[must_use]
     pub fn transport(&self) -> &FakeTransport {
         &self.transport

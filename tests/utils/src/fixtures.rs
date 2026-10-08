@@ -6,11 +6,14 @@
 //! Documents live in `tests/integration/fixtures/` and are embedded at build
 //! time. Each one's header records how it departs from the demo. Every
 //! document here is hermetic: endpoints name the fake hosts in
-//! [`crate::idp`] and sessions use the memory store. Live mode will rewrite
-//! only endpoints and the session store, so it adds a second accessor beside
-//! [`Fixture::hermetic`] rather than a second set of documents.
+//! [`crate::idp`] and sessions use the memory store. Live mode rewrites
+//! only endpoints, the session store and the Vault provider, through
+//! [`Fixture::live`] and [`Targets::rewrite`], rather than keeping a second
+//! set of documents.
 
 use praxis_policy_core::http_testing::FakeTransport;
+
+use crate::live::Targets;
 
 /// One demo policy, named by the PDP its `search_repos` route consults.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -55,6 +58,12 @@ impl Fixture {
             Self::Cel => include_str!("../../integration/fixtures/policy-cel.yaml"),
             Self::Opa => include_str!("../../integration/fixtures/policy-opa.yaml"),
         }
+    }
+
+    /// The document, pointed at the live `targets`.
+    #[must_use]
+    pub fn live(self, targets: Targets<'_>) -> String {
+        targets.rewrite(self.hermetic())
     }
 }
 

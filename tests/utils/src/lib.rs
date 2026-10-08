@@ -24,6 +24,8 @@ pub mod host;
 #[cfg(feature = "suite")]
 pub mod idp;
 #[cfg(feature = "suite")]
+pub mod live;
+#[cfg(feature = "suite")]
 pub mod mcp;
 #[cfg(feature = "suite")]
 pub mod secrets;

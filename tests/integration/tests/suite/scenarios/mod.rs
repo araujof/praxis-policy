@@ -20,6 +20,7 @@ mod assertions;
 mod bob_allow;
 mod ciba_approval;
 mod eve_redact;
+mod live;
 mod pii;
 mod repo_access;
 mod taint;
