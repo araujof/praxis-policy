@@ -1,7 +1,7 @@
 ---
 title: "feat: Add integration, resilience, and security test suites"
 type: feat
-status: active
+status: completed
 date: 2026-10-07
 origin: docs/brainstorms/2026-10-07-integration-test-suite-requirements.md
 ---
