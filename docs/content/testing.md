@@ -187,9 +187,12 @@ the defect stands and fails once the fix lands. The fixing change removes
 the marker and the prefix. Preconditions and leak checks run before the gap
 assertion, so unrelated failures cannot satisfy it.
 
-Exact field paths and argument schemas have positive policy tests: `SSN`,
-`employee.ssn`, and the host's joined `text` field need explicit redaction
-rules; numeric approval gates need type and presence checks.
+Redaction paths match object keys without case sensitivity. `ssn` covers a
+top-level `SSN`; `employee.ssn` covers that nested field; `**.ssn` covers the
+name at any depth. A JSON record carried as a string in `text` is not parsed
+by the policy engine. Redact `text` as a whole or use a PII scanner for that
+shape. Numeric approval gates still need presence checks for missing amounts;
+present objects and nulls fail numeric comparisons closed.
 
 ### Live mode
 
