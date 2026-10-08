@@ -3,7 +3,7 @@
 
 name: Integration (live)
 
-# Non-blocking checks the hermetic suites cannot make:
+# Scheduled/manual checks the hermetic suites cannot make:
 #
 # - live: the integration suite's `scenarios::live` tests against a real
 #   Keycloak (the demo realm), Valkey and Vault. CIBA is skipped: the stock
@@ -35,7 +35,6 @@ jobs:
     name: live dependencies
     runs-on: ubuntu-24.04
     timeout-minutes: 40
-    continue-on-error: true
     permissions:
       contents: read
     services:
@@ -135,7 +134,6 @@ jobs:
     name: reference host drift
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    continue-on-error: true
     permissions:
       contents: read
     steps:
