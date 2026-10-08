@@ -145,7 +145,7 @@ async fn a_negative_amount_is_outside_the_gate_as_written() {
 /// read as an absent attribute, so the `when` does not fire and the call
 /// is forwarded with no approval.
 #[tokio::test]
-#[should_panic(expected = "known gap #TBD-object-arg-skips-gate")]
+#[should_panic(expected = "known gap #181 object-arg-skips-gate")]
 async fn known_gap_an_object_amount_does_not_skip_the_approval_gate() {
     let host = RefHost::hermetic(Fixture::Cedar).await;
     let call = adjust(json!({ "value": 25_000 }));
@@ -154,7 +154,7 @@ async fn known_gap_an_object_amount_does_not_skip_the_approval_gate() {
     out.assert_no_leaks(&planted);
     assert!(
         !out.allowed() && host.upstream().requests().is_empty(),
-        "known gap #TBD-object-arg-skips-gate: an object amount reached the upstream \
+        "known gap #181 object-arg-skips-gate: an object amount reached the upstream \
          without approval"
     );
 }

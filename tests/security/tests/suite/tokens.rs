@@ -237,7 +237,7 @@ async fn a_kid_from_another_trusted_issuer_does_not_cross_over() {
 /// extension listed in `crit` must reject the token. jsonwebtoken parses
 /// `crit` and never enforces it, and `identity_jwt` does not check it.
 #[tokio::test]
-#[should_panic(expected = "known gap #TBD-jwt-crit-ignored")]
+#[should_panic(expected = "known gap #181 jwt-crit-ignored")]
 async fn known_gap_an_unknown_crit_header_is_rejected() {
     let host = RefHost::hermetic(Fixture::Cedar).await;
     let token = idp::forge(
@@ -254,7 +254,7 @@ async fn known_gap_an_unknown_crit_header_is_rejected() {
     assert_eq!(
         out.denied_at,
         Some(Stage::Identity),
-        "known gap #TBD-jwt-crit-ignored: an unknown crit extension was accepted"
+        "known gap #181 jwt-crit-ignored: an unknown crit extension was accepted"
     );
 }
 

@@ -70,7 +70,7 @@ async fn an_ssn_inside_an_array_is_redacted() {
 
 /// Field paths match keys exactly.
 #[tokio::test]
-#[should_panic(expected = "known gap #TBD-redact-key-case")]
+#[should_panic(expected = "known gap #181 redact-key-case")]
 async fn known_gap_a_case_variant_ssn_key_is_redacted() {
     let mut record = jane();
     let value = record
@@ -79,29 +79,29 @@ async fn known_gap_a_case_variant_ssn_key_is_redacted() {
         .expect("an ssn");
     record["SSN"] = value;
     let (out, _) = eve_reads(as_text(&record)).await;
-    assert_no_ssn(&out, "known gap #TBD-redact-key-case");
+    assert_no_ssn(&out, "known gap #181 redact-key-case");
 }
 
 /// `ssn` addresses the top level (and array elements), not a nested record.
 #[tokio::test]
-#[should_panic(expected = "known gap #TBD-redact-nested")]
+#[should_panic(expected = "known gap #181 redact-nested")]
 async fn known_gap_a_nested_ssn_is_redacted() {
     let (out, _) = eve_reads(as_text(&json!({ "employee": jane() }))).await;
-    assert_no_ssn(&out, "known gap #TBD-redact-nested");
+    assert_no_ssn(&out, "known gap #181 redact-nested");
 }
 
 /// Two text parts are joined into one string, as praxis does
 /// (`build_response_content_for_method` in `json_rpc.rs`), so the record
 /// is never parsed and no field path applies.
 #[tokio::test]
-#[should_panic(expected = "known gap #TBD-redact-stringified")]
+#[should_panic(expected = "known gap #181 redact-stringified")]
 async fn known_gap_a_stringified_record_is_redacted() {
     let result = json!({ "content": [
         { "type": "text", "text": "Record:" },
         { "type": "text", "text": jane().to_string() },
     ] });
     let (out, _) = eve_reads(result).await;
-    assert_no_ssn(&out, "known gap #TBD-redact-stringified");
+    assert_no_ssn(&out, "known gap #181 redact-stringified");
 }
 
 /// Accepted behavior. Taint is keyed by subject and `X-Session-Id`, and

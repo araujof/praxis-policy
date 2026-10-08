@@ -117,7 +117,7 @@ fn forwarded_claim(out: &Outcome, claim: &str) -> serde_json::Value {
 /// The delegator never inspects the minted token, so an `aud` other than
 /// the one requested reaches the upstream.
 #[tokio::test]
-#[should_panic(expected = "known gap #TBD-exchange-audience-unchecked")]
+#[should_panic(expected = "known gap #181 exchange-audience-unchecked")]
 async fn known_gap_a_token_for_the_wrong_audience_is_forwarded() {
     let (host, out, planted) = through(Exchange::WrongAudience).await;
     if out.allowed() {
@@ -126,7 +126,7 @@ async fn known_gap_a_token_for_the_wrong_audience_is_forwarded() {
     assert!(
         out.violation_code()
             .is_some_and(|c| c.starts_with("delegation.")),
-        "known gap #TBD-exchange-audience-unchecked: a token minted for another \
+        "known gap #181 exchange-audience-unchecked: a token minted for another \
          audience was forwarded: {:?}",
         out.violation
     );
@@ -143,7 +143,7 @@ async fn known_gap_a_token_for_the_wrong_audience_is_forwarded() {
 /// Requested scopes must be a subset of the grant, and nothing bounds the
 /// grant from above, so an over-scoped token reaches the upstream.
 #[tokio::test]
-#[should_panic(expected = "known gap #TBD-exchange-scope-overgrant")]
+#[should_panic(expected = "known gap #181 exchange-scope-overgrant")]
 async fn known_gap_a_token_broader_than_requested_is_forwarded() {
     let (host, out, planted) = through(Exchange::BroaderScope).await;
     if out.allowed() {
@@ -152,7 +152,7 @@ async fn known_gap_a_token_broader_than_requested_is_forwarded() {
     assert!(
         out.violation_code()
             .is_some_and(|c| c.starts_with("delegation.")),
-        "known gap #TBD-exchange-scope-overgrant: a token granting more than was \
+        "known gap #181 exchange-scope-overgrant: a token granting more than was \
          requested was forwarded: {:?}",
         out.violation
     );
@@ -168,7 +168,7 @@ async fn known_gap_a_token_broader_than_requested_is_forwarded() {
 
 /// The minted token's `sub` is not compared with the caller's.
 #[tokio::test]
-#[should_panic(expected = "known gap #TBD-exchange-subject-unchecked")]
+#[should_panic(expected = "known gap #181 exchange-subject-unchecked")]
 async fn known_gap_a_token_for_another_subject_is_forwarded() {
     let (host, out, planted) = through(Exchange::DifferentSubject).await;
     if out.allowed() {
@@ -177,7 +177,7 @@ async fn known_gap_a_token_for_another_subject_is_forwarded() {
     assert!(
         out.violation_code()
             .is_some_and(|c| c.starts_with("delegation.")),
-        "known gap #TBD-exchange-subject-unchecked: a token speaking for another \
+        "known gap #181 exchange-subject-unchecked: a token speaking for another \
          subject was forwarded: {:?}",
         out.violation
     );
@@ -194,7 +194,7 @@ async fn known_gap_a_token_for_another_subject_is_forwarded() {
 /// `issued_token_type` is recorded, not checked, so an ID token is attached
 /// as the outbound bearer.
 #[tokio::test]
-#[should_panic(expected = "known gap #TBD-exchange-token-type-unchecked")]
+#[should_panic(expected = "known gap #181 exchange-token-type-unchecked")]
 async fn known_gap_an_unexpected_issued_token_type_is_forwarded() {
     let (host, out, planted) = through(Exchange::UnexpectedTokenType).await;
     if out.allowed() {
@@ -203,7 +203,7 @@ async fn known_gap_an_unexpected_issued_token_type_is_forwarded() {
     assert!(
         out.violation_code()
             .is_some_and(|c| c.starts_with("delegation.")),
-        "known gap #TBD-exchange-token-type-unchecked: an ID token was forwarded as \
+        "known gap #181 exchange-token-type-unchecked: an ID token was forwarded as \
          the delegated bearer: {:?}",
         out.violation
     );

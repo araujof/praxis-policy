@@ -109,7 +109,7 @@ async fn an_invented_id_is_denied_even_while_the_op_approves() {
 /// approver (`crates/builtins/src/plugins/elicitation_ciba/store.rs`), and
 /// nothing consumes an id once it validates.
 #[tokio::test]
-#[should_panic(expected = "known gap #TBD-elicitation-replay")]
+#[should_panic(expected = "known gap #181 elicitation-replay")]
 async fn known_gap_an_approved_id_applies_once() {
     let host = RefHost::hermetic(Fixture::Cedar).await;
     let id = approved_once(&host).await;
@@ -120,7 +120,7 @@ async fn known_gap_an_approved_id_applies_once() {
     assert_eq!(
         applied(&host, "adjust_compensation"),
         1,
-        "known gap #TBD-elicitation-replay: one approval applied twice"
+        "known gap #181 elicitation-replay: one approval applied twice"
     );
 }
 
@@ -143,7 +143,7 @@ async fn two_approval_routes() -> RefHost {
 
 /// Nothing ties an id to the route that dispatched it.
 #[tokio::test]
-#[should_panic(expected = "known gap #TBD-elicitation-tool-binding")]
+#[should_panic(expected = "known gap #181 elicitation-tool-binding")]
 async fn known_gap_an_approved_id_is_bound_to_its_tool() {
     let host = two_approval_routes().await;
     let id = approved_once(&host).await;
@@ -156,7 +156,7 @@ async fn known_gap_an_approved_id_is_bound_to_its_tool() {
     assert_eq!(
         applied(&host, "approve_bonus"),
         0,
-        "known gap #TBD-elicitation-tool-binding: an adjust_compensation approval \
+        "known gap #181 elicitation-tool-binding: an adjust_compensation approval \
          applied approve_bonus"
     );
 }
@@ -165,7 +165,7 @@ async fn known_gap_an_approved_id_is_bound_to_its_tool() {
 /// claim of her own so `from` resolves, redeems the approval alice gave
 /// Bob: validate compares the stored approvers only, not the live `from`.
 #[tokio::test]
-#[should_panic(expected = "known gap #TBD-elicitation-subject-binding")]
+#[should_panic(expected = "known gap #181 elicitation-subject-binding")]
 async fn known_gap_an_approved_id_is_bound_to_its_subject() {
     let host = RefHost::hermetic(Fixture::Cedar).await;
     let id = approved_once(&host).await;
@@ -180,6 +180,6 @@ async fn known_gap_an_approved_id_is_bound_to_its_subject() {
     assert_eq!(
         applied(&host, "adjust_compensation"),
         1,
-        "known gap #TBD-elicitation-subject-binding: Bob's approval applied Eve's call"
+        "known gap #181 elicitation-subject-binding: Bob's approval applied Eve's call"
     );
 }
