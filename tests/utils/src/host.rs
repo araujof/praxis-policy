@@ -55,7 +55,6 @@
 //! - Content-Length fitting of a rewritten response, and the
 //!   `gateway.response_rewrite_overflow` deny when a rewrite grows;
 //! - JSON-RPC parsing of an invalid body, and classifier metadata;
-//! - duplicate JSON object key rejection;
 //! - body size ceilings;
 //! - comma-joining duplicate header lines, and header name and value
 //!   validity on the wire.
@@ -103,7 +102,7 @@ use crate::upstream::{Upstream, UpstreamRequest};
 /// The praxis commit the mirrored files were last checked against. The
 /// `host-drift` job in `.github/workflows/integration-live.yml` diffs
 /// [`MIRRORED`] from here to praxis `main`, so keep the full SHA.
-pub const PRAXIS_COMMIT: &str = "446637b01cb038b13710be5ae1a59629edda946c";
+pub const PRAXIS_COMMIT: &str = "24731f91707e995b479026afdbe2b1bed89c22bb";
 
 /// The praxis files this driver mirrors, relative to the praxis root.
 pub const MIRRORED: [&str; 5] = [

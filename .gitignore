@@ -43,3 +43,6 @@
 /perf.data
 /perf.data.old
 /flamegraph.svg
+
+# Claude Code per-agent worktrees
+/.claude/worktrees/

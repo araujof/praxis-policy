@@ -161,8 +161,8 @@ tokens and request assertions, the upstream, response assertions, then
 violation code, protocol error details, what the upstream saw), not the
 wire format. It does not reproduce host-owned behavior, which praxis tests
 itself: the SSRF-checking transport, Content-Length fitting of a rewritten
-response, JSON-RPC parsing and classifier metadata, duplicate key
-rejection, body size ceilings, and header validity on the wire. The module
+response, JSON-RPC parsing and classifier metadata, body size
+ceilings, and header validity on the wire. The module
 docs list each.
 
 ### Host drift
